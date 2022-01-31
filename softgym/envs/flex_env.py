@@ -1,5 +1,6 @@
 import os
 import copy
+from statistics import mode
 from gym import error
 import numpy as np
 import gym
@@ -13,6 +14,7 @@ try:
 except ImportError as e:
     raise error.DependencyNotInstalled("{}. (You need to first compile the python binding)".format(e))
 
+from matplotlib import pyplot as plt
 
 class FlexEnv(gym.Env):
     def __init__(self,
@@ -27,13 +29,14 @@ class FlexEnv(gym.Env):
                  camera_name='default_camera',
                  deterministic=True,
                  use_cached_states=True,
+                 observation_mode = 'rgbd',
                  save_cached_states=True, **kwargs):
         self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
         pyflex.init(headless, render, camera_width, camera_height)
 
         self.record_video, self.video_path, self.video_name = False, None, None
 
-        self.metadata = {'render.modes': ['human', 'rgb_array']}
+        self.metadata = {'render.modes': ['human', 'rgb_array', 'rgbd']}
 
         if device_id == -1 and 'gpu_id' in os.environ:
             device_id = int(os.environ['gpu_id'])
@@ -57,6 +60,7 @@ class FlexEnv(gym.Env):
         self.dim_shape_state = 14
         self.particle_num = 0
         self.eval_flag = False
+        self.observation_mode = observation_mode
 
         # version 1 does not support robot, while version 2 does.
         pyflex_root = os.environ['PYFLEXROOT']
@@ -214,19 +218,30 @@ class FlexEnv(gym.Env):
         """
         raise NotImplementedError
 
-    def render(self, mode='rgb_array'):
+    def render(self, mode='rgb_array', depth=False):
         if mode == 'rgb_array':
-            img, depth = pyflex.render()
+            img, depth_img = pyflex.render()
             width, height = self.camera_params['default_camera']['width'], self.camera_params['default_camera']['height']
             img = img.reshape(height, width, 4)[::-1, :, :3]  # Need to reverse the height dimension
+            depth_img = depth_img.reshape(height, width, 1)[::-1, :, :1]
+            
+            # fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+            # axes[0].imshow(img)
+            # axes[1].imshow(depth_img.reshape(height, width))
+            # plt.show()
+
+
+            if depth:
+                img=np.concatenate((img, depth_img), axis=2)
             return img
+        
         elif mode == 'human':
             raise NotImplementedError
 
-    def get_image(self, width=720, height=720):
+    def get_image(self, width=720, height=720, depth=False):
         """ use pyflex.render to get a rendered image. """
-        img = self.render(mode='rgb_array')
-        img = img.astype(np.uint8)
+        img = self.render(mode='rgb_array', depth=depth)
+        #img = img.astype(np.uint8)
         if width != img.shape[0] or height != img.shape[1]:
             img = cv2.resize(img, (width, height))
         return img

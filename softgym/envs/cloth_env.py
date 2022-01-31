@@ -2,7 +2,7 @@ import numpy as np
 from gym.spaces import Box
 import pyflex
 from softgym.envs.flex_env import FlexEnv
-from softgym.action_space.action_space import  Picker, PickerPickPlace, PickerQPG
+from softgym.action_space.action_space import  Picker, PickerPickPlace, PickerQPG, PickerPickPlace1
 from softgym.action_space.robot_env import RobotBase
 from copy import deepcopy
 
@@ -14,8 +14,8 @@ class ClothEnv(FlexEnv):
         self.cloth_particle_radius = particle_radius
         super().__init__(**kwargs)
 
-        assert observation_mode in ['key_point', 'point_cloud', 'cam_rgb']
-        assert action_mode in ['picker', 'pickerpickplace', 'sawyer', 'franka', 'picker_qpg']
+        assert observation_mode in ['key_point', 'point_cloud', 'cam_rgb', 'cam_rgbd']
+        assert action_mode in ['picker', 'pickerpickplace', 'pickerpickplace1', 'sawyer', 'franka', 'picker_qpg']
         self.observation_mode = observation_mode
 
         if action_mode == 'picker':
@@ -25,7 +25,12 @@ class ClothEnv(FlexEnv):
             self.picker_radius = picker_radius
         elif action_mode == 'pickerpickplace':
             self.action_tool = PickerPickPlace(num_picker=num_picker, particle_radius=particle_radius, env=self, picker_threshold=picker_threshold,
-                                               picker_low=(-0.5, 0., -0.5), picker_high=(0.5, 0.3, 0.5))
+                                               picker_low=(-0.3, 0., -0.3), picker_high=(0.3, 0.2, 0.3))
+            self.action_space = self.action_tool.action_space
+            assert self.action_repeat == 1
+        elif action_mode == 'pickerpickplace1':
+            self.action_tool = PickerPickPlace1(num_picker=num_picker, particle_radius=particle_radius, env=self, picker_threshold=picker_threshold,
+                                               picker_low=kwargs['pick_low'], picker_high=kwargs['pick_high'])
             self.action_space = self.action_tool.action_space
             assert self.action_repeat == 1
         elif action_mode in ['sawyer', 'franka']:
@@ -93,7 +98,9 @@ class ClothEnv(FlexEnv):
         if self.action_mode in ['sawyer', 'franka']:
             cam_pos, cam_angle = np.array([0.0, 1.62576, 1.04091]), np.array([0.0, -0.844739, 0])
         else:
-            cam_pos, cam_angle = np.array([-0.0, 0.82, 0.82]), np.array([0, -45 / 180. * np.pi, 0.])
+            #cam_pos, cam_angle = np.array([-0.0, 0.82, 0.82]), np.array([0, -45 / 180. * np.pi, 0.])
+            cam_pos, cam_angle = np.array([-0.0, 1.5, 0]), np.array([0, -90 / 180. * np.pi, 0.])
+
         config = {
             'ClothPos': [-1.6, 2.0, -0.8],
             'ClothSize': [int(0.6 / particle_radius), int(0.368 / particle_radius)],
@@ -112,6 +119,10 @@ class ClothEnv(FlexEnv):
     def _get_obs(self):
         if self.observation_mode == 'cam_rgb':
             return self.get_image(self.camera_height, self.camera_width)
+        
+        if self.observation_mode == 'cam_rgbd':
+            return self.get_image(self.camera_height, self.camera_width, depth=True)
+        
         if self.observation_mode == 'point_cloud':
             particle_pos = np.array(pyflex.get_positions()).reshape([-1, 4])[:, :3].flatten()
             pos = np.zeros(shape=self.particle_obs_dim, dtype=np.float)
@@ -120,7 +131,6 @@ class ClothEnv(FlexEnv):
             particle_pos = np.array(pyflex.get_positions()).reshape([-1, 4])[:, :3]
             keypoint_pos = particle_pos[self._get_key_point_idx(), :3]
             pos = keypoint_pos
-
         if self.action_mode in ['sphere', 'picker']:
             shapes = pyflex.get_shape_states()
             shapes = np.reshape(shapes, [-1, 14])
