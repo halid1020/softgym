@@ -5,7 +5,12 @@ from softgym.envs.cloth_env import ClothEnv
 from copy import deepcopy
 from softgym.utils.misc import vectorized_range, vectorized_meshgrid
 from softgym.utils.pyflex_utils import center_object
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import cv2
+import math
 
+from time import sleep
 
 class ClothFlattenEnv(ClothEnv):
     def __init__(self, cached_states_path='cloth_flatten_init_states.pkl', **kwargs):
@@ -96,7 +101,10 @@ class ClothFlattenEnv(ClothEnv):
         cloth_dimx, cloth_dimz = self.get_current_config()['ClothSize']
         N = cloth_dimx * cloth_dimz
         px = np.linspace(0, cloth_dimx * self.cloth_particle_radius, cloth_dimx)
+        px -= cloth_dimx * self.cloth_particle_radius/2 
         py = np.linspace(0, cloth_dimz * self.cloth_particle_radius, cloth_dimz)
+        py -= cloth_dimz * self.cloth_particle_radius/2
+
         xx, yy = np.meshgrid(px, py)
         new_pos = np.empty(shape=(N, 4), dtype=np.float)
         new_pos[:, 0] = xx.flatten()
@@ -104,7 +112,9 @@ class ClothFlattenEnv(ClothEnv):
         new_pos[:, 2] = yy.flatten()
         new_pos[:, 3] = 1.
         new_pos[:, :3] -= np.mean(new_pos[:, :3], axis=0)
+        self._target_pos = new_pos.copy()
         pyflex.set_positions(new_pos.flatten())
+        print('flatten reward', self._distance_reward(pyflex.get_positions()))
         return self._get_current_covered_area(new_pos)
 
     def _reset(self):
@@ -147,6 +157,7 @@ class ClothFlattenEnv(ClothEnv):
         slotted_x_high = np.minimum(np.round((offset[:, 0] + self.cloth_particle_radius) / span[0]).astype(int), 100)
         slotted_y_low = np.maximum(np.round((offset[:, 1] - self.cloth_particle_radius) / span[1]).astype(int), 0)
         slotted_y_high = np.minimum(np.round((offset[:, 1] + self.cloth_particle_radius) / span[1]).astype(int), 100)
+
         # Method 1
         grid = np.zeros(10000)  # Discretization
         listx = vectorized_range(slotted_x_low, slotted_x_high)
@@ -155,6 +166,9 @@ class ClothFlattenEnv(ClothEnv):
         idx = listxx * 100 + listyy
         idx = np.clip(idx.flatten(), 0, 9999)
         grid[idx] = 1
+        # cv2.imshow('Reward Image', grid.reshape(100, 100))
+        # cv2.waitKey(1)
+        # print(np.sum(grid) /10000)
 
         return np.sum(grid) * span[0] * span[1]
 
@@ -172,11 +186,29 @@ class ClothFlattenEnv(ClothEnv):
         max_x = np.max(pos[:, 0])
         max_y = np.max(pos[:, 2])
         return 0.5 * (min_x + max_x), 0.5 * (min_y + max_y)
+    
+    def _distance_reward(self, particle_pos):
+        particle_pos = particle_pos.reshape(-1, 4)[:, :3]
+        
+        target_pos = self._target_pos[:, :3]
+        min_distance = np.linalg.norm(particle_pos-target_pos)
+        
+        target_pos[:, 0] =  -target_pos[:, 0]
+        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
+        
+        target_pos[:, 2] =  -target_pos[:, 2]
+        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
+
+        target_pos[:, 0] =  -target_pos[:, 0]
+        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
+
+
+        return math.exp(-min_distance/10)
 
     def compute_reward(self, action=None, obs=None, set_prev_reward=False):
         particle_pos = pyflex.get_positions()
-        curr_covered_area = self._get_current_covered_area(particle_pos)
-        r = curr_covered_area
+        #curr_covered_area = self._get_current_covered_area(particle_pos)
+        r = self._distance_reward(particle_pos)
         return r
 
     # @property
