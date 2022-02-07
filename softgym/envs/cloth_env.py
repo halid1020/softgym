@@ -8,7 +8,7 @@ from copy import deepcopy
 
 
 class ClothEnv(FlexEnv):
-    def __init__(self, observation_mode, action_mode, num_picker=2, render_mode='particle', picker_radius=0.05, picker_threshold=0.005, particle_radius=0.00625, **kwargs):
+    def __init__(self, observation_mode, action_mode, num_picker=2, render_mode='particle', picker_radius=0.02, picker_threshold=0.005, particle_radius=0.00625, **kwargs):
         self.render_mode = render_mode
         self.action_mode = action_mode
         self.cloth_particle_radius = particle_radius
@@ -29,7 +29,7 @@ class ClothEnv(FlexEnv):
             self.action_space = self.action_tool.action_space
             assert self.action_repeat == 1
         elif action_mode == 'pickerpickplace1':
-            self.action_tool = PickerPickPlace1(num_picker=num_picker, particle_radius=particle_radius, env=self, picker_threshold=picker_threshold,
+            self.action_tool = PickerPickPlace1(num_picker=num_picker, picker_radius=picker_radius,  particle_radius=particle_radius, env=self, picker_threshold=picker_threshold,
                                                picker_low=kwargs['pick_low'], picker_high=kwargs['pick_high'])
             self.action_space = self.action_tool.action_space
             assert self.action_repeat == 1
