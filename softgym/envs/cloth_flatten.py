@@ -22,13 +22,15 @@ class ClothFlattenEnv(ClothEnv):
         super().__init__(**kwargs)
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
         self.prev_covered_area = None  # Should not be used until initialized
+        self._reward_mode = kwargs['reward_mode']
 
-    def generate_env_variation(self, num_variations=1, vary_cloth_size=True):
+    def generate_env_variation(self, num_variations=1, vary_cloth_size=False):
         """ Generate initial states. Note: This will also change the current states! """
         max_wait_step = 300  # Maximum number of steps waiting for the cloth to stablize
         stable_vel_threshold = 0.01  # Cloth stable when all particles' vel are smaller than this
         generated_configs, generated_states = [], []
         default_config = self.get_default_config()
+        #self.set_colors([0, 1, 0])
 
         for i in range(num_variations):
             config = deepcopy(default_config)
@@ -114,7 +116,8 @@ class ClothFlattenEnv(ClothEnv):
         new_pos[:, :3] -= np.mean(new_pos[:, :3], axis=0)
         self._target_pos = new_pos.copy()
         pyflex.set_positions(new_pos.flatten())
-        print('flatten reward', self._distance_reward(pyflex.get_positions()))
+        pyflex.step()
+        self._target_img = self.render()
         return self._get_current_covered_area(new_pos)
 
     def _reset(self):
@@ -205,11 +208,14 @@ class ClothFlattenEnv(ClothEnv):
 
         return math.exp(-min_distance/10)
 
+    def _pixel_reward(self, img):
+        return ((1 - math.sqrt(np.mean((img/255.0-self._target_img/255.0)**2))) -0.5) * 2
+
     def compute_reward(self, action=None, obs=None, set_prev_reward=False):
-        particle_pos = pyflex.get_positions()
-        #curr_covered_area = self._get_current_covered_area(particle_pos)
-        r = self._distance_reward(particle_pos)
-        return r
+        if self._reward_mode == "distance_reward":
+            return self._distance_reward(pyflex.get_positions())
+        if self._reward_mode == "pixel_rmse":
+            return self._pixel_reward(self.render())
 
     # @property
     # def performance_bound(self):
