@@ -2,7 +2,7 @@ import numpy as np
 from gym.spaces import Box
 import pyflex
 from softgym.envs.flex_env import FlexEnv
-from softgym.action_space.action_space import  Picker, PickerPickPlace, PickerQPG, PickerPickPlace1
+from softgym.action_space.action_space import  Picker, PickerPickPlace, PickerQPG
 from softgym.action_space.robot_env import RobotBase
 from copy import deepcopy
 
@@ -23,16 +23,18 @@ class ClothEnv(FlexEnv):
                                       picker_low=(-0.4, 0., -0.4), picker_high=(1.0, 0.5, 0.4))
             self.action_space = self.action_tool.action_space
             self.picker_radius = picker_radius
+        
         elif action_mode == 'pickerpickplace':
-            self.action_tool = PickerPickPlace(num_picker=num_picker, particle_radius=particle_radius, env=self, picker_threshold=picker_threshold,
-                                               picker_low=(-0.3, 0., -0.3), picker_high=(0.3, 0.2, 0.3))
+            self.action_tool = PickerPickPlace(
+                num_picker=num_picker, 
+                particle_radius=particle_radius, 
+                env=self, picker_threshold=picker_threshold, 
+                picker_radius=picker_radius,
+                camera_depth=self.get_current_config()['camera_params']['default_camera']['pos'][1], **kwargs)
+
             self.action_space = self.action_tool.action_space
             assert self.action_repeat == 1
-        elif action_mode == 'pickerpickplace1':
-            self.action_tool = PickerPickPlace1(num_picker=num_picker, picker_radius=picker_radius,  particle_radius=particle_radius, env=self, picker_threshold=picker_threshold,
-                                               picker_low=kwargs['pick_low'], picker_high=kwargs['pick_high'])
-            self.action_space = self.action_tool.action_space
-            assert self.action_repeat == 1
+        
         elif action_mode in ['sawyer', 'franka']:
             self.action_tool = RobotBase(action_mode)
             self.action_space = self.action_tool.action_space
