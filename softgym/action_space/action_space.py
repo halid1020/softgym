@@ -1,4 +1,6 @@
 import abc
+from statistics import mode
+from matplotlib.pyplot import xscale
 import numpy as np
 from gym.spaces import Box
 from softgym.utils.misc import rotation_2d_around_center, extend_along_center
@@ -202,22 +204,29 @@ class PickerPickPlace(Picker):
     If place, place everything from the begining.
     If pick, pick everything on the way.
     """
-    def __init__(self, num_picker, env=None, picker_low=None, picker_high=None, **kwargs):
+    def __init__(self, num_picker, env=None, picker_low=None, picker_high=None, step_mode='world_pick_or_place', picker_radius=0.02, **kwargs):
+        if step_mode == "pixel_pick_and_place":
+            self._pixel_to_world_ratio = 0.415 # While depth=1
+            self._pick_height = kwargs['pick_height']
+            self._place_height = kwargs['place_height']
+            self._camera_depth = kwargs['camera_depth']
+
+            picker_low = [picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, 0, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth]
+            picker_high = [picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, 1, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth]
+
         super().__init__(num_picker=num_picker,
                          picker_low=picker_low,
                          picker_high=picker_high,
+                         picker_radius=picker_radius,
                          **kwargs)
         picker_low, picker_high = list(picker_low), list(picker_high)
-        self.action_space = Box(np.array([*picker_low, 0.] * self.num_picker),
-                                np.array([*picker_high, 1.] * self.num_picker), dtype=np.float32)
+        self.action_space = Box(np.array([*picker_low] * self.num_picker),
+                                np.array([*picker_high] * self.num_picker), dtype=np.float32)
         self.delta_move = 0.01
         self.env = env
+        self._step_mode = step_mode
 
-    def step(self, action):
-        """
-        action: Array of pick_num x 4. For each picker, the action should be [x, y, z, pick/drop]. The picker will then first pick/drop, and keep
-        the pick/drop state while moving towards x, y, x.
-        """
+    def _world_pick_or_place(self, action):
         total_steps = 0
         action = action.reshape(-1, 4)
         curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
@@ -243,53 +252,8 @@ class PickerPickPlace(Picker):
                 break
         return total_steps
 
-    def get_model_action(self, action, picker_pos):
-        """Input the action and return the action used for GNN model prediction"""
-        action = action.reshape(-1, 4)
-        curr_pos = picker_pos
-        end_pos = np.vstack([self._apply_picker_boundary(picker_pos) for picker_pos in action[:, :3]])
-        dist = np.linalg.norm(curr_pos - end_pos, axis=1)
-        num_step = np.max(np.ceil(dist / self.delta_move))
-        if num_step < 0.1:
-            return [], curr_pos
-        delta = (end_pos - curr_pos) / num_step
-        norm_delta = np.linalg.norm(delta)
-        model_actions = []
-        for i in range(int(min(num_step, 300))):  # The maximum number of steps allowed for one pick and place
-            dist = np.linalg.norm(end_pos - curr_pos, axis=1)
-            if np.alltrue(dist < norm_delta):
-                delta = end_pos - curr_pos
-            super().step(np.hstack([delta, action[:, 3].reshape(-1, 1)]))
-            model_actions.append(np.hstack([delta, action[:, 3].reshape(-1, 1)]))
-            curr_pos += delta
-            if np.alltrue(dist < self.delta_move):
-                break
-        return model_actions, curr_pos
-
-
-class PickerPickPlace1(Picker):
-    """
-    Action space 6D: target pick position(3D) and target place position (3D)
-    release everything, go to target pick, pick, go to target place position while holding, then release
-    """
-    def __init__(self, num_picker, env=None, picker_low=None, picker_high=None, **kwargs):
-        super().__init__(num_picker=num_picker,
-                         picker_low=picker_low,
-                         picker_high=picker_high,
-                         **kwargs)
-        picker_low, picker_high = list(picker_low), list(picker_high)
-        self.action_space = Box(np.array([*picker_low] * self.num_picker),
-                                np.array([*picker_high] * self.num_picker), dtype=np.float32)
-        self.delta_move = 0.01
-        self.env = env
-
-    def step(self, action, render=True):
-        """
-        action: Array of pick_num x 4. For each picker, the action should be [x, y, z, pick/drop]. The picker will then first pick/drop, and keep
-        the pick/drop state while moving towards x, y, x.
-        """
+    def _world_pick_and_place(self, action, render):
         total_steps = 0
-        #action = action.reshape(-1, 4)
         action = action.reshape(-1, 2, 3)
 
 
@@ -367,6 +331,54 @@ class PickerPickPlace1(Picker):
 
         return total_steps
 
+    def _pixel_pick_and_place(self, action, render=True):
+        # Input is 4D, normalised pixel position, [-1, 1]
+        # Calculate world pick and place
+        action = action.reshape(-1, 2, 2)
+        pick_height = self._pick_height
+        place_height = self._place_height
+
+        xs = action[:, :, 0]*self._pixel_to_world_ratio
+        ys = action[:, :, 1]*self._pixel_to_world_ratio
+
+        xs[:, 0] = xs[:, 0]*(self._camera_depth - pick_height)
+        xs[:, 1] = xs[:, 1]*(self._camera_depth - place_height)
+
+        ys[:, 0] = ys[:, 0] *(self._camera_depth - pick_height)
+        ys[:, 1] = ys[:, 1] *(self._camera_depth - place_height)
+        
+        new_action = np.zeros((self.num_picker, 2, 3))
+        new_action[:, :, 0] = xs
+        new_action[:, :, 2] = ys
+
+        pick_heights = np.full(self.num_picker, pick_height)
+        place_heights = np.full(self.num_picker, place_height)
+        new_action[:, 0, 1] = pick_heights # x, z, y
+        new_action[:, 1, 1] = place_heights #x,z,y
+
+        print(new_action)
+        new_action = new_action.flatten()
+        
+        return self._world_pick_and_place(new_action, render=render)
+
+
+    def step(self, action, render=True, mode=None):
+        """
+        action: Array of pick_num x 4. For each picker, the action should be [x, y, z, pick/drop]. The picker will then first pick/drop, and keep
+        the pick/drop state while moving towards x, y, x.
+        """
+        mode = self._step_mode if mode == None else mode
+        if mode == "world_pick_or_place":
+            return self._world_pick_or_place(action, render=render)
+        
+        if mode == "world_pick_and_place":
+            return self._world_pick_and_place(action, render=render)
+
+        if mode == "pixel_pick_and_place":
+            return self._pixel_pick_and_place(action, render=render)
+    
+
+
     def get_model_action(self, action, picker_pos):
         """Input the action and return the action used for GNN model prediction"""
         action = action.reshape(-1, 4)
@@ -389,13 +401,6 @@ class PickerPickPlace1(Picker):
             if np.alltrue(dist < self.delta_move):
                 break
         return model_actions, curr_pos
-
-class PickerPickPlace2(Picker): #TODO
-    """
-    Action space 4D: target pick position(2D) and target place position (2D) in pixel dimension.
-    release everything, go to target pick, pick, go to target place position while holding, then release
-    """
-    #TODO
     
 
 
