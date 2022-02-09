@@ -30,7 +30,6 @@ class ClothFlattenEnv(ClothEnv):
         stable_vel_threshold = 0.01  # Cloth stable when all particles' vel are smaller than this
         generated_configs, generated_states = [], []
         default_config = self.get_default_config()
-        #self.set_colors([0, 1, 0])
 
         for i in range(num_variations):
             config = deepcopy(default_config)
@@ -85,10 +84,12 @@ class ClothFlattenEnv(ClothEnv):
                     break
 
             center_object()
+            
 
             if self.action_mode == 'sphere' or self.action_mode.startswith('picker'):
                 curr_pos = pyflex.get_positions()
                 self.action_tool.reset(curr_pos[pickpoint * 4:pickpoint * 4 + 3] + [0., 0.2, 0.])
+                
             generated_configs.append(deepcopy(config))
             generated_states.append(deepcopy(self.get_state()))
             self.current_config = config  # Needed in _set_to_flatten function
