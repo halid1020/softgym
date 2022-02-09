@@ -211,8 +211,12 @@ class PickerPickPlace(Picker):
             self._place_height = kwargs['place_height']
             self._camera_depth = kwargs['camera_depth']
 
-            picker_low = [picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, 0, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth]
-            picker_high = [picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, 1, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth]
+            picker_low = [picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, self._pick_height, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth,
+                          picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, self._place_height, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth]
+
+            picker_high = [picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._pick_height, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth,
+                           picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._place_height, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth]
+              
 
         super().__init__(num_picker=num_picker,
                          picker_low=picker_low,
@@ -355,8 +359,7 @@ class PickerPickPlace(Picker):
         place_heights = np.full(self.num_picker, place_height)
         new_action[:, 0, 1] = pick_heights # x, z, y
         new_action[:, 1, 1] = place_heights #x,z,y
-
-        print(new_action)
+        
         new_action = new_action.flatten()
         
         return self._world_pick_and_place(new_action, render=render)
@@ -401,6 +404,14 @@ class PickerPickPlace(Picker):
             if np.alltrue(dist < self.delta_move):
                 break
         return model_actions, curr_pos
+    
+    def sample(self):
+        if self._step_mode == "pixel_pick_and_place":
+            ret = np.random.rand(self.num_picker, 2, 2) * 2 - 1
+            return ret.flatten()
+
+
+        return super().sample()
     
 
 
