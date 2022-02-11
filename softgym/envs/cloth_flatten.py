@@ -112,7 +112,7 @@ class ClothFlattenEnv(ClothEnv):
         L = len(xx)
         W = len(xx[0])
         self._corner_ids = [0, W-1, (L-1)*W, L*W-1]
-        print('corner ids', self._corner_ids)
+        #print('corner ids', self._corner_ids)
         new_pos = np.empty(shape=(N, 4), dtype=np.float)
         new_pos[:, 0] = xx.flatten()
         new_pos[:, 1] = self.cloth_particle_radius
@@ -127,7 +127,7 @@ class ClothFlattenEnv(ClothEnv):
     
     def get_corner_positions(self):
         all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
-        print('num particles', len(all_particle_positions))
+        #print('num particles', len(all_particle_positions))
         return all_particle_positions[self._corner_ids]
 
 

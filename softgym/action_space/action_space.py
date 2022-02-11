@@ -31,7 +31,7 @@ class Picker(ActionToolBase):
         PLACE = 2
         
 
-    def __init__(self, num_picker=1, picker_radius=0.05, init_pos=(0., -0.1, 0.), picker_threshold=0.1, particle_radius=0.05,
+    def __init__(self, num_picker=1, picker_radius=0.05, init_pos=(0., -0.1, 0.), picker_threshold=0.005, particle_radius=0.05,
                  picker_low=(-0.4, 0., -0.4), picker_high=(0.4, 0.5, 0.4), init_particle_pos=None, spring_coef=1.2, **kwargs):
         """
 
@@ -67,7 +67,9 @@ class Picker(ActionToolBase):
     def _apply_picker_boundary(self, picker_pos):
         clipped_picker_pos = picker_pos.copy()
         for i in range(3):
-            clipped_picker_pos[i] = np.clip(picker_pos[i], self.picker_low[i] + self.picker_radius, self.picker_high[i] - self.picker_radius)
+            if i == 1:
+                #print('low z, high z, picker radius, input_pos', self.picker_low[i], self.picker_high[i], self.picker_radius, picker_pos[i])
+                clipped_picker_pos[i] = np.clip(picker_pos[i], self.picker_low[i], self.picker_high[i])
         return clipped_picker_pos
 
     def _get_centered_picker_pos(self, center):
@@ -146,6 +148,7 @@ class Picker(ActionToolBase):
         # print('check pick id:', self.picked_particles, new_particle_pos.shape, self.particle_inv_mass.shape)
         for i in range(self.num_picker):
             if (place_flag[i] or pick_flag[i]) and self.picked_particles[i] is not None:
+                #print('release ...')
                 new_particle_pos[self.picked_particles[i], 3] = self.particle_inv_mass[self.picked_particles[i]]  # Revert the mass
                 self.picked_particles[i] = None
 
@@ -156,6 +159,7 @@ class Picker(ActionToolBase):
                 continue
 
             if pick_flag[i]:  # No particle is currently picked and thus need to select a particle to pick
+                #print('Intent to pick .....')
                 dists = scipy.spatial.distance.cdist(picker_pos[i].reshape((-1, 3)), particle_pos[:, :3].reshape((-1, 3)))
                 idx_dists = np.hstack([np.arange(particle_pos.shape[0]).reshape((-1, 1)), dists.reshape((-1, 1))])
                 mask = dists.flatten() <= self.picker_threshold + self.picker_radius + self.particle_radius
@@ -170,6 +174,7 @@ class Picker(ActionToolBase):
                         self.picked_particles[i] = int(pick_id)
 
             if self.picked_particles[i] is not None:
+                #print('holding....')
                 # TODO The position of the particle needs to be updated such that it is close to the picker particle
                 new_particle_pos[self.picked_particles[i], :3] = particle_pos[self.picked_particles[i], :3] + new_picker_pos[i, :] - picker_pos[i,
                                                                                                                                         :]
@@ -217,10 +222,10 @@ class PickerPickPlace(Picker):
             self._camera_depth = kwargs['camera_depth']
 
             picker_low = [picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, self._pick_height, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth,
-                          picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, self._place_height+0.5, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth]
+                          picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, self._pick_height, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth]
 
-            picker_high = [picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._pick_height, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth,
-                           picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._place_height+0.5, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth]
+            picker_high = [picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._place_height, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth,
+                           picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._place_height, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth]
               
 
         super().__init__(num_picker=num_picker,
@@ -231,7 +236,7 @@ class PickerPickPlace(Picker):
         picker_low, picker_high = list(picker_low), list(picker_high)
         self.action_space = Box(np.array([*picker_low] * self.num_picker),
                                 np.array([*picker_high] * self.num_picker), dtype=np.float32)
-        self.delta_move = 0.01
+        self.delta_move = 0.01 # maximum velociy 1cm/frame
         self.env = env
         self._step_mode = step_mode
 
@@ -241,24 +246,31 @@ class PickerPickPlace(Picker):
         curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
         end_pos = np.vstack([self._apply_picker_boundary(picker_pos) for picker_pos in action[:, :3]])
         dist = np.linalg.norm(curr_pos - end_pos, axis=1)
-        num_step = np.max(np.ceil(dist / self.delta_move))
+        num_step = np.max(np.ceil(dist / self.delta_move)) 
         if num_step < 0.1:
             return total_steps
-        delta = (end_pos - curr_pos) / num_step
-        norm_delta = np.linalg.norm(delta)
+        delta = (end_pos - curr_pos) / num_step # Get average distance need to move every step
+        norm_delta = np.linalg.norm(delta) # Get the magtitude of the average distance.
+        #print('num step', num_step)
         for i in range(int(min(num_step, 300))):  # The maximum number of steps allowed for one pick and place
+            #print('middle level step')
             curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
             dist = np.linalg.norm(end_pos - curr_pos, axis=1)
             if np.alltrue(dist < norm_delta):
                 delta = end_pos - curr_pos
-            super().step(np.hstack([delta, action[:, 3].reshape(-1, 1)]))
+            super().step(np.hstack([delta, action[:, 3].reshape(-1, 1)])) # Apply average distanec to tthe target
             pyflex.step()
             if render:
                 pyflex.render()
             total_steps += 1
             if self.env is not None and self.env.recording:
                 self.env.video_frames.append(self.env.render(mode='rgb_array'))
-            if np.alltrue(dist < self.delta_move):
+            if np.alltrue(dist < self.delta_move): # If all axis of curren distant within 1cm break.
+                #print('break')
+                #print('targe pos', end_pos)
+                #print('cur pos', np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3])
+
+
                 break
         return total_steps
 
@@ -269,26 +281,33 @@ class PickerPickPlace(Picker):
         place_height = action[:, 1, 1]
 
         # Raise to certain height, while releasing
+        #print('Raise to certain height, while releasing {}'.format(place_height))
         curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
         
         curr_pos[:, 1] = place_height
         raise_action = np.concatenate([curr_pos, np.full((self.num_picker, 1), 2.1)], axis=1).flatten()
+        #print('raise_action', raise_action)
         total_steps += self._world_pick_or_place(raise_action, render)
 
 
         # Go to pick position while releasing without changing the height
+        #print('Go to pick position while releasing without changing the height')
         go_to_pick_pos_action = action[:, 0, :].copy()
         go_to_pick_pos_action[:, 1] = place_height
         go_to_pick_pos_action = np.concatenate([go_to_pick_pos_action, np.full((self.num_picker, 1), 2.1)], axis=1).flatten()
+        #print('go_to_pick_pos_action', go_to_pick_pos_action)
         total_steps += self._world_pick_or_place(go_to_pick_pos_action, render)
 
         # Lower the height
+        #print('Lower the height')
         curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
         curr_pos[:, 1] = pick_height
         lower_action = np.concatenate([curr_pos, np.full((self.num_picker, 1), 2.1)], axis=1).flatten()
+        #print('lower_action', lower_action)
         total_steps += self._world_pick_or_place(lower_action, render)
 
-        # Pick 
+        # Pick
+        #print('Pick')
         super().step(np.hstack([np.zeros((1, 3)), np.zeros((1,1))]))
         pyflex.step()
         if render:
@@ -297,92 +316,28 @@ class PickerPickPlace(Picker):
 
 
         # raise the height
+        #print('Raise the height')
         curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
         curr_pos[:, 1] = place_height
         raise_action = np.concatenate([curr_pos, np.full((self.num_picker, 1), 1.5)], axis=1).flatten()
+        #print('raise action after pick', raise_action)
         total_steps += self._world_pick_or_place(raise_action, render)
 
 
         # got the place position
+        #print('got the place position')
         go_to_place_pos_action = action[:, 1, :].copy()
         go_to_place_pos_action = np.concatenate([go_to_place_pos_action, np.full((self.num_picker, 1), 1.5)], axis=1).flatten()
+        #print('go_to_place_pos_action', go_to_place_pos_action)
         total_steps += self._world_pick_or_place(go_to_place_pos_action, render)
 
         # place
+        #print('Place')
         super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), 2.1)]))
         pyflex.step()
         if render:
             pyflex.render()
         total_steps += 1
-
-
-        # dist = np.linalg.norm(curr_pos - end_pos, axis=1)
-        # num_step = np.max(np.ceil(dist / self.delta_move))
-        # if num_step < 0.1:
-        #     return
-        # delta = (end_pos - curr_pos) / num_step
-        # norm_delta = np.linalg.norm(delta)
-
-        # for i in range(int(min(num_step, 300))):  # The maximum number of steps allowed for one pick and place
-        #     curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
-        #     dist = np.linalg.norm(end_pos - curr_pos, axis=1)
-        #     if np.alltrue(dist < norm_delta):
-        #         delta = end_pos - curr_pos
-        #     super().step(np.hstack([delta, np.full((1,1), 2.1)]))
-        #     pyflex.step()
-            
-        #     if render:
-        #         pyflex.render()
-            
-        #     total_steps += 1
-        #     if self.env is not None and self.env.recording:
-        #         self.env.video_frames.append(self.env.render(mode='rgb_array'))
-        #     if np.alltrue(dist < self.delta_move):
-        #         break
-        
-        
-        # # Pick 
-        # super().step(np.hstack([np.zeros((1, 3)), np.zeros((1,1))]))
-        # pyflex.step()
-        # if render:
-        #     pyflex.render()
-        # total_steps += 1
-
-        # # Go to place position while holding
-        # curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
-        # end_pos = np.vstack([self._apply_picker_boundary(picker_pos) for picker_pos in action[:, 1, :3]])
-
-        # dist = np.linalg.norm(curr_pos - end_pos, axis=1)
-        # num_step = np.max(np.ceil(dist / self.delta_move))
-        # if num_step < 0.1:
-        #     return
-        # delta = (end_pos - curr_pos) / num_step
-        # norm_delta = np.linalg.norm(delta)
-
-        # for i in range(int(min(num_step, 300))):  # The maximum number of steps allowed for one pick and place
-        #     curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
-        #     dist = np.linalg.norm(end_pos - curr_pos, axis=1)
-        #     if np.alltrue(dist < norm_delta):
-        #         delta = end_pos - curr_pos
-        #     super().step(np.hstack([delta, np.ones((1,1))+0.5]))
-        #     pyflex.step()
-            
-        #     if render:
-        #         pyflex.render()
-            
-        #     total_steps += 1
-        #     if self.env is not None and self.env.recording:
-        #         self.env.video_frames.append(self.env.render(mode='rgb_array'))
-        #     if np.alltrue(dist < self.delta_move):
-        #         break
-        
-        # # Place 
-        # super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), 2.1)]))
-        # pyflex.step()
-        # if render:
-        #     pyflex.render()
-
-        # total_steps += 1
 
         return total_steps
 
