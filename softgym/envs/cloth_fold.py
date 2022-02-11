@@ -22,6 +22,8 @@ class ClothFoldEnv(ClothEnv):
         new_pos += center
         pyflex.set_positions(new_pos)
 
+    
+
     def generate_env_variation(self, num_variations=2, vary_cloth_size=True):
         """ Generate initial states. Note: This will also change the current states! """
         max_wait_step = 1000  # Maximum number of steps waiting for the cloth to stablize

@@ -191,6 +191,10 @@ class ClothFlattenEnv(ClothEnv):
         max_y = np.max(pos[:, 2])
         return 0.5 * (min_x + max_x), 0.5 * (min_y + max_y)
     
+    def get_particle_positions(self):
+        pos = pyflex.get_positions().reshape(-1, 4)[:, :3].copy()
+        return pos
+    
     def _distance_reward(self, particle_pos):
         particle_pos = particle_pos.reshape(-1, 4)[:, :3]
         
