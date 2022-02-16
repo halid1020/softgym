@@ -109,6 +109,10 @@ class ClothFlattenEnv(ClothEnv):
         py -= cloth_dimz * self.cloth_particle_radius/2
 
         xx, yy = np.meshgrid(px, py)
+        L = len(xx)
+        W = len(xx[0])
+        self._corner_ids = [0, W-1, (L-1)*W, L*W-1]
+        #print('corner ids', self._corner_ids)
         new_pos = np.empty(shape=(N, 4), dtype=np.float)
         new_pos[:, 0] = xx.flatten()
         new_pos[:, 1] = self.cloth_particle_radius
@@ -120,6 +124,13 @@ class ClothFlattenEnv(ClothEnv):
         pyflex.step()
         self._target_img = self.render()
         return self._get_current_covered_area(new_pos)
+    
+    def get_corner_positions(self):
+        all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
+        #print('num particles', len(all_particle_positions))
+        return all_particle_positions[self._corner_ids]
+
+
 
     def _reset(self):
         """ Right now only use one initial state"""
@@ -190,6 +201,10 @@ class ClothFlattenEnv(ClothEnv):
         max_x = np.max(pos[:, 0])
         max_y = np.max(pos[:, 2])
         return 0.5 * (min_x + max_x), 0.5 * (min_y + max_y)
+    
+    def get_particle_positions(self):
+        pos = pyflex.get_positions().reshape(-1, 4)[:, :3].copy()
+        return pos
     
     def _distance_reward(self, particle_pos):
         particle_pos = particle_pos.reshape(-1, 4)[:, :3]
