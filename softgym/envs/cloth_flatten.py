@@ -205,9 +205,10 @@ class ClothFlattenEnv(ClothEnv):
     def get_particle_positions(self):
         pos = pyflex.get_positions().reshape(-1, 4)[:, :3].copy()
         return pos
-    
-    def _distance_reward(self, particle_pos):
-        particle_pos = particle_pos.reshape(-1, 4)[:, :3]
+
+    def get_performance_value(self, particel_pos=None):
+        if particel_pos is None:
+            particle_pos = self._get_particle_positions()
         
         target_pos = self._target_pos[:, :3]
         min_distance = np.linalg.norm(particle_pos-target_pos)
@@ -221,7 +222,10 @@ class ClothFlattenEnv(ClothEnv):
         target_pos[:, 0] =  -target_pos[:, 0]
         min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
 
-
+        return min_distance
+    
+    def _distance_reward(self, particle_pos):
+        min_distance = self.get_performance_value(particle_pos)
         return math.exp(-min_distance/10)
 
     def _pixel_reward(self, img):
