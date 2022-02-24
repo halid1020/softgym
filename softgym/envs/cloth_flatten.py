@@ -58,7 +58,7 @@ class ClothFlattenEnv(ClothEnv):
             original_inv_mass = curr_pos[pickpoint * 4 + 3]
             curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth
             pickpoint_pos = curr_pos[pickpoint * 4: pickpoint * 4 + 3].copy()  # Pos of the pickup point is fixed to this point
-            pickpoint_pos[1] += np.random.random(1) * 0.5 + 0.5
+            pickpoint_pos[1] += np.random.random(1)*0.1
             pyflex.set_positions(curr_pos)
 
             # Pick up the cloth and wait to stablize
@@ -216,6 +216,22 @@ class ClothFlattenEnv(ClothEnv):
         target_pos[:, 0] =  -target_pos[:, 0]
         min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
         
+        target_pos[:, 2] =  -target_pos[:, 2]
+        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
+
+        target_pos[:, 0] =  -target_pos[:, 0]
+        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
+
+        target_pos[:, 2] = -target_pos[:, 2]
+
+        # Change x and y
+        target_pos[:, 0], target_pos[:, 2] = target_pos[:, 2], target_pos[:, 0]
+
+        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
+
+        target_pos[:, 0] =  -target_pos[:, 0]
+        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
+
         target_pos[:, 2] =  -target_pos[:, 2]
         min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
 
