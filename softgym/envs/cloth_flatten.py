@@ -58,7 +58,7 @@ class ClothFlattenEnv(ClothEnv):
             original_inv_mass = curr_pos[pickpoint * 4 + 3]
             curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth
             pickpoint_pos = curr_pos[pickpoint * 4: pickpoint * 4 + 3].copy()  # Pos of the pickup point is fixed to this point
-            pickpoint_pos[1] += np.random.random(1)*0.1
+            pickpoint_pos[1] += np.random.random(1)*0.3
             pyflex.set_positions(curr_pos)
 
             # Pick up the cloth and wait to stablize
@@ -247,11 +247,18 @@ class ClothFlattenEnv(ClothEnv):
     def _pixel_reward(self, img):
         return ((1 - math.sqrt(np.mean((img/255.0-self._target_img/255.0)**2))) -0.5) * 2
 
+    def _depth_reward(self, particle_pos):
+
+        return len(np.where(particle_pos[:, 1] <= 0.008)[0])/len(particle_pos)
+
+
     def compute_reward(self, action=None, obs=None, set_prev_reward=False):
         if self._reward_mode == "distance_reward":
             return self._distance_reward(self.get_particle_positions())
         if self._reward_mode == "pixel_rmse":
             return self._pixel_reward(self.render())
+        if self._reward_mode == "depth_ratio":
+            return self._depth_reward(self.get_particle_positions())
 
     # @property
     # def performance_bound(self):
