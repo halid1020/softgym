@@ -143,7 +143,7 @@ class ClothFlattenEnv(ClothEnv):
         self.init_covered_area = None
         info = self._get_info()
         self.init_covered_area = info['performance']
-        return self._get_obs()
+        return self._get_obs(), self.compute_reward()
 
     def _step(self, action):
         self.action_tool.step(action)

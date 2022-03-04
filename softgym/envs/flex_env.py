@@ -173,10 +173,10 @@ class FlexEnv(gym.Env):
         self.particle_num = pyflex.get_n_particles()
         self.prev_reward = 0.
         self.time_step = 0
-        obs = self._reset()
+        obs, reward = self._reset()
         if self.recording:
             self.video_frames.append(self.render(mode='rgb_array'))
-        return obs
+        return obs, reward
 
     def step(self, action, record_continuous_video=False, img_size=None):
         """ If record_continuous_video is set to True, will record an image for each sub-step"""
