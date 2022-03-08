@@ -98,6 +98,9 @@ class ClothFlattenEnv(ClothEnv):
             print('config {}: camera params {}, flatten area: {}'.format(i, config['camera_params'], generated_configs[-1]['flatten_area']))
 
         return generated_configs, generated_states
+    
+    def get_goal_observation(self):
+        return self._target_img
 
     def _set_to_flatten(self):
         # self._get_current_covered_area(pyflex.get_positions().reshape(-))
@@ -122,7 +125,7 @@ class ClothFlattenEnv(ClothEnv):
         self._target_pos = new_pos.copy()
         pyflex.set_positions(new_pos.flatten())
         pyflex.step()
-        self._target_img = self.render()
+        self._target_img = self._get_obs()
         return self._get_current_covered_area(new_pos)
     
     def get_corner_positions(self):
