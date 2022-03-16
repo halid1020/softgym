@@ -24,6 +24,21 @@ class ClothFlattenEnv(ClothEnv):
         self.prev_covered_area = None  # Should not be used until initialized
         self._reward_mode = kwargs['reward_mode']
 
+    def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.05, target_point=None, target_pos=None, render=False):
+        for j in range(0, max_wait_step):
+            curr_vel = pyflex.get_velocities()
+            if target_point != None:
+                curr_pos = pyflex.get_positions()
+                curr_pos[target_point * 4: target_point * 4 + 3] = target_pos
+                curr_vel[target_point * 3: target_point * 3 + 3] = [0, 0, 0]
+                pyflex.set_positions(curr_pos)
+                pyflex.set_velocities(curr_vel)
+            pyflex.step()
+            if render:
+                pyflex.render()
+            if np.alltrue(np.abs(curr_vel) < stable_vel_threshold) and j > 5:
+                break
+
     def generate_env_variation(self, num_variations=1, vary_cloth_size=False):
         """ Generate initial states. Note: This will also change the current states! """
         max_wait_step = 300  # Maximum number of steps waiting for the cloth to stablize
@@ -62,26 +77,21 @@ class ClothFlattenEnv(ClothEnv):
             pyflex.set_positions(curr_pos)
 
             # Pick up the cloth and wait to stablize
-            for j in range(0, max_wait_step):
-                curr_pos = pyflex.get_positions()
-                curr_vel = pyflex.get_velocities()
-                curr_pos[pickpoint * 4: pickpoint * 4 + 3] = pickpoint_pos
-                curr_vel[pickpoint * 3: pickpoint * 3 + 3] = [0, 0, 0]
-                pyflex.set_positions(curr_pos)
-                pyflex.set_velocities(curr_vel)
-                pyflex.step()
-                if np.alltrue(np.abs(curr_vel) < stable_vel_threshold) and j > 5:
-                    break
+            self._wait_to_stabalise(max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
+            
 
             # Drop the cloth and wait to stablize
             curr_pos = pyflex.get_positions()
             curr_pos[pickpoint * 4 + 3] = original_inv_mass
             pyflex.set_positions(curr_pos)
-            for _ in range(max_wait_step):
-                pyflex.step()
-                curr_vel = pyflex.get_velocities()
-                if np.alltrue(curr_vel < stable_vel_threshold):
-                    break
+            
+            self._wait_to_stabalise(max_wait_step, stable_vel_threshold, None, None)
+
+            # for _ in range(max_wait_step):
+            #     pyflex.step()
+            #     curr_vel = pyflex.get_velocities()
+            #     if np.alltrue(curr_vel < stable_vel_threshold):
+            #         break
 
             center_object()
             
@@ -101,6 +111,10 @@ class ClothFlattenEnv(ClothEnv):
     
     def get_goal_observation(self):
         return self._target_img
+
+    def get_target_corner_positions(self):
+        # 4*3
+        return self._target_corner_positions 
 
     def _set_to_flatten(self):
         # self._get_current_covered_area(pyflex.get_positions().reshape(-))
@@ -126,6 +140,8 @@ class ClothFlattenEnv(ClothEnv):
         pyflex.set_positions(new_pos.flatten())
         pyflex.step()
         self._target_img = self._get_obs()
+        self._target_corner_positions = self.get_corner_positions()
+
         return self._get_current_covered_area(new_pos)
     
     def get_corner_positions(self):
@@ -150,6 +166,7 @@ class ClothFlattenEnv(ClothEnv):
 
     def _step(self, action):
         self.action_tool.step(action)
+        self._wait_to_stabalise(render=True)
         if self.action_mode in ['sawyer', 'franka']:
             pyflex.step(self.action_tool.next_action)
         else:
