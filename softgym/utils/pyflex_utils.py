@@ -1,3 +1,4 @@
+from random import random
 import numpy as np
 import pyflex
 
@@ -44,6 +45,9 @@ def center_object():
     NOTE: call a pyflex.set_positions and then pyflex.step
     """
     pos = pyflex.get_positions().reshape(-1, 4)
-    pos[:, [0, 2]] -= np.mean(pos[:, [0, 2]], axis=0, keepdims=True)
+    pos[:, [0, 2]] -= np.mean(pos[:, [0, 2]], axis=0, keepdims=True) 
+    pos[:, 0] += 0.6 * (random()-0.5)
+    pos[:, 2] += 0.6 * (random()-0.5)
+
     pyflex.set_positions(pos.flatten())
     pyflex.step()

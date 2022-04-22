@@ -20,9 +20,12 @@ class ClothFlattenEnv(ClothEnv):
         :param kwargs:
         """
         super().__init__(**kwargs)
-        self.get_cached_configs_and_states(cached_states_path, self.num_variations)
-        self.prev_covered_area = None  # Should not be used until initialized
         self._reward_mode = kwargs['reward_mode']
+        self.get_cached_configs_and_states(cached_states_path, self.num_variations)
+        self.reset()
+        self._set_to_flatten()
+        self.prev_covered_area = None  # Should not be used until initialized
+        
 
     def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.05, target_point=None, target_pos=None, render=False):
         for j in range(0, max_wait_step):
@@ -56,6 +59,7 @@ class ClothFlattenEnv(ClothEnv):
                 cloth_dimx, cloth_dimy = config['ClothSize']
             self.set_scene(config)
             self.action_tool.reset([0., -1., 0.])
+            self._set_to_flatten()
             pos = pyflex.get_positions().reshape(-1, 4)
             pos[:, :3] -= np.mean(pos, axis=0)[:3]
             if self.action_mode in ['sawyer', 'franka']:  # Take care of the table in robot case
@@ -68,6 +72,8 @@ class ClothFlattenEnv(ClothEnv):
             pyflex.step()
 
             num_particle = cloth_dimx * cloth_dimy
+
+            # Pick up the cloth and wait to stablize
             pickpoint = random.randint(0, num_particle - 1)
             curr_pos = pyflex.get_positions()
             original_inv_mass = curr_pos[pickpoint * 4 + 3]
@@ -75,30 +81,49 @@ class ClothFlattenEnv(ClothEnv):
             pickpoint_pos = curr_pos[pickpoint * 4: pickpoint * 4 + 3].copy()  # Pos of the pickup point is fixed to this point
             pickpoint_pos[1] += np.random.random(1)*0.3 + 0.1
             pyflex.set_positions(curr_pos)
-
-            # Pick up the cloth and wait to stablize
             self._wait_to_stabalise(max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
             
 
             # Drop the cloth and wait to stablize
             curr_pos = pyflex.get_positions()
             curr_pos[pickpoint * 4 + 3] = original_inv_mass
-            pyflex.set_positions(curr_pos)
-            
+            pyflex.set_positions(curr_pos)          
             self._wait_to_stabalise(max_wait_step, stable_vel_threshold, None, None)
 
-            # for _ in range(max_wait_step):
-            #     pyflex.step()
-            #     curr_vel = pyflex.get_velocities()
-            #     if np.alltrue(curr_vel < stable_vel_threshold):
-            #         break
-
             center_object()
+
+            # Drag the cloth and wait to stablise
+            if random.random() < 0.7:
+                pickpoint = random.randint(0, num_particle - 1)
+                curr_pos = pyflex.get_positions()
+                original_inv_mass = curr_pos[pickpoint * 4 + 3]
+                curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth
+                pickpoint_pos = curr_pos[pickpoint * 4: pickpoint * 4 + 3].copy()  # Pos of the pickup point is fixed to this point
+                pickpoint_pos[0] += np.random.random(1)*0.3
+                pickpoint_pos[1] += np.random.random(1)*0.3
+                pickpoint_pos[2] = 0.1
+                pyflex.set_positions(curr_pos)
+                self._wait_to_stabalise(max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
+
+
+                # Drop the cloth and wait to stablize
+                curr_pos = pyflex.get_positions()
+                curr_pos[pickpoint * 4 + 3] = original_inv_mass
+                pyflex.set_positions(curr_pos)          
+                self._wait_to_stabalise(max_wait_step, stable_vel_threshold, None, None)
+
+                center_object()
+
+
+            
             
 
             if self.action_mode == 'sphere' or self.action_mode.startswith('picker'):
                 curr_pos = pyflex.get_positions()
                 self.action_tool.reset(curr_pos[pickpoint * 4:pickpoint * 4 + 3] + [0., 0.2, 0.])
+            
+            pyflex.step()
+            
                 
             generated_configs.append(deepcopy(config))
             generated_states.append(deepcopy(self.get_state()))
@@ -138,7 +163,7 @@ class ClothFlattenEnv(ClothEnv):
         new_pos[:, :3] -= np.mean(new_pos[:, :3], axis=0)
         self._target_pos = new_pos.copy()
         pyflex.set_positions(new_pos.flatten())
-        pyflex.step()
+        #pyflex.step()
         self._target_img = self._get_obs()
         self._target_corner_positions = self.get_corner_positions()
 
@@ -162,7 +187,7 @@ class ClothFlattenEnv(ClothEnv):
         self.init_covered_area = None
         info = self._get_info()
         self.init_covered_area = info['performance']
-        return self._get_obs(), self.compute_reward()
+        return self._get_obs(), None
 
     def _step(self, action):
         self.action_tool.step(action)
@@ -271,6 +296,56 @@ class ClothFlattenEnv(ClothEnv):
 
         return len(np.where(particle_pos[:, 1] <= 0.008)[0])/len(particle_pos)
 
+    def _corner_and_depth_reward(self, particle_pos):
+        target_corner_positions =  self.get_corner_positions()
+        visibility = self.get_visibility(target_corner_positions)
+        print(visibility)
+        count = np.count_nonzero(visibility)
+        reward = count * 0.1
+        depth_reward = self._depth_reward(particle_pos)
+        
+        if depth_reward >= 0.5:
+            depth_reward = (depth_reward - 0.5) * 2
+            reward += 0.6 * depth_reward
+
+        return reward
+
+
+
+    def get_visibility(self, positions):
+        # TODO: need to refactor this, so bad.
+        # This has to be online.
+
+        N = positions.shape[0]
+        
+        visibility = [False for _ in range(N)]
+
+        camera_hight = 1.5 # TODO: magic number
+        depths = camera_hight - positions[:, 1] #x, z, y
+        pixel_to_world_ratio = 0.415 # TODO: magic number
+        projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1
+        projected_pixel_positions_y = positions[:, 2]/pixel_to_world_ratio/depths #-1, 1
+        projected_pixel_positions = np.concatenate(
+            [projected_pixel_positions_x.reshape(N, 1), projected_pixel_positions_y.reshape(N, 1)],
+            axis=1)
+
+        depth_images = self.render(mode='rgb_array', depth=True)[:, :, 3]
+        depth_images = cv2.resize(depth_images, (128, 128))
+        #print(depth_images.shape)
+
+        for i in range(N):
+            x, y = projected_pixel_positions[i][0],  projected_pixel_positions[i][1]
+            if x < -1 or x > 1 or y < -1 or y > 1:
+                continue
+            x_ = int((y + 1)/2 * 128)
+            y_ = int((x + 1)/2 * 128)
+            if depths[i] < depth_images[x_][y_] + 1e-6:
+                visibility[i] = True
+            
+        
+
+        return np.asarray(visibility)
+
 
     def compute_reward(self, action=None, obs=None, set_prev_reward=False):
         if self._reward_mode == "distance_reward":
@@ -279,6 +354,8 @@ class ClothFlattenEnv(ClothEnv):
             return self._pixel_reward(self.render())
         if self._reward_mode == "depth_ratio":
             return self._depth_reward(self.get_particle_positions())
+        if self._reward_mode == "corner_and_depth_ratio":
+            return self._corner_and_depth_reward(self.get_particle_positions())
 
     # @property
     # def performance_bound(self):
