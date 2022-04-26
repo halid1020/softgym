@@ -299,7 +299,6 @@ class ClothFlattenEnv(ClothEnv):
     def _corner_and_depth_reward(self, particle_pos):
         target_corner_positions =  self.get_corner_positions()
         visibility = self.get_visibility(target_corner_positions)
-        print(visibility)
         count = np.count_nonzero(visibility)
         reward = count * 0.1
         depth_reward = self._depth_reward(particle_pos)
