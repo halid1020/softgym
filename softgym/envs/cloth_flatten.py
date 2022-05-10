@@ -24,7 +24,7 @@ class ClothFlattenEnv(ClothEnv):
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
         self.reset()
         self._set_to_flatten()
-        self.prev_covered_area = None  # Should not be used until initialized
+        self._initial_covered_area = None  # Should not be used until initialized
         
 
     def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.05, target_point=None, target_pos=None, render=False):
@@ -139,10 +139,9 @@ class ClothFlattenEnv(ClothEnv):
 
     def get_target_corner_positions(self):
         # 4*3
-        return self._target_corner_positions 
-
-    def _set_to_flatten(self):
-        # self._get_current_covered_area(pyflex.get_positions().reshape(-))
+        return self._target_corner_positions
+    
+    def _flatten_pos(self):
         cloth_dimx, cloth_dimz = self.get_current_config()['ClothSize']
         N = cloth_dimx * cloth_dimz
         px = np.linspace(0, cloth_dimx * self.cloth_particle_radius, cloth_dimx)
@@ -162,30 +161,49 @@ class ClothFlattenEnv(ClothEnv):
         new_pos[:, 3] = 1.
         new_pos[:, :3] -= np.mean(new_pos[:, :3], axis=0)
         self._target_pos = new_pos.copy()
+
+        return new_pos.copy()
+    
+    def flatten_pos(self):
+        pos = self._flatten_pos()
+        return pos.reshape(-1, 4)[:, :3].copy()
+
+
+    def _set_to_flatten(self):
+        # self._get_current_covered_area(pyflex.get_positions().reshape(-))
+        new_pos = self._flatten_pos()
+        
         pyflex.set_positions(new_pos.flatten())
         #pyflex.step()
         self._target_img = self._get_obs()
         self._target_corner_positions = self.get_corner_positions()
 
-        return self._get_current_covered_area(new_pos)
+        new_pos = self.get_particle_positions()
+
+        return self.get_covered_area(new_pos)
     
     def get_corner_positions(self):
         all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
         #print('num particles', len(all_particle_positions))
         return all_particle_positions[self._corner_ids]
 
-
+    def get_corner_positions(self, pos):
+        return pos[self._corner_ids]
 
     def _reset(self):
         """ Right now only use one initial state"""
-        self.prev_covered_area = self._get_current_covered_area(pyflex.get_positions())
+        self._initial_particel_pos = self.get_particle_positions()
+        self._initial_covered_area = self.get_covered_area(self._initial_particel_pos)
+        self._target_particel_pos = self.flatten_pos()
+        self._target_covered_area =  self.get_covered_area(self._target_particel_pos)
+
+
         if hasattr(self, 'action_tool'):
             curr_pos = pyflex.get_positions()
             cx, cy = self._get_center_point(curr_pos)
             self.action_tool.reset([cx, 0.2, cy])
         pyflex.step()
         self.init_covered_area = None
-        info = self._get_info()
         self.init_covered_area = info['performance']
         return self._get_obs(), None
 
@@ -198,12 +216,12 @@ class ClothFlattenEnv(ClothEnv):
             pyflex.step()
         return
 
-    def _get_current_covered_area(self, pos):
+    def get_covered_area(self, pos):
         """
         Calculate the covered area by taking max x,y cood and min x,y coord, create a discritized grid between the points
         :param pos: Current positions of the particle states
         """
-        pos = np.reshape(pos, [-1, 4])
+        #pos = np.reshape(pos, [-1, 4])
         min_x = np.min(pos[:, 0])
         min_y = np.min(pos[:, 2])
         max_x = np.max(pos[:, 0])
@@ -226,18 +244,9 @@ class ClothFlattenEnv(ClothEnv):
         idx = listxx * 100 + listyy
         idx = np.clip(idx.flatten(), 0, 9999)
         grid[idx] = 1
-        # cv2.imshow('Reward Image', grid.reshape(100, 100))
-        # cv2.waitKey(1)
-        # print(np.sum(grid) /10000)
 
         return np.sum(grid) * span[0] * span[1]
 
-        # Method 2
-        # grid_copy = np.zeros([100, 100])
-        # for x_low, x_high, y_low, y_high in zip(slotted_x_low, slotted_x_high, slotted_y_low, slotted_y_high):
-        #     grid_copy[x_low:x_high, y_low:y_high] = 1
-        # assert np.allclose(grid_copy, grid)
-        # return np.sum(grid_copy) * span[0] * span[1]
 
     def _get_center_point(self, pos):
         pos = np.reshape(pos, [-1, 4])
@@ -250,40 +259,6 @@ class ClothFlattenEnv(ClothEnv):
     def get_particle_positions(self):
         pos = pyflex.get_positions().reshape(-1, 4)[:, :3].copy()
         return pos
-
-    def get_performance_value(self, particle_pos=None):
-        if particle_pos is None:
-            particle_pos = self.get_particle_positions()
-        
-        target_pos = self._target_pos[:, :3]
-        min_distance = np.linalg.norm(particle_pos-target_pos)
-        
-        target_pos[:, 0] =  -target_pos[:, 0]
-        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
-        
-        target_pos[:, 2] =  -target_pos[:, 2]
-        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
-
-        target_pos[:, 0] =  -target_pos[:, 0]
-        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
-
-        target_pos[:, 2] = -target_pos[:, 2]
-
-        # Change x and y
-        target_pos[:, 0], target_pos[:, 2] = target_pos[:, 2], target_pos[:, 0]
-
-        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
-
-        target_pos[:, 0] =  -target_pos[:, 0]
-        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
-
-        target_pos[:, 2] =  -target_pos[:, 2]
-        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
-
-        target_pos[:, 0] =  -target_pos[:, 0]
-        min_distance = min(min_distance, np.linalg.norm(particle_pos-target_pos))
-
-        return min_distance
     
     def _distance_reward(self, particle_pos):
         min_distance = self.get_performance_value(particle_pos)
@@ -364,19 +339,6 @@ class ClothFlattenEnv(ClothEnv):
     #     max_p = max_area
     #     return min_p, max_p
 
-    def _get_info(self):
-        # Duplicate of the compute reward function!
-        particle_pos = pyflex.get_positions()
-        curr_covered_area = self._get_current_covered_area(particle_pos)
-        init_covered_area = curr_covered_area if self.init_covered_area is None else self.init_covered_area
-        max_covered_area = self.get_current_config()['flatten_area']
-        info = {
-            'performance': curr_covered_area,
-            'normalized_performance': (curr_covered_area - init_covered_area) / (max_covered_area - init_covered_area),
-        }
-        if 'qpg' in self.action_mode:
-            info['total_steps'] = self.action_tool.total_steps
-        return info
 
     def get_picked_particle(self):
         pps = np.ones(shape=self.action_tool.num_picker)  * -1 # -1 means no particles picked
