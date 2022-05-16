@@ -176,16 +176,19 @@ class ClothFlattenEnv(ClothEnv):
         pyflex.set_positions(new_pos.flatten())
         #pyflex.step()
         self._target_img = self._get_obs()
-        self._target_corner_positions = self.get_corner_positions()
+        self._target_corner_positions = self._get_corner_positions()
 
         new_pos = self.get_particle_positions()
 
         return self.get_covered_area(new_pos)
     
-    def get_corner_positions(self):
+    def _get_corner_positions(self):
         all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
         #print('num particles', len(all_particle_positions))
         return all_particle_positions[self._corner_ids]
+    
+    def _get_info(self):
+        pass
 
     def get_corner_positions(self, pos):
         return pos[self._corner_ids]
@@ -204,7 +207,6 @@ class ClothFlattenEnv(ClothEnv):
             self.action_tool.reset([cx, 0.2, cy])
         pyflex.step()
         self.init_covered_area = None
-        self.init_covered_area = info['performance']
         return self._get_obs(), None
 
     def _step(self, action):
