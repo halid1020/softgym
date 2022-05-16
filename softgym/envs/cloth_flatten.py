@@ -197,6 +197,7 @@ class ClothFlattenEnv(ClothEnv):
         """ Right now only use one initial state"""
         self._initial_particel_pos = self.get_particle_positions()
         self._initial_covered_area = self.get_covered_area(self._initial_particel_pos)
+        self._current_coverage_area = self._prior_coverage_area = self._initial_covered_area
         self._target_particel_pos = self.flatten_pos()
         self._target_covered_area =  self.get_covered_area(self._target_particel_pos)
 
@@ -216,6 +217,9 @@ class ClothFlattenEnv(ClothEnv):
             pyflex.step(self.action_tool.next_action)
         else:
             pyflex.step()
+
+        self._prior_coverage_area = self._current_coverage_area
+        self._current_coverage_area = self.get_covered_area(self.get_particle_positions())
         return
 
     def get_covered_area(self, pos):
@@ -322,6 +326,26 @@ class ClothFlattenEnv(ClothEnv):
 
         return np.asarray(visibility)
 
+    def _hoque_ddpg_reward(self):
+
+        reward = (self._current_coverage_area - self._prior_coverage_area)/self._target_covered_area
+        
+        if abs(self._current_coverage_area - self._prior_coverage_area) <= 1e-4:
+            reward -= 0.05
+        
+        if self._current_coverage_area/self._target_covered_area > 0.92:
+            reward += 5
+        
+         # TODO: -5 for out-of-bound
+
+        return reward
+        
+        
+       
+
+
+        
+
 
     def compute_reward(self, action=None, obs=None, set_prev_reward=False):
         if self._reward_mode == "distance_reward":
@@ -332,6 +356,8 @@ class ClothFlattenEnv(ClothEnv):
             return self._depth_reward(self.get_particle_positions())
         if self._reward_mode == "corner_and_depth_ratio":
             return self._corner_and_depth_reward(self.get_particle_positions())
+        if self._reward_mode == "hoque_ddpg":
+            return self._hoque_ddpg_reward()
 
     # @property
     # def performance_bound(self):
