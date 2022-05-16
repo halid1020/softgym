@@ -28,7 +28,7 @@ class FlexEnv(gym.Env):
                  action_repeat=8,
                  camera_name='default_camera',
                  deterministic=True,
-                 use_cached_states=True,
+                 use_cached_states=False,
                  observation_mode = 'rgbd',
                  save_cached_states=True, **kwargs):
         self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
