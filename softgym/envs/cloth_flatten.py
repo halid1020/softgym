@@ -339,12 +339,6 @@ class ClothFlattenEnv(ClothEnv):
          # TODO: -5 for out-of-bound
 
         return reward
-        
-        
-       
-
-
-        
 
 
     def compute_reward(self, action=None, obs=None, set_prev_reward=False):
