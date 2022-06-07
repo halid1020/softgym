@@ -334,11 +334,14 @@ class ClothFlattenEnv(ClothEnv):
             reward -= 0.05
         
         if self._current_coverage_area/self._target_covered_area > 0.92:
-            reward += 5
+            reward += 1
         
          # TODO: -5 for out-of-bound
 
         return reward
+
+    def _normalised_coverage(self):
+        return self._current_coverage_area/self._target_covered_area
 
 
     def compute_reward(self, action=None, obs=None, set_prev_reward=False):
@@ -352,6 +355,8 @@ class ClothFlattenEnv(ClothEnv):
             return self._corner_and_depth_reward(self.get_particle_positions())
         if self._reward_mode == "hoque_ddpg":
             return self._hoque_ddpg_reward()
+        if self._reward_mode == 'normalised_coverage':
+            return self._normalised_coverage()
 
     # @property
     # def performance_bound(self):
