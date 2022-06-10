@@ -263,8 +263,19 @@ class ClothFlattenEnv(ClothEnv):
         return 0.5 * (min_x + max_x), 0.5 * (min_y + max_y)
     
     def get_particle_positions(self):
-        pos = pyflex.get_positions().reshape(-1, 4)[:, :3].copy()
+        pos = pyflex.get_positions()
+        pos = pos.reshape(-1, 4)[:, :3].copy()
         return pos
+
+    def _get_particle_positions(self):
+        return pyflex.get_positions()
+
+    def _set_particle_positions(self, pos):
+        pyflex.set_positions(pos.flatten())
+        pyflex.set_velocities(np.zeros_like(pos))
+        pyflex.step()
+        self._current_coverage_area = self.get_covered_area(self.get_particle_positions())
+        
     
     def _distance_reward(self, particle_pos):
         min_distance = self.get_performance_value(particle_pos)
@@ -357,6 +368,7 @@ class ClothFlattenEnv(ClothEnv):
             return self._hoque_ddpg_reward()
         if self._reward_mode == 'normalised_coverage':
             return self._normalised_coverage()
+        raise NotImplementedError
 
     # @property
     # def performance_bound(self):

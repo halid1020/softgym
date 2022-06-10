@@ -198,6 +198,7 @@ class FlexEnv(gym.Env):
 
         done = False
         if self.time_step >= self.horizon:
+            
             done = True
         if record_continuous_video:
             info['flex_env_recorded_frames'] = frames
