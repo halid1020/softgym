@@ -14,7 +14,7 @@ class ClothEnv(FlexEnv):
         self.cloth_particle_radius = particle_radius
         super().__init__(**kwargs)
 
-        assert observation_mode in ['key_point', 'point_cloud', 'cam_rgb', 'cam_rgbd']
+        #assert observation_mode in ['key_point', 'point_cloud', 'cam_rgb', 'cam_rgbd']
         assert action_mode in ['picker', 'pickerpickplace', 'pickerpickplace1', 'sawyer', 'franka', 'picker_qpg']
         self.observation_mode = observation_mode
 
@@ -45,20 +45,34 @@ class ClothEnv(FlexEnv):
                                          picker_low=(-0.3, 0., -0.3), picker_high=(0.3, 0.3, 0.3)
                                          )
             self.action_space = self.action_tool.action_space
-        if observation_mode in ['key_point', 'point_cloud']:
-            if observation_mode == 'key_point':
-                obs_dim = len(self._get_key_point_idx()) * 3
-            else:
-                max_particles = 120 * 120
-                obs_dim = max_particles * 3
-                self.particle_obs_dim = obs_dim
-            if action_mode.startswith('picker'):
-                obs_dim += num_picker * 3
-            else:
-                raise NotImplementedError
-            self.observation_space = Box(np.array([-np.inf] * obs_dim), np.array([np.inf] * obs_dim), dtype=np.float32)
-        elif observation_mode == 'cam_rgb':
+
+
+        if observation_mode['state'] == None:
+            pass
+        elif observation_mode['state'] == 'key_point':
+            sts_dim = len(self._get_key_point_idx()) * 3
+        elif observation_mode['state'] == 'point_cloud':
+            max_particles = 120 * 120
+            sts_dim = max_particles * 3
+            self.particle_obs_dim = sts_dim
+        elif observation_mode['state'] == 'corner_pixel':
+            sts_dim = 4*2
+        else:
+            raise NotImplementedError
+        
+        if observation_mode['state'] != None:
+            self.state_space = Box(np.array([-np.inf] * sts_dim), np.array([np.inf] * sts_dim), dtype=np.float32)
+
+        if observation_mode['image'] == 'cam_rgb':
             self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 3),
+                                         dtype=np.float32)
+                                    
+        elif observation_mode['image'] == 'cam_rgbd':
+            self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 4),
+                                         dtype=np.float32)
+
+        elif observation_mode['image'] == 'cam_d':
+            self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 1),
                                          dtype=np.float32)
 
     def _sample_cloth_size(self):
@@ -119,25 +133,48 @@ class ClothEnv(FlexEnv):
         return config
 
     def _get_obs(self):
-        if self.observation_mode == 'cam_rgb':
-            return self.get_image(self.camera_height, self.camera_width)
+        obs = {}
+
+        if self.observation_mode['image'] == 'cam_rgb':
+            obs['image'] = self.get_image(self.camera_height, self.camera_width)
         
-        if self.observation_mode == 'cam_rgbd':
-            return self.get_image(self.camera_height, self.camera_width, depth=True)
+        elif self.observation_mode == 'cam_rgbd':
+            obs['image'] = self.get_image(self.camera_height, self.camera_width, depth=True)
         
-        if self.observation_mode == 'point_cloud':
+        if self.observation_mode['state'] == 'point_cloud':
             particle_pos = np.array(pyflex.get_positions()).reshape([-1, 4])[:, :3].flatten()
             pos = np.zeros(shape=self.particle_obs_dim, dtype=np.float)
             pos[:len(particle_pos)] = particle_pos
-        elif self.observation_mode == 'key_point':
+            obs['state'] = pos
+            
+
+        elif self.observation_mode['state'] == 'key_point':
             particle_pos = np.array(pyflex.get_positions()).reshape([-1, 4])[:, :3]
             keypoint_pos = particle_pos[self._get_key_point_idx(), :3]
             pos = keypoint_pos
-        if self.action_mode in ['sphere', 'picker']:
-            shapes = pyflex.get_shape_states()
-            shapes = np.reshape(shapes, [-1, 14])
-            pos = np.concatenate([pos.flatten(), shapes[:, 0:3].flatten()])
-        return pos
+            obs['state'] = pos
+        
+        if self.observation_mode['state'] == ['corner_pixel']:
+            positions =  self._get_corner_positions()
+            N = positions.shape[0]
+            camera_hight = 1.5 # TODO: magic number
+            depths = camera_hight - positions[:, 1] #x, z, y
+            pixel_to_world_ratio = 0.415 # TODO: magic number
+
+            projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1
+            projected_pixel_positions_y = positions[:, 2]/pixel_to_world_ratio/depths #-1, 1
+            projected_pixel_positions = np.concatenate(
+                [projected_pixel_positions_x.reshape(N, 1), projected_pixel_positions_y.reshape(N, 1)],
+                axis=1)
+            
+            obs['state'] = projected_pixel_positions
+
+        # if self.action_mode in ['sphere', 'picker']:
+        #     shapes = pyflex.get_shape_states()
+        #     shapes = np.reshape(shapes, [-1, 14])
+        #     pos = np.concatenate([pos.flatten(), shapes[:, 0:3].flatten()])
+        
+        return obs
 
     # Cloth index looks like the following:
     # 0, 1, ..., cloth_xdim -1

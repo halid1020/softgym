@@ -175,7 +175,7 @@ class ClothFlattenEnv(ClothEnv):
         
         pyflex.set_positions(new_pos.flatten())
         #pyflex.step()
-        self._target_img = self._get_obs()
+        self._target_img = self._get_obs()['image']
         self._target_corner_positions = self._get_corner_positions()
 
         new_pos = self.get_particle_positions()
@@ -192,6 +192,7 @@ class ClothFlattenEnv(ClothEnv):
 
     def get_corner_positions(self, pos):
         return pos[self._corner_ids]
+    
 
     def _reset(self):
         """ Right now only use one initial state"""
