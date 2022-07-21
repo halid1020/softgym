@@ -134,7 +134,6 @@ class ClothEnv(FlexEnv):
 
     def _get_obs(self):
         obs = {}
-
         if self.observation_mode['image'] == 'cam_rgb':
             obs['image'] = self.get_image(self.camera_height, self.camera_width)
         
@@ -154,7 +153,7 @@ class ClothEnv(FlexEnv):
             pos = keypoint_pos
             obs['state'] = pos
         
-        if self.observation_mode['state'] == ['corner_pixel']:
+        elif self.observation_mode['state'] == 'corner_pixel':
             positions =  self._get_corner_positions()
             N = positions.shape[0]
             camera_hight = 1.5 # TODO: magic number
@@ -167,7 +166,7 @@ class ClothEnv(FlexEnv):
                 [projected_pixel_positions_x.reshape(N, 1), projected_pixel_positions_y.reshape(N, 1)],
                 axis=1)
             
-            obs['state'] = projected_pixel_positions
+            obs['state'] = projected_pixel_positions.flatten()
 
         # if self.action_mode in ['sphere', 'picker']:
         #     shapes = pyflex.get_shape_states()
