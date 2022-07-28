@@ -342,11 +342,14 @@ class ClothFlattenEnv(ClothEnv):
 
         reward = (self._current_coverage_area - self._prior_coverage_area)/self._target_covered_area
         
+        bonus = 0
         if abs(self._current_coverage_area - self._prior_coverage_area) <= 1e-4:
-            reward -= 0.05
+            reward = -0.05
         
         if self._current_coverage_area/self._target_covered_area > 0.92:
-            reward += 5
+            bonus = 1 #reward += 5
+        
+        reward += bonus
         
          # TODO: -5 for out-of-bound
 
