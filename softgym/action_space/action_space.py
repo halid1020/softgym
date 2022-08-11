@@ -3,6 +3,7 @@ from copyreg import pickle
 from statistics import mode
 from matplotlib.pyplot import xscale
 import numpy as np
+from pygame import mask
 from torch import full
 from gym.spaces import Box
 from softgym.utils.misc import rotation_2d_around_center, extend_along_center
@@ -162,14 +163,24 @@ class Picker(ActionToolBase):
                 #print('Intent to pick .....')
                 dists = scipy.spatial.distance.cdist(picker_pos[i].reshape((-1, 3)), particle_pos[:, :3].reshape((-1, 3)))
                 idx_dists = np.hstack([np.arange(particle_pos.shape[0]).reshape((-1, 1)), dists.reshape((-1, 1))])
+                
+
                 mask = dists.flatten() <= self.picker_threshold + self.picker_radius + self.particle_radius
                 idx_dists = idx_dists[mask, :].reshape((-1, 2))
+                
+
+                idx_dists = list(idx_dists)
+                idx_dists.sort(key=lambda i: (i[1], i[0]))
+                idx_dists = np.asarray(idx_dists)
+
+
                 if idx_dists.shape[0] > 0:
                     pick_id, pick_dist = None, None
                     for j in range(idx_dists.shape[0]):
                         if idx_dists[j, 0] not in self.picked_particles and (pick_id is None or idx_dists[j, 1] < pick_dist):
                             pick_id = idx_dists[j, 0]
                             pick_dist = idx_dists[j, 1]
+                            break
                     if pick_id is not None:
                         self.picked_particles[i] = int(pick_id)
 
