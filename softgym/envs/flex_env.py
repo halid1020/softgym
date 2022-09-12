@@ -32,6 +32,7 @@ class FlexEnv(gym.Env):
                  observation_mode = 'rgbd',
                  save_cached_states=True, **kwargs):
         self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
+        print('render', render)
         pyflex.init(headless, render, camera_width, camera_height)
 
         self.record_video, self.video_path, self.video_name = False, None, None
@@ -158,14 +159,14 @@ class FlexEnv(gym.Env):
         if config is None:
             if config_id is None:
                 if self.eval_flag:
-                    eval_beg = int(0.8 * len(self.cached_configs))
-                    config_id = np.random.randint(low=eval_beg, high=len(self.cached_configs)) if not self.deterministic else eval_beg
+                    eval_beg = int(0.1 * len(self.cached_configs))
+                    config_id = np.random.randint(low=0,  high=eval_beg) if not self.deterministic else eval_beg
                 else:
-                    train_high = int(0.8 * len(self.cached_configs))
-                    config_id = np.random.randint(low=0, high=max(train_high, 1)) if not self.deterministic else 0
+                    train_low = int(0.1 * len(self.cached_configs))
+                    config_id = np.random.randint(low=train_low, high=len(self.cached_configs)) if not self.deterministic else 0
             else:
-                if self.eval_flag:
-                    config_id += int(0.8 * len(self.cached_configs))
+                if not self.eval_flag:
+                    config_id += int(0.1 * len(self.cached_configs))
 
             self.current_config = self.cached_configs[config_id]
             self.current_config_id = config_id

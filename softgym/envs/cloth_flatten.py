@@ -79,7 +79,7 @@ class ClothFlattenEnv(ClothEnv):
             original_inv_mass = curr_pos[pickpoint * 4 + 3]
             curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth
             pickpoint_pos = curr_pos[pickpoint * 4: pickpoint * 4 + 3].copy()  # Pos of the pickup point is fixed to this point
-            pickpoint_pos[1] += (np.random.random(1)*2 -1)*0.3 + 0.1
+            pickpoint_pos[1] += random.random()*0.4
             pyflex.set_positions(curr_pos)
             self._wait_to_stabalise(max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
             
