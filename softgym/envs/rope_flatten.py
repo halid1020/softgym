@@ -63,7 +63,7 @@ class RopeFlattenEnv(RopeNewEnv):
         self.reward_min = -self.rope_length
         self.reward_range = self.reward_max - self.reward_min
 
-        return self._get_obs()
+        return self._get_obs(), None
 
     def _step(self, action):
         if self.action_mode.startswith('picker'):

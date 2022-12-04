@@ -302,6 +302,13 @@ class ClothFlattenEnv(ClothEnv):
 
         return reward
 
+    def get_cloth_mask(self, pixel_size=(64, 64)):
+        depth_images = self.render(mode='rgb_array', depth=True)[:, :, 3]
+        depth_images = cv2.resize(depth_images, pixel_size)
+       
+        mask = (1.35 < depth_images) & (depth_images < 1.499)
+        return mask
+
 
 
     def get_visibility(self, positions):

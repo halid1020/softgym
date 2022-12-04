@@ -64,16 +64,20 @@ class RopeNewEnv(FlexEnv):
         return config
 
     def _get_obs(self):
+        obs = {}
         if self.observation_mode == 'cam_rgb':
-            return self.get_image(self.camera_height, self.camera_width)
+            obs['image'] = self.get_image(self.camera_height, self.camera_width)
+            return obs
         if self.observation_mode == 'point_cloud':
             particle_pos = np.array(pyflex.get_positions()).reshape([-1, 4])[:, :3].flatten()
             pos = np.zeros(shape=self.particle_obs_dim, dtype=np.float)
             pos[:len(particle_pos)] = particle_pos
+            obs['state'] = pos
         elif self.observation_mode == 'key_point':
             particle_pos = np.array(pyflex.get_positions()).reshape([-1, 4])[:, :3]
             keypoint_pos = particle_pos[self.key_point_indices, :3]
             pos = keypoint_pos.flatten()
+            obs['state'] = pos
             # more_info = np.array([self.rope_length, self._get_endpoint_distance()])
             # pos = np.hstack([more_info, pos])
             # print("in _get_obs, pos is: ", pos)
@@ -82,7 +86,8 @@ class RopeNewEnv(FlexEnv):
             shapes = pyflex.get_shape_states()
             shapes = np.reshape(shapes, [-1, 14])
             pos = np.concatenate([pos.flatten(), shapes[:, 0:3].flatten()])
-        return pos
+            obs['state'] = pos
+        return obs
 
     def _get_key_point_idx(self, num=None):
         indices = [0]
