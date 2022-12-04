@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import cv2
 import math
+from softgym.utils.pyflex_utils import random_pick_and_place
 
 from time import sleep
 

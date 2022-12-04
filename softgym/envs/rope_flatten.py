@@ -17,6 +17,7 @@ class RopeFlattenEnv(RopeNewEnv):
         super().__init__(**kwargs)
         self.prev_distance_diff = None
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
+        self._corner_ids = [0, pyflex.get_positions().reshape(-1, 4).shape[0] - 1]
 
     def generate_env_variation(self, num_variations=1, config=None, save_to_file=False, **kwargs):
         """ Generate initial states. Note: This will also change the current states! """
@@ -97,3 +98,22 @@ class RopeFlattenEnv(RopeNewEnv):
             'normalized_performance': normalized_performance,
             'end_point_distance': curr_endpoint_dist
         }
+
+    def _get_corner_positions(self):
+        all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
+        #print('num particles', len(all_particle_positions))
+        return all_particle_positions[self._corner_ids]
+    
+    def _get_corner_pixel_positions(self):
+        positions = self._get_corner_positions()
+        N = positions.shape[0]
+        camera_hight = 1.5 # TODO: magic number
+        depths = camera_hight - positions[:, 1] #x, z, y
+        pixel_to_world_ratio = 0.415 # TODO: magic number
+        projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1
+        projected_pixel_positions_y = positions[:, 2]/pixel_to_world_ratio/depths #-1, 1
+        projected_pixel_positions = np.concatenate(
+            [projected_pixel_positions_x.reshape(N, 1), projected_pixel_positions_y.reshape(N, 1)],
+            axis=1)
+        
+        return projected_pixel_positions

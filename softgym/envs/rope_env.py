@@ -2,18 +2,18 @@ import numpy as np
 from gym.spaces import Box
 import pyflex
 from softgym.envs.flex_env import FlexEnv
-from softgym.action_space.action_space import Picker
+from softgym.action_space.action_space import Picker, PickerPickPlace
 from softgym.action_space.robot_env import RobotBase
 from copy import deepcopy
 
 
 class RopeNewEnv(FlexEnv):
-    def __init__(self, observation_mode, action_mode, num_picker=2, horizon=75, render_mode='particle', picker_radius=0.02, **kwargs):
+    def __init__(self, observation_mode, action_mode, num_picker=2, horizon=75, render_mode='particle', picker_radius=0.02, particle_radius=0.00625, picker_threshold=0.002, **kwargs):
         self.render_mode = render_mode
         super().__init__(**kwargs)
 
+        assert action_mode in ['picker', 'pickerpickplace', 'pickerpickplace1', 'sawyer', 'franka', 'picker_qpg']
         assert observation_mode in ['point_cloud', 'cam_rgb', 'key_point']
-        assert action_mode in ['picker', 'sawyer', 'franka']
         self.observation_mode = observation_mode
         self.action_mode = action_mode
         self.num_picker = num_picker
@@ -22,6 +22,18 @@ class RopeNewEnv(FlexEnv):
             self.action_tool = Picker(num_picker, picker_radius=picker_radius, picker_threshold=0.005, 
             particle_radius=0.025, picker_low=(-0.35, 0., -0.35), picker_high=(0.35, 0.3, 0.35))
             self.action_space = self.action_tool.action_space
+
+        elif action_mode == 'pickerpickplace':
+            self.action_tool = PickerPickPlace(
+                num_picker=num_picker, 
+                particle_radius=particle_radius, 
+                env=self, picker_threshold=picker_threshold, 
+                picker_radius=picker_radius,
+                camera_depth=self.get_current_config()['camera_params']['default_camera']['pos'][1], **kwargs)
+
+            self.action_space = self.action_tool.action_space
+            assert self.action_repeat == 1
+
         elif action_mode in ['sawyer', 'franka']:
             self.action_tool = RobotBase(action_mode)
 
@@ -56,7 +68,7 @@ class RopeNewEnv(FlexEnv):
             'scale': 0.5,
             'camera_name': 'default_camera',
             'camera_params': {'default_camera':
-                                  {'pos': np.array([0, 0.85, 0]),
+                                  {'pos': np.array([0, 1.5, 0]),
                                    'angle': np.array([0 * np.pi, -90 / 180. * np.pi, 0]),
                                    'width': self.camera_width,
                                    'height': self.camera_height}}
