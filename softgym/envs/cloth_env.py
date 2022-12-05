@@ -137,7 +137,7 @@ class ClothEnv(FlexEnv):
         if self.observation_mode['image'] == 'cam_rgb':
             obs['image'] = self.get_image(self.camera_height, self.camera_width)
         
-        elif self.observation_mode == 'cam_rgbd':
+        elif self.observation_mode['image'] == 'cam_rgbd':
             obs['image'] = self.get_image(self.camera_height, self.camera_width, depth=True)
         
         if self.observation_mode['state'] == 'point_cloud':

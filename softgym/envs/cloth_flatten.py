@@ -214,7 +214,9 @@ class ClothFlattenEnv(ClothEnv):
 
     def _step(self, action):
         self.action_tool.step(action)
-        self._wait_to_stabalise(render=True)
+        if self.action_mode == 'pickerpickplace':
+            self._wait_to_stabalise(render=True)
+       
         if self.action_mode in ['sawyer', 'franka']:
             pyflex.step(self.action_tool.next_action)
         else:

@@ -156,6 +156,7 @@ class FlexEnv(gym.Env):
         del self.video_frames
 
     def reset(self, config=None, initial_state=None, config_id=None):
+     
         if config is None:
             if config_id is None:
                 if self.eval_flag:
@@ -171,15 +172,19 @@ class FlexEnv(gym.Env):
             self.current_config = self.cached_configs[config_id]
             self.current_config_id = config_id
             self.set_scene(self.cached_configs[config_id], self.cached_init_states[config_id])
+            
         else:
             self.current_config = config
             self.set_scene(config, initial_state)
         self.particle_num = pyflex.get_n_particles()
         self.prev_reward = 0.
         self.time_step = 0
+
         obs, reward = self._reset()
+
         if self.recording:
-            self.video_frames.append(self.render(mode='rgb_array'))
+            self.video_frames.append(self.render(mode='rgb'))
+
         return obs, reward
 
     def step(self, action, record_continuous_video=False, img_size=None):
@@ -194,7 +199,7 @@ class FlexEnv(gym.Env):
         info = self._get_info()
 
         if self.recording:
-            self.video_frames.append(self.render(mode='rgb_array'))
+            self.video_frames.append(self.render(mode='rgb'))
         self.time_step += 1
 
         done = False
@@ -223,30 +228,25 @@ class FlexEnv(gym.Env):
         """
         raise NotImplementedError
 
-    def render(self, mode='rgb_array', depth=False):
+    def render(self, mode='rgb'):
         pyflex.step()
-        if mode == 'rgb_array':
-            img, depth_img = pyflex.render()
-            width, height = self.camera_params['default_camera']['width'], self.camera_params['default_camera']['height']
-            img = img.reshape(height, width, 4)[::-1, :, :3]  # Need to reverse the height dimension
-            depth_img = depth_img.reshape(height, width, 1)[::-1, :, :1]
-            
-            # fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-            # axes[0].imshow(img)
-            # axes[1].imshow(depth_img.reshape(height, width))
-            # plt.show()
+        img, depth_img = pyflex.render()
+        width, height = self.camera_params['default_camera']['width'], self.camera_params['default_camera']['height']
+        img = img.reshape(height, width, 4)[::-1, :, :3]  # Need to reverse the height dimension
+        depth_img = depth_img.reshape(height, width, 1)[::-1, :, :1]
 
-
-            if depth:
-                img=np.concatenate((img, depth_img), axis=2)
+        if mode == 'rgbd':
+            return np.concatenate((img, depth_img), axis=2)
+        elif mode == 'rgb':
             return img
-        
-        elif mode == 'human':
+        elif mode == 'd':
+            return depth_img
+        else:
             raise NotImplementedError
 
     def get_image(self, width=720, height=720, depth=False):
         """ use pyflex.render to get a rendered image. """
-        img = self.render(mode='rgb_array', depth=depth)
+        img = self.render(mode='rgb' + ("d" if depth else ""))
         #img = img.astype(np.uint8)
         if width != img.shape[0] or height != img.shape[1]:
             img = cv2.resize(img, (width, height))
