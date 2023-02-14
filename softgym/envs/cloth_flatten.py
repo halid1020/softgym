@@ -306,8 +306,12 @@ class ClothFlattenEnv(ClothEnv):
         return reward
 
     def get_cloth_mask(self, pixel_size=(64, 64)):
-        depth_images = self.render(mode='rgb_array', depth=True)[:, :, 3]
-        depth_images = cv2.resize(depth_images, pixel_size)
+        depth_images = self.render(mode='rgbd')[:, :, 3]
+        # depth_images = np.expand_dims(depth_images, 2)
+        # print('depth image shape', depth_images.shape)
+        if pixel_size != (720,720):
+            depth_images = cv2.resize(depth_images, pixel_size, interpolation=cv2.INTER_LINEAR)
+        # print('depth image after shape', depth_images.shape)
        
         mask = (1.35 < depth_images) & (depth_images < 1.499)
         return mask
@@ -331,7 +335,7 @@ class ClothFlattenEnv(ClothEnv):
             [projected_pixel_positions_x.reshape(N, 1), projected_pixel_positions_y.reshape(N, 1)],
             axis=1)
 
-        depth_images = self.render(mode='rgb_array', depth=True)[:, :, 3]
+        depth_images = self.render(mode='rgbd')[:, :, 3]
         depth_images = cv2.resize(depth_images, (128, 128))
         #print(depth_images.shape)
 
