@@ -4,7 +4,6 @@ from statistics import mode
 from matplotlib.pyplot import xscale
 import numpy as np
 from pygame import mask
-from torch import full
 from gym.spaces import Box
 from softgym.utils.misc import rotation_2d_around_center, extend_along_center
 import pyflex
