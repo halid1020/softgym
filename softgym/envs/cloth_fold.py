@@ -6,7 +6,7 @@ from softgym.utils.pyflex_utils import center_object
 
 
 class ClothFoldEnv(ClothEnv):
-    
+
     def __init__(self, cached_states_path='cloth_fold_init_states.pkl', **kwargs):
         self.fold_group_a = self.fold_group_b = None
         self.init_pos, self.prev_dist = None, None
@@ -104,8 +104,13 @@ class ClothFoldEnv(ClothEnv):
             # picker_high[0] += offset_x
             # picker_high[0] += 1.0
             # self.action_tool.update_picker_boundary(picker_low, picker_high)
+        
 
+        
         config = self.get_current_config()
+        cloth_dimx, cloth_dimz = config['ClothSize']
+        self._corner_ids = [0, cloth_dimx-1, (cloth_dimz-1)*cloth_dimx, cloth_dimz*cloth_dimx-1]
+        
         num_particles = np.prod(config['ClothSize'], dtype=int)
         particle_grid_idx = np.array(list(range(num_particles))).reshape(config['ClothSize'][1], config['ClothSize'][0])  # Reversed index here
 

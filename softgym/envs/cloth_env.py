@@ -75,6 +75,17 @@ class ClothEnv(FlexEnv):
             self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 1),
                                          dtype=np.float32)
 
+    def _get_corner_positions(self):
+        all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
+        #print('particles num', len(all_particle_positions))
+        # print('first particle position', all_particle_positions[0])
+        # print('last particle position', all_particle_positions[-1])
+        #print('num particles', len(all_particle_positions))
+        return all_particle_positions[self._corner_ids]
+
+    def get_corner_positions(self, pos):
+        return pos[self._corner_ids]
+
     def _sample_cloth_size(self):
         return np.random.randint(60, 120), np.random.randint(60, 120)
 
