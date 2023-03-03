@@ -172,19 +172,12 @@ class ClothFlattenEnv(ClothEnv):
 
         return self.get_covered_area(new_pos)
     
-    def _get_corner_positions(self):
-        all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
-        #print('particles num', len(all_particle_positions))
-        # print('first particle position', all_particle_positions[0])
-        # print('last particle position', all_particle_positions[-1])
-        #print('num particles', len(all_particle_positions))
-        return all_particle_positions[self._corner_ids]
+   
     
     def _get_info(self):
         pass
 
-    def get_corner_positions(self, pos):
-        return pos[self._corner_ids]
+    
     
 
     def _reset(self):

@@ -39,15 +39,17 @@ def random_pick_and_place(pick_num=10, pick_scale=0.01):
             break
 
 
-def center_object():
+def center_object(sampler, position):
     """
     Center the object to be at the origin
     NOTE: call a pyflex.set_positions and then pyflex.step
     """
     pos = pyflex.get_positions().reshape(-1, 4)
     pos[:, [0, 2]] -= np.mean(pos[:, [0, 2]], axis=0, keepdims=True) 
-    pos[:, 0] += 0.6 * (random()-0.5)
-    pos[:, 2] += 0.6 * (random()-0.5)
+    
+    
+    pos[:, 0] += position * (sampler.rand(1)-0.5)
+    pos[:, 2] += position * (sampler.rand(1)-0.5)
 
     pyflex.set_positions(pos.flatten())
     pyflex.step()

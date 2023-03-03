@@ -1,4 +1,3 @@
-from distutils.command.config import config
 import numpy as np
 import pyflex
 from copy import deepcopy
@@ -15,6 +14,9 @@ class ClothFoldEnv(ClothEnv):
         self.particle_raidus = kwargs['particle_radius']
         self.fold_mode = kwargs['fold_mode']
         self.reward_mode = kwargs['reward_mode']
+        self.context = kwargs['context']
+        self.random_state = np.random.RandomState(kwargs['random_seed'])
+
         super().__init__(**kwargs)
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
 
@@ -68,9 +70,11 @@ class ClothFoldEnv(ClothEnv):
                 if np.alltrue(np.abs(curr_vel) < stable_vel_threshold):
                     break
 
-            center_object()
-            angle = (np.random.random() - 0.5) * np.pi / 2
-            self.rotate_particles(angle)
+            center_object(self.random_state, self.context['positions'])
+            
+            if self.context['rotations']:
+                angle = self.random_state.rand(1) * np.pi * 2
+                self.rotate_particles(angle)
 
             generated_configs.append(deepcopy(config))
             print('config {}: {}'.format(i, config['camera_params']))
