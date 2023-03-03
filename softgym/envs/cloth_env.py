@@ -8,7 +8,9 @@ from copy import deepcopy
 
 
 class ClothEnv(FlexEnv):
-    def __init__(self, observation_mode, action_mode, num_picker=2, render_mode='particle', picker_radius=0.02, picker_threshold=0.002, particle_radius=0.00625, **kwargs):
+    def __init__(self, observation_mode, action_mode, num_picker=2, render_mode='particle', 
+        picker_radius=0.02, picker_threshold=0.002, particle_radius=0.00625, 
+        motion_trajectory='normal', **kwargs):
         self.render_mode = render_mode
         self.action_mode = action_mode
         self.cloth_particle_radius = particle_radius
@@ -32,6 +34,7 @@ class ClothEnv(FlexEnv):
                 particle_radius=particle_radius, 
                 env=self, picker_threshold=picker_threshold, 
                 picker_radius=picker_radius,
+                motion_trajectory=motion_trajectory,
                 camera_depth=self.get_current_config()['camera_params']['default_camera']['pos'][1], **kwargs)
 
             self.action_space = self.action_tool.action_space
