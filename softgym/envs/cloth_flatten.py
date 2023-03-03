@@ -144,6 +144,7 @@ class ClothFlattenEnv(ClothEnv):
     
     def _flatten_pos(self):
         cloth_dimx, cloth_dimz = self.get_current_config()['ClothSize']
+        
         N = cloth_dimx * cloth_dimz
         px = np.linspace(0, cloth_dimx * self.cloth_particle_radius, cloth_dimx)
         px -= cloth_dimx * self.cloth_particle_radius/2 
@@ -154,6 +155,7 @@ class ClothFlattenEnv(ClothEnv):
         L = len(xx)
         W = len(xx[0])
         self._corner_ids = [0, W-1, (L-1)*W, L*W-1]
+        #print('_corner_ids', self._corner_ids)
         #print('corner ids', self._corner_ids)
         new_pos = np.empty(shape=(N, 4), dtype=float)
         new_pos[:, 0] = xx.flatten()
@@ -185,6 +187,9 @@ class ClothFlattenEnv(ClothEnv):
     
     def _get_corner_positions(self):
         all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
+        #print('particles num', len(all_particle_positions))
+        # print('first particle position', all_particle_positions[0])
+        # print('last particle position', all_particle_positions[-1])
         #print('num particles', len(all_particle_positions))
         return all_particle_positions[self._corner_ids]
     

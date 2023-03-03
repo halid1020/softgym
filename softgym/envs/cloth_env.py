@@ -12,6 +12,8 @@ class ClothEnv(FlexEnv):
         self.render_mode = render_mode
         self.action_mode = action_mode
         self.cloth_particle_radius = particle_radius
+
+        #print('particle_radius', particle_radius)
         super().__init__(**kwargs)
 
         #assert observation_mode in ['key_point', 'point_cloud', 'cam_rgb', 'cam_rgbd']
@@ -81,6 +83,7 @@ class ClothEnv(FlexEnv):
     def _get_flat_pos(self):
         config = self.get_current_config()
         dimx, dimy = config['ClothSize']
+        #print('clothsize', config['ClothSize'])
 
         x = np.array([i * self.cloth_particle_radius for i in range(dimx)])
         y = np.array([i * self.cloth_particle_radius for i in range(dimy)])
@@ -203,12 +206,10 @@ class ClothEnv(FlexEnv):
                                  *camera_params['pos'][:], *camera_params['angle'][:], camera_params['width'], camera_params['height'], mass,
                                  config['flip_mesh']])
         if self.version == 2:
-            print('here version 2')
             robot_params = [1.] if self.action_mode in ['sawyer', 'franka'] else []
             self.params = (scene_params, robot_params)
             pyflex.set_scene(env_idx, scene_params, 0, robot_params)
         elif self.version == 1:
-            print('here version 1')
             pyflex.set_scene(env_idx, scene_params, 0)
 
         if state is not None:
