@@ -149,6 +149,8 @@ class Picker(ActionToolBase):
                 #print('release ...')
                 new_particle_pos[self.picked_particles[i], 3] = self.particle_inv_mass[self.picked_particles[i]]  # Revert the mass
                 self.picked_particles[i] = None
+        
+        self._set_pos(new_picker_pos, new_particle_pos)
 
         # Pick new particles and update the mass and the positions
         for i in range(self.num_picker):
@@ -344,6 +346,9 @@ class PickerPickPlace(Picker):
 
             # place
             super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), release_signal)]))
+            pyflex.step()
+            if render:
+                pyflex.render()
             pyflex.step()
             if render:
                 pyflex.render()

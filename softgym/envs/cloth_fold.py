@@ -1,3 +1,4 @@
+from distutils.command.config import config
 import numpy as np
 import pyflex
 from copy import deepcopy
@@ -12,6 +13,8 @@ class ClothFoldEnv(ClothEnv):
         self.init_pos, self.prev_dist = None, None
         self.cloth_dim = kwargs['cloth_dim']
         self.particle_raidus = kwargs['particle_radius']
+        self.fold_mode = kwargs['fold_mode']
+        self.reward_mode = kwargs['reward_mode']
         super().__init__(**kwargs)
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
 
@@ -109,15 +112,30 @@ class ClothFoldEnv(ClothEnv):
         
         config = self.get_current_config()
         cloth_dimx, cloth_dimz = config['ClothSize']
+        #print('cloth size', config['ClothSize'])
         self._corner_ids = [0, cloth_dimx-1, (cloth_dimz-1)*cloth_dimx, cloth_dimz*cloth_dimx-1]
-        
-        num_particles = np.prod(config['ClothSize'], dtype=int)
-        particle_grid_idx = np.array(list(range(num_particles))).reshape(config['ClothSize'][1], config['ClothSize'][0])  # Reversed index here
 
-        cloth_dimx = config['ClothSize'][0]
-        x_split = cloth_dimx // 2
-        self.fold_group_a = particle_grid_idx[:, :x_split].flatten()
-        self.fold_group_b = np.flip(particle_grid_idx, axis=1)[:, :x_split].flatten()
+        num_particles = np.prod(config['ClothSize'], dtype=int)
+        particle_grid_idx = np.array(list(range(num_particles))).reshape(config['ClothSize'][0], config['ClothSize'][1]).T  # Reversed index here
+        vertical_flip_particle_grid_idx = np.flip(particle_grid_idx, 1)
+
+
+        if self.fold_mode == 'diagonal': ### Only Valid For Square Fabrics
+            upper_triangle_ids = np.triu_indices(cloth_dimx)
+            self.fold_group_a = particle_grid_idx[upper_triangle_ids].flatten()
+            self.fold_group_b = particle_grid_idx.T[upper_triangle_ids].flatten()
+            self.fold_group_a_flip =  vertical_flip_particle_grid_idx[upper_triangle_ids].flatten()
+            self.fold_group_b_flip = vertical_flip_particle_grid_idx.T[upper_triangle_ids].flatten()
+
+            
+        elif self.fold_mode == 'side': ## Need to test this out.
+            cloth_dimx = config['ClothSize'][0]
+            x_split = cloth_dimx // 2
+            self.fold_group_a = particle_grid_idx[:, :x_split].flatten()
+            self.fold_group_b = np.flip(particle_grid_idx, axis=1)[:, :x_split].flatten()
+
+        else:
+            raise NotImplementedError
 
         colors = np.zeros(num_particles)
         colors[self.fold_group_a] = 1
@@ -139,7 +157,7 @@ class ClothFoldEnv(ClothEnv):
         self.action_tool.step(action)
 
         if self.action_mode == 'pickerpickplace':
-            self._wait_to_stabalise(render=True)
+            self._wait_to_stabalise(render=True,  max_wait_step=20)
        
         if self.action_mode in ['sawyer', 'franka']:
             pyflex.step(self.action_tool.next_action)
@@ -159,13 +177,44 @@ class ClothFoldEnv(ClothEnv):
         """
         pos = pyflex.get_positions()
         pos = pos.reshape((-1, 4))[:, :3]
-        pos_group_a = pos[self.fold_group_a]
-        pos_group_b = pos[self.fold_group_b]
-        pos_group_b_init = self.init_pos[self.fold_group_b]
-        curr_dist = np.mean(np.linalg.norm(pos_group_a - pos_group_b, axis=1)) + \
-                    1.2 * np.mean(np.linalg.norm(pos_group_b - pos_group_b_init, axis=1))
-        reward = -curr_dist
-        return reward
+        print('pos shape', pos.shape)
+
+        if self.fold_mode == 'diagonal':
+            
+            if self.reward_mode == 'normalised_particle_distance':
+                self._wait_to_stabalise(render=True,  max_wait_step=50, stable_vel_threshold=0.005)
+                cols = [0, 2]
+                pos_group_a = pos[np.ix_(self.fold_group_a, cols)]
+                pos_group_b = pos[np.ix_(self.fold_group_b, cols)]
+
+            
+                distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
+                largest_distance_id = np.argmax(distance)
+                particl_wise_distance_1 = distance[largest_distance_id]
+
+                pos_group_a = pos[np.ix_(self.fold_group_a_flip, cols)]
+                pos_group_b = pos[np.ix_(self.fold_group_b_flip, cols)]
+
+                distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
+                largest_distance_id = np.argmax(distance)
+                particl_wise_distance_2 = distance[largest_distance_id]
+
+               
+
+                longest_distance = 0.4*(2**0.5)
+
+
+
+                return (longest_distance - min(particl_wise_distance_1, particl_wise_distance_2))/longest_distance
+        
+        else:
+            raise NotImplementedError
+
+        # pos_group_b_init = self.init_pos[self.fold_group_b]
+        # curr_dist = np.mean(np.linalg.norm(pos_group_a - pos_group_b, axis=1)) + \
+        #             1.2 * np.mean(np.linalg.norm(pos_group_b - pos_group_b_init, axis=1))
+        # reward = -curr_dist
+        # return reward
 
     def _get_info(self):
         # Duplicate of the compute reward function!
