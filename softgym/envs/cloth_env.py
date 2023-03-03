@@ -2,7 +2,7 @@ import numpy as np
 from gym.spaces import Box
 import pyflex
 from softgym.envs.flex_env import FlexEnv
-from softgym.action_space.action_space import  Picker, PickerPickPlace, PickerQPG
+from softgym.action_space.action_space import  Picker, PickerPickPlace
 from softgym.action_space.robot_env import RobotBase
 from copy import deepcopy
 
@@ -40,22 +40,17 @@ class ClothEnv(FlexEnv):
         elif action_mode in ['sawyer', 'franka']:
             self.action_tool = RobotBase(action_mode)
             self.action_space = self.action_tool.action_space
-        elif action_mode == 'picker_qpg':
-            cam_pos, cam_angle = self.get_camera_params()
-            self.action_tool = PickerQPG((self.camera_height, self.camera_height), cam_pos, cam_angle, picker_threshold=picker_threshold,
-                                         num_picker=num_picker, particle_radius=particle_radius, env=self,
-                                         picker_low=(-0.3, 0., -0.3), picker_high=(0.3, 0.3, 0.3)
-                                         )
-            self.action_space = self.action_tool.action_space
 
 
         if observation_mode['state'] == None:
             pass
         elif observation_mode['state'] == 'key_point':
             sts_dim = len(self._get_key_point_idx()) * 3
-        elif observation_mode['state'] == 'point_cloud':
-            max_particles = 120 * 120
-            sts_dim = max_particles * 3
+        elif observation_mode['state'] == 'positions':
+            config = self.get_current_config()
+            dimx, dimy = config['ClothSize']
+
+            sts_dim = dimx * dimy * 3
             self.particle_obs_dim = sts_dim
         elif observation_mode['state'] == 'corner_pixel':
             sts_dim = 4*2
@@ -215,3 +210,19 @@ class ClothEnv(FlexEnv):
         if state is not None:
             self.set_state(state)
         self.current_config = deepcopy(config)
+
+    
+    def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.05, target_point=None, target_pos=None, render=False):
+        for j in range(0, max_wait_step):
+            curr_vel = pyflex.get_velocities()
+            if target_point != None:
+                curr_pos = pyflex.get_positions()
+                curr_pos[target_point * 4: target_point * 4 + 3] = target_pos
+                curr_vel[target_point * 3: target_point * 3 + 3] = [0, 0, 0]
+                pyflex.set_positions(curr_pos)
+                pyflex.set_velocities(curr_vel)
+            pyflex.step()
+            if render:
+                pyflex.render()
+            if np.alltrue(np.abs(curr_vel) < stable_vel_threshold) and j > 5:
+                break

@@ -6,9 +6,12 @@ from softgym.utils.pyflex_utils import center_object
 
 
 class ClothFoldEnv(ClothEnv):
+    
     def __init__(self, cached_states_path='cloth_fold_init_states.pkl', **kwargs):
         self.fold_group_a = self.fold_group_b = None
         self.init_pos, self.prev_dist = None, None
+        self.cloth_dim = kwargs['cloth_dim']
+        self.particle_raidus = kwargs['particle_radius']
         super().__init__(**kwargs)
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
 
@@ -22,8 +25,6 @@ class ClothFoldEnv(ClothEnv):
         new_pos += center
         pyflex.set_positions(new_pos)
 
-    
-
     def generate_env_variation(self, num_variations=2, vary_cloth_size=True):
         """ Generate initial states. Note: This will also change the current states! """
         max_wait_step = 1000  # Maximum number of steps waiting for the cloth to stablize
@@ -36,7 +37,10 @@ class ClothFoldEnv(ClothEnv):
             config = deepcopy(default_config)
             self.update_camera(config['camera_name'], config['camera_params'][config['camera_name']])
             if vary_cloth_size:
-                cloth_dimx, cloth_dimy = self._sample_cloth_size()
+                cloth_dimx, cloth_dimy = int(self.cloth_dim[0]/self.particle_raidus), int(self.cloth_dim[1]/self.particle_raidus)
+                
+                
+                self._sample_cloth_size()
                 config['ClothSize'] = [cloth_dimx, cloth_dimy]
             else:
                 cloth_dimx, cloth_dimy = config['ClothSize']
@@ -123,15 +127,24 @@ class ClothFoldEnv(ClothEnv):
         self.performance_init = None
         info = self._get_info()
         self.performance_init = info['performance']
-        return self._get_obs()
+        return self._get_obs(), None
 
     def _step(self, action):
+
         self.action_tool.step(action)
+
+        if self.action_mode == 'pickerpickplace':
+            self._wait_to_stabalise(render=True)
+       
         if self.action_mode in ['sawyer', 'franka']:
-            print(self.action_tool.next_action)
             pyflex.step(self.action_tool.next_action)
         else:
             pyflex.step()
+
+        return
+
+
+        
 
     def compute_reward(self, action=None, obs=None, set_prev_reward=False):
         """
