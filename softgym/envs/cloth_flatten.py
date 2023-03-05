@@ -7,7 +7,7 @@ from copy import deepcopy
 from softgym.utils.pyflex_utils import center_object
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import cv2
+
 import math
 from softgym.utils.pyflex_utils import random_pick_and_place
 
@@ -125,25 +125,12 @@ class ClothFlattenEnv(ClothEnv):
     def get_goal_observation(self):
         return self._target_img
 
-    def get_flatten_corner_positions(self):
-        # 4*3
-        return self._flatten_corner_positions
+    
     
     
 
 
-    def _set_to_flatten(self):
-        # self._get_current_covered_area(pyflex.get_positions().reshape(-))
-        new_pos = self._flatten_pos()
-        
-        pyflex.set_positions(new_pos.flatten())
-        #pyflex.step()
-        self._target_img = self._get_obs()['image']
-        self._flatten_corner_positions = self._get_corner_positions()
-
-        new_pos = self.get_particle_positions()
-
-        return self.get_covered_area(new_pos)
+    
     
    
     
