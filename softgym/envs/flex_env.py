@@ -82,11 +82,12 @@ class FlexEnv(gym.Env):
             cur_dir = osp.dirname(osp.abspath(__file__))
             cached_states_path = osp.join(cur_dir, '../cached_initial_states', cached_states_path)
         if self.use_cached_states and osp.exists(cached_states_path):
+            print('I am here', num_variations)
             # Load from cached file
             with open(cached_states_path, "rb") as handle:
                 self.cached_configs, self.cached_init_states = pickle.load(handle)
             print('{} config and state pairs loaded from {}'.format(len(self.cached_init_states), cached_states_path))
-            if len(self.cached_configs) == num_variations:
+            if len(self.cached_configs) >= num_variations:
                 return self.cached_configs, self.cached_init_states
 
         self.cached_configs, self.cached_init_states = self.generate_env_variation(num_variations)
