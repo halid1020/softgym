@@ -1,11 +1,12 @@
 import numpy as np
+import cv2
 from gym.spaces import Box
 import pyflex
 from softgym.envs.flex_env import FlexEnv
 from softgym.action_space.action_space import  Picker, PickerPickPlace
 from softgym.action_space.robot_env import RobotBase
 from copy import deepcopy
-
+from softgym.utils.misc import vectorized_range, vectorized_meshgrid
 
 class ClothEnv(FlexEnv):
     def __init__(self, observation_mode, action_mode, num_picker=2, render_mode='particle', 
@@ -75,6 +76,72 @@ class ClothEnv(FlexEnv):
             self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 1),
                                          dtype=np.float32)
 
+    def get_cloth_mask(self, pixel_size=(64, 64)):
+        depth_images = self.render(mode='rgbd')[:, :, 3]
+        # depth_images = np.expand_dims(depth_images, 2)
+        # print('depth image shape', depth_images.shape)
+        if pixel_size != (720,720):
+            depth_images = cv2.resize(depth_images, pixel_size, interpolation=cv2.INTER_LINEAR)
+        # print('depth image after shape', depth_images.shape)
+       
+        mask = (1.35 < depth_images) & (depth_images < 1.499)
+        return mask
+
+    def get_flatten_corner_positions(self):
+        # 4*3
+        return self._flatten_corner_positions
+
+    def _set_to_flatten(self):
+        # self._get_current_covered_area(pyflex.get_positions().reshape(-))
+        new_pos = self._flatten_pos()
+        
+        pyflex.set_positions(new_pos.flatten())
+        #pyflex.step()
+        self._target_img = self._get_obs()['image']
+        self._flatten_corner_positions = self._get_corner_positions()
+
+        new_pos = self.get_particle_positions()
+
+        return self.get_covered_area(new_pos)
+
+
+    def get_visibility(self, positions):
+        # TODO: need to refactor this, so bad.
+        # This has to be online.
+
+        N = positions.shape[0]
+        
+        visibility = [False for _ in range(N)]
+
+        camera_hight = 1.5 # TODO: magic number
+        depths = camera_hight - positions[:, 1] #x, z, y
+        pixel_to_world_ratio = 0.415 # TODO: magic number
+        projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1
+        projected_pixel_positions_y = positions[:, 2]/pixel_to_world_ratio/depths #-1, 1
+        projected_pixel_positions = np.concatenate(
+            [projected_pixel_positions_x.reshape(N, 1), projected_pixel_positions_y.reshape(N, 1)],
+            axis=1)
+
+        depth_images = self.render(mode='rgbd')[:, :, 3]
+        depth_images = cv2.resize(depth_images, (128, 128))
+        #print(depth_images.shape)
+
+        for i in range(N):
+            x, y = projected_pixel_positions[i][0],  projected_pixel_positions[i][1]
+            if x < -1 or x > 1 or y < -1 or y > 1:
+                continue
+            x_ = int((y + 1)/2 * 128)
+            y_ = int((x + 1)/2 * 128)
+            if depths[i] < depth_images[x_][y_] + 1e-6:
+                visibility[i] = True
+            
+        
+
+        return np.asarray(visibility)
+
+    def get_normalised_coverage(self):
+        return self._normalised_coverage()
+
     def _get_corner_positions(self):
         all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
         #print('particles num', len(all_particle_positions))
@@ -82,6 +149,75 @@ class ClothEnv(FlexEnv):
         # print('last particle position', all_particle_positions[-1])
         #print('num particles', len(all_particle_positions))
         return all_particle_positions[self._corner_ids]
+    
+    def _normalised_coverage(self):
+        return self._current_coverage_area/self._target_covered_area
+    
+    def get_particle_positions(self):
+        pos = pyflex.get_positions()
+        pos = pos.reshape(-1, 4)[:, :3].copy()
+        return pos
+
+    def _flatten_pos(self):
+        cloth_dimx, cloth_dimz = self.get_current_config()['ClothSize']
+        
+        N = cloth_dimx * cloth_dimz
+        px = np.linspace(0, cloth_dimx * self.cloth_particle_radius, cloth_dimx)
+        px -= cloth_dimx * self.cloth_particle_radius/2 
+        py = np.linspace(0, cloth_dimz * self.cloth_particle_radius, cloth_dimz)
+        py -= cloth_dimz * self.cloth_particle_radius/2
+
+        xx, yy = np.meshgrid(px, py)
+        L = len(xx)
+        W = len(xx[0])
+        self._corner_ids = [0, W-1, (L-1)*W, L*W-1]
+        #print('_corner_ids', self._corner_ids)
+        #print('corner ids', self._corner_ids)
+        new_pos = np.empty(shape=(N, 4), dtype=float)
+        new_pos[:, 0] = xx.flatten()
+        new_pos[:, 1] = self.cloth_particle_radius
+        new_pos[:, 2] = yy.flatten()
+        new_pos[:, 3] = 1.
+        new_pos[:, :3] -= np.mean(new_pos[:, :3], axis=0)
+        self._target_pos = new_pos.copy()
+
+        return new_pos.copy()
+    
+    def flatten_pos(self):
+        pos = self._flatten_pos()
+        return pos.reshape(-1, 4)[:, :3].copy()
+    
+    def get_covered_area(self, pos):
+        """
+        Calculate the covered area by taking max x,y cood and min x,y coord, create a discritized grid between the points
+        :param pos: Current positions of the particle states
+        """
+        #pos = np.reshape(pos, [-1, 4])
+        min_x = np.min(pos[:, 0])
+        min_y = np.min(pos[:, 2])
+        max_x = np.max(pos[:, 0])
+        max_y = np.max(pos[:, 2])
+        init = np.array([min_x, min_y])
+        span = np.array([max_x - min_x, max_y - min_y]) / 100.
+        pos2d = pos[:, [0, 2]]
+
+        offset = pos2d - init
+        slotted_x_low = np.maximum(np.round((offset[:, 0] - self.cloth_particle_radius) / span[0]).astype(int), 0)
+        slotted_x_high = np.minimum(np.round((offset[:, 0] + self.cloth_particle_radius) / span[0]).astype(int), 100)
+        slotted_y_low = np.maximum(np.round((offset[:, 1] - self.cloth_particle_radius) / span[1]).astype(int), 0)
+        slotted_y_high = np.minimum(np.round((offset[:, 1] + self.cloth_particle_radius) / span[1]).astype(int), 100)
+
+        # Method 1
+        grid = np.zeros(10000)  # Discretization
+        listx = vectorized_range(slotted_x_low, slotted_x_high)
+        listy = vectorized_range(slotted_y_low, slotted_y_high)
+        listxx, listyy = vectorized_meshgrid(listx, listy)
+        idx = listxx * 100 + listyy
+        idx = np.clip(idx.flatten(), 0, 9999)
+        grid[idx] = 1
+
+        return np.sum(grid) * span[0] * span[1]
+
 
     def get_corner_positions(self, pos):
         return pos[self._corner_ids]

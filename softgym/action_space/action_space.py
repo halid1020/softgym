@@ -173,6 +173,7 @@ class Picker(ActionToolBase):
                 idx_dists.sort(key=lambda i: (i[1], i[0]))
                 idx_dists = np.asarray(idx_dists)
 
+                #print('idx_dists', idx_dists[:3])
 
                 if idx_dists.shape[0] > 0:
                     pick_id, pick_dist = None, None
@@ -352,9 +353,16 @@ class PickerPickPlace(Picker):
             pyflex.step()
             if render:
                 pyflex.render()
-            pyflex.step()
-            if render:
-                pyflex.render()
+            
+            # Move a bit
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+            curr_pos[:, 0] += 0.2
+            curr_pos[:, 2] += 0.2
+            move_action = \
+                np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(move_action, render)
+
+
             total_steps += 1
 
         elif self._motion_trajectory == 'triangle':
@@ -415,6 +423,15 @@ class PickerPickPlace(Picker):
             if render:
                 pyflex.render()
             total_steps += 1
+
+             # Move a bit
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+            curr_pos[:, 0] += 0.05
+            curr_pos[:, 2] += 0.05
+            move_action = \
+                np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(move_action, render)
+
         
 
         return total_steps

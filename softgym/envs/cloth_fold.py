@@ -7,18 +7,24 @@ from softgym.utils.pyflex_utils import center_object
 
 class ClothFoldEnv(ClothEnv):
 
-    def __init__(self, cached_states_path='cloth_fold_init_states.pkl', **kwargs):
+    def __init__(self, cached_states_path='cloth_folding_tmp.pkl', **kwargs):
+        super().__init__(**kwargs)
+
         self.fold_group_a = self.fold_group_b = None
         self.init_pos, self.prev_dist = None, None
         self.cloth_dim = kwargs['cloth_dim']
         self.particle_raidus = kwargs['particle_radius']
         self.fold_mode = kwargs['fold_mode']
         self.reward_mode = kwargs['reward_mode']
-        self.context = kwargs['context']
-        self.random_state = np.random.RandomState(kwargs['random_seed'])
+        self.initial_state = kwargs['initial_state']
+        
+        if self.use_cached_states == False:
+            self.context = kwargs['context']
+            self.random_state = np.random.RandomState(kwargs['random_seed'])
 
-        super().__init__(**kwargs)
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
+        self.reset()
+        self._set_to_flatten()
 
     def rotate_particles(self, angle):
         pos = pyflex.get_positions().reshape(-1, 4)
@@ -97,6 +103,15 @@ class ClothFoldEnv(ClothEnv):
 
     def _reset(self):
         """ Right now only use one initial state. Need to make sure _reset always give the same result. Otherwise CEM will fail."""
+        
+        
+        self._initial_particel_pos = self.get_particle_positions()
+        self._initial_covered_area = self.get_covered_area(self._initial_particel_pos)
+        self._current_coverage_area = self._prior_coverage_area = self._initial_covered_area
+        self._target_particel_pos = self.flatten_pos()
+        self._target_covered_area =  self.get_covered_area(self._target_particel_pos)
+        self.init_covered_area = None
+        
         if hasattr(self, 'action_tool'):
             particle_pos = pyflex.get_positions().reshape(-1, 4)
             p1, p2, p3, p4 = self._get_key_point_idx()
@@ -167,6 +182,9 @@ class ClothFoldEnv(ClothEnv):
             pyflex.step(self.action_tool.next_action)
         else:
             pyflex.step()
+        
+        self._prior_coverage_area = self._current_coverage_area
+        self._current_coverage_area = self.get_covered_area(self.get_particle_positions())
 
         return
 
@@ -181,44 +199,43 @@ class ClothFoldEnv(ClothEnv):
         """
         pos = pyflex.get_positions()
         pos = pos.reshape((-1, 4))[:, :3]
-        print('pos shape', pos.shape)
-
-        if self.fold_mode == 'diagonal':
-            
-            if self.reward_mode == 'normalised_particle_distance':
-                self._wait_to_stabalise(render=True,  max_wait_step=50, stable_vel_threshold=0.005)
-                cols = [0, 2]
-                pos_group_a = pos[np.ix_(self.fold_group_a, cols)]
-                pos_group_b = pos[np.ix_(self.fold_group_b, cols)]
-
-            
-                distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
-                largest_distance_id = np.argmax(distance)
-                particl_wise_distance_1 = distance[largest_distance_id]
-
-                pos_group_a = pos[np.ix_(self.fold_group_a_flip, cols)]
-                pos_group_b = pos[np.ix_(self.fold_group_b_flip, cols)]
-
-                distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
-                largest_distance_id = np.argmax(distance)
-                particl_wise_distance_2 = distance[largest_distance_id]
-
-               
-
-                longest_distance = 0.4*(2**0.5)
-
-
-
-                return (longest_distance - min(particl_wise_distance_1, particl_wise_distance_2))/longest_distance
+        
+        
+        if self.reward_mode == 'normalised_particle_distance':
+            longest_distance = 0.4*(2**0.5)
+            l =  self._largest_particle_distate()
+            return (longest_distance - l)/longest_distance
         
         else:
             raise NotImplementedError
 
-        # pos_group_b_init = self.init_pos[self.fold_group_b]
-        # curr_dist = np.mean(np.linalg.norm(pos_group_a - pos_group_b, axis=1)) + \
-        #             1.2 * np.mean(np.linalg.norm(pos_group_b - pos_group_b_init, axis=1))
-        # reward = -curr_dist
-        # return reward
+    def _largest_particle_distate(self):
+        pos = pyflex.get_positions()
+        pos = pos.reshape((-1, 4))[:, :3]
+        if self.fold_mode == 'diagonal':
+            cols = [0, 2]
+            pos_group_a = pos[np.ix_(self.fold_group_a, cols)]
+            pos_group_b = pos[np.ix_(self.fold_group_b, cols)]
+
+        
+            distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
+            largest_distance_id = np.argmax(distance)
+            particl_wise_distance_1 = distance[largest_distance_id]
+
+            pos_group_a = pos[np.ix_(self.fold_group_a_flip, cols)]
+            pos_group_b = pos[np.ix_(self.fold_group_b_flip, cols)]
+
+            distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
+            largest_distance_id = np.argmax(distance)
+            particl_wise_distance_2 = distance[largest_distance_id]
+
+            return min(particl_wise_distance_1, particl_wise_distance_2)
+        else:
+            raise NotImplementedError
+
+
+    def is_folded(self):
+        return self._largest_particle_distate() < 0.05
 
     def _get_info(self):
         # Duplicate of the compute reward function!
