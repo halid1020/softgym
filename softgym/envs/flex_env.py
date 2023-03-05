@@ -155,20 +155,24 @@ class FlexEnv(gym.Env):
             save_numpy_as_gif(np.array(self.video_frames), video_path, **kwargs)
         del self.video_frames
 
-    def reset(self, config=None, initial_state=None, config_id=None):
+    def reset(self, config=None, initial_state=None, episode_id=None):
      
         if config is None:
-            if config_id is None:
+            config_id = episode_id
+
+            if episode_id is None: ## if episode id is not given, we need to randomly start and episode.
                 if self.eval_flag:
                     eval_beg = int(0.1 * len(self.cached_configs))
-                    config_id = np.random.randint(low=0,  high=eval_beg) if not self.deterministic else eval_beg
+                    config_id = self.random_state.randint(low=0,  high=eval_beg) if not self.deterministic else eval_beg
                 else:
                     train_low = int(0.1 * len(self.cached_configs))
-                    config_id = np.random.randint(low=train_low, high=len(self.cached_configs)) if not self.deterministic else 0
-            else:
-                if not self.eval_flag:
-                    config_id += int(0.1 * len(self.cached_configs))
+                    config_id =  self.random_state.randint(low=train_low, high=len(self.cached_configs)) if not self.deterministic else 0
+            elif not self.eval_flag:  ## if episode id is given, we need to find the config id
+                config_id = episode_id + int(0.1 * len(self.cached_configs))
 
+            print('start {} episode {}, config id {}'.\
+                format(('eval' if self.eval_flag else 'train'), episode_id, config_id))
+              
             self.current_config = self.cached_configs[config_id]
             self.current_config_id = config_id
             self.set_scene(self.cached_configs[config_id], self.cached_init_states[config_id])

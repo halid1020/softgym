@@ -1,11 +1,7 @@
 import abc
-from copyreg import pickle
-from statistics import mode
-from matplotlib.pyplot import xscale
 import numpy as np
-from pygame import mask
 from gym.spaces import Box
-from softgym.utils.misc import rotation_2d_around_center, extend_along_center
+
 import pyflex
 import scipy.spatial
 from enum import Enum
@@ -31,10 +27,11 @@ class Picker(ActionToolBase):
         PLACE = 2
         
 
-    def __init__(self, num_picker=1, picker_radius=0.05, init_pos=(0., -0.1, 0.), picker_threshold=0.005, particle_radius=0.05,
-                 picker_low=(-0.4, 0., -0.4), picker_high=(0.4, 0.5, 0.4), init_particle_pos=None, spring_coef=1.2, **kwargs):
+    def __init__(self, num_picker=1, picker_radius=0.05, init_pos=(0., -0.1, 0.), 
+        picker_threshold=0.005, particle_radius=0.05, picker_low=(-0.4, 0., -0.4), 
+        picker_high=(0.4, 1.0, 0.4), init_particle_pos=None, spring_coef=1.2, **kwargs):
+        
         """
-
         :param gripper_type:
         :param sphere_radius:
         :param init_pos: By default below the ground before the reset is called
@@ -65,6 +62,7 @@ class Picker(ActionToolBase):
         pyflex.add_box(halfEdge, center, quat)
 
     def _apply_picker_boundary(self, picker_pos):
+        #print('picker_low', self.picker_low)
         clipped_picker_pos = picker_pos.copy()
         for i in range(3):
             if i == 1:
@@ -133,11 +131,12 @@ class Picker(ActionToolBase):
         2. Update picker pos
         3. Update picked particle pos
         """
-        action = np.reshape(action, [-1, 4])
+        action = np.reshape(action, (-1, 4))
+        #print('action', action)
         
 
         pick_flag = (action[:, 3] < 1)
-        hold_flag = (1 <= action[:, 3] < 2)
+        #hold_flag = (1 <= action[:, 3] < 2)
         place_flag = (2 <= action[:, 3] < 3)
         
 
@@ -151,6 +150,8 @@ class Picker(ActionToolBase):
                 #print('release ...')
                 new_particle_pos[self.picked_particles[i], 3] = self.particle_inv_mass[self.picked_particles[i]]  # Revert the mass
                 self.picked_particles[i] = None
+        
+        self._set_pos(new_picker_pos, new_particle_pos)
 
         # Pick new particles and update the mass and the positions
         for i in range(self.num_picker):
@@ -221,7 +222,9 @@ class PickerPickPlace(Picker):
     If place, place everything from the begining.
     If pick, pick everything on the way.
     """
-    def __init__(self, num_picker, env=None, picker_low=None, picker_high=None, step_mode='world_pick_or_place', picker_radius=0.02, **kwargs):
+    def __init__(self, num_picker, env=None, picker_low=None, picker_high=None, 
+        step_mode='world_pick_or_place', motion_trajectory='normal', picker_radius=0.02, **kwargs):
+        
         if step_mode == "pixel_pick_and_place":
             self._pixel_to_world_ratio = 0.415 # While depth=1
             self._picker_low = np.asarray(picker_low)
@@ -231,12 +234,17 @@ class PickerPickPlace(Picker):
             self._place_height = kwargs['place_height']
             self._camera_depth = kwargs['camera_depth']
 
-            picker_low = [picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, self._pick_height, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth,
-                          picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, self._pick_height, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth]
+            #print(self._camera_depth, picker_high)
 
-            picker_high = [picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._place_height, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth,
-                           picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._place_height, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth]
+            picker_low = [picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, 0, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth,
+                          picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, 0, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth]
+
+            picker_high = [picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._camera_depth, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth,
+                           picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._camera_depth, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth]
               
+        self._motion_trajectory = motion_trajectory
+        if motion_trajectory == 'triangle':
+            self._intermidiate_height = kwargs['intermidiate_height']
 
         super().__init__(num_picker=num_picker,
                          picker_low=picker_low,
@@ -244,6 +252,7 @@ class PickerPickPlace(Picker):
                          picker_radius=picker_radius,
                          **kwargs)
         picker_low, picker_high = list(picker_low), list(picker_high)
+
         self.action_space = Box(np.array([*picker_low] * self.num_picker),
                                 np.array([*picker_high] * self.num_picker), dtype=np.float32)
         self.delta_move = 0.01 # maximum velociy 1cm/frame
@@ -255,99 +264,158 @@ class PickerPickPlace(Picker):
         action = action.reshape(-1, 4)
         curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
         end_pos = np.vstack([self._apply_picker_boundary(picker_pos) for picker_pos in action[:, :3]])
+
+        # print('curr_pos', curr_pos)
+        # print('end pos', end_pos)
         dist = np.linalg.norm(curr_pos - end_pos, axis=1)
         num_step = np.max(np.ceil(dist / self.delta_move)) 
         if num_step < 0.1:
             return total_steps
         delta = (end_pos - curr_pos) / num_step # Get average distance need to move every step
         norm_delta = np.linalg.norm(delta) # Get the magtitude of the average distance.
-        #print('num step', num_step)
+
         for i in range(int(min(num_step, 300))):  # The maximum number of steps allowed for one pick and place
-            #print('middle level step')
+            
             curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
             dist = np.linalg.norm(end_pos - curr_pos, axis=1)
             if np.alltrue(dist < norm_delta):
                 delta = end_pos - curr_pos
-            super().step(np.hstack([delta, action[:, 3].reshape(-1, 1)])) # Apply average distanec to tthe target
+            super().step(np.hstack([delta, action[:, 3].reshape(-1, 1)])) # Apply average distanec to the target
             pyflex.step()
             if render:
                 pyflex.render()
             total_steps += 1
             if self.env is not None and self.env.recording:
                 self.env.video_frames.append(self.env.render(mode='rgb_array'))
-            if np.alltrue(dist < self.delta_move): # If all axis of curren distant within 1cm break.
-                #print('break')
-                #print('targe pos', end_pos)
-                #print('cur pos', np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3])
-
-
-                break
+            
         return total_steps
 
     def _world_pick_and_place(self, action, render=False):
         total_steps = 0
+        release_signal = 2.1
+        grip_signal = 1.5
+
+        # aciton: Num_pick * 2 (pick and place) * 3
         action = action.reshape(-1, 2, 3)
         pick_height = action[:, 0, 1]
         place_height = action[:, 1, 1]
 
-        # Raise to certain height, while releasing
-        #print('Raise to certain height, while releasing {}'.format(place_height))
-        curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+        if self._motion_trajectory == 'normal':            
+
+            # Raise to certain height, while releasing
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+            curr_pos[:, 1] = place_height
+
+            raise_action = \
+                np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(raise_action, render)
+
+
+            # Go to pick position while releasing without changing the height
+            go_to_pick_pos_action = action[:, 0, :].copy()
+            go_to_pick_pos_action[:, 1] = place_height
+            go_to_pick_pos_action = \
+                np.concatenate([go_to_pick_pos_action, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(go_to_pick_pos_action, render)
+
+            # Lower the height
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+            curr_pos[:, 1] = pick_height
+            lower_action = np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(lower_action, render)
+
+            # Pick
+            super().step(np.hstack([np.zeros((1, 3)), np.zeros((1,1))]))
+            pyflex.step()
+            if render:
+                pyflex.render()
+            total_steps += 1
+
+
+            # Raise the height
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
+            curr_pos[:, 1] = place_height
+            raise_action = \
+                np.concatenate([curr_pos, np.full((self.num_picker, 1), grip_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(raise_action, render)
+
+
+            # got the place position
+            go_to_place_pos_action = action[:, 1, :].copy()
+            go_to_place_pos_action = \
+                np.concatenate([go_to_place_pos_action, np.full((self.num_picker, 1), grip_signal)], axis=1).flatten()
+            
+            total_steps += self._world_pick_or_place(go_to_place_pos_action, render)
+
+            # place
+            super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), release_signal)]))
+            pyflex.step()
+            if render:
+                pyflex.render()
+            pyflex.step()
+            if render:
+                pyflex.render()
+            total_steps += 1
+
+        elif self._motion_trajectory == 'triangle':
+
+            #print('hello', self._intermidiate_height)
+            #exit(0)
+            # Raise to certain height, while releasing
+            #print('pos', pyflex.get_shape_states())
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+            curr_pos[:, 1] = self._intermidiate_height
+
+            raise_action = \
+                np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(raise_action, render)
+
+            # Go to pick position while releasing without changing the height
+            go_to_pick_pos_action = action[:, 0, :].copy()
+            go_to_pick_pos_action[:, 1] = self._intermidiate_height
+            go_to_pick_pos_action = \
+                np.concatenate([go_to_pick_pos_action, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(go_to_pick_pos_action, render)
+
+            # Lower the height
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+            curr_pos[:, 1] = pick_height
+            lower_action = np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(lower_action, render)
+
+            # Pick
+            super().step(np.hstack([np.zeros((1, 3)), np.zeros((1,1))]))
+            pyflex.step()
+            if render:
+                pyflex.render()
+            total_steps += 1
+
+
+            # Go and Raise the height to the intermidiate position directly
+            
+            go_to_int_pos_action = (action[:, 0, :].copy() + action[:, 1, :].copy())/2
+            go_to_int_pos_action[:, 1] = self._intermidiate_height
+
+            go_to_int_pos_action = \
+                np.concatenate([go_to_int_pos_action, np.full((self.num_picker, 1), grip_signal)], axis=1).flatten()
+            #print('go triagle now', go_to_pick_pos_action)
+            total_steps += self._world_pick_or_place(go_to_int_pos_action, render)
+            #exit(0)
+
+            # Go and lower the height to the plce position directl
+            go_to_place_pos_action = action[:, 1, :].copy()
+            go_to_place_pos_action[:, 1] = place_height
+            go_to_place_pos_action = \
+                np.concatenate([go_to_place_pos_action, np.full((self.num_picker, 1), grip_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(go_to_place_pos_action, render)
+
+            # place
+            super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), release_signal)]))
+            pyflex.step()
+            if render:
+                pyflex.render()
+            total_steps += 1
         
-        curr_pos[:, 1] = place_height
-        raise_action = np.concatenate([curr_pos, np.full((self.num_picker, 1), 2.1)], axis=1).flatten()
-        #print('raise_action', raise_action)
-        total_steps += self._world_pick_or_place(raise_action, render)
-
-
-        # Go to pick position while releasing without changing the height
-        #print('Go to pick position while releasing without changing the height')
-        go_to_pick_pos_action = action[:, 0, :].copy()
-        go_to_pick_pos_action[:, 1] = place_height
-        go_to_pick_pos_action = np.concatenate([go_to_pick_pos_action, np.full((self.num_picker, 1), 2.1)], axis=1).flatten()
-        #print('go_to_pick_pos_action', go_to_pick_pos_action)
-        total_steps += self._world_pick_or_place(go_to_pick_pos_action, render)
-
-        # Lower the height
-        #print('Lower the height')
-        curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
-        curr_pos[:, 1] = pick_height
-        lower_action = np.concatenate([curr_pos, np.full((self.num_picker, 1), 2.1)], axis=1).flatten()
-        #print('lower_action', lower_action)
-        total_steps += self._world_pick_or_place(lower_action, render)
-
-        # Pick
-        #print('Pick')
-        super().step(np.hstack([np.zeros((1, 3)), np.zeros((1,1))]))
-        pyflex.step()
-        if render:
-            pyflex.render()
-        total_steps += 1
-
-
-        # raise the height
-        #print('Raise the height')
-        curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
-        curr_pos[:, 1] = place_height
-        raise_action = np.concatenate([curr_pos, np.full((self.num_picker, 1), 1.5)], axis=1).flatten()
-        #print('raise action after pick', raise_action)
-        total_steps += self._world_pick_or_place(raise_action, render)
-
-
-        # got the place position
-        #print('got the place position')
-        go_to_place_pos_action = action[:, 1, :].copy()
-        go_to_place_pos_action = np.concatenate([go_to_place_pos_action, np.full((self.num_picker, 1), 1.5)], axis=1).flatten()
-        #print('go_to_place_pos_action', go_to_place_pos_action)
-        total_steps += self._world_pick_or_place(go_to_place_pos_action, render)
-
-        # place
-        #print('Place')
-        super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), 2.1)]))
-        pyflex.step()
-        if render:
-            pyflex.render()
-        total_steps += 1
 
         return total_steps
 
@@ -431,128 +499,3 @@ class PickerPickPlace(Picker):
 
 
         return super().sample()
-    
-
-
-from softgym.utils.gemo_utils import intrinsic_from_fov, get_rotation_matrix
-
-
-class PickerQPG(PickerPickPlace):
-    def __init__(self, image_size, cam_pos, cam_angle, full=True, **kwargs):
-        super().__init__(**kwargs)
-        self.image_size = image_size
-        self.cam_pos = cam_pos
-        self.cam_angle = cam_angle
-        self.action_space = Box(np.array([-1., -1, -0.3, 0., -0.3]),
-                                np.array([1., 1., *([0.3] * 3)]), dtype=np.float32)
-        assert self.num_picker == 1
-        self.full = full
-        self.total_steps = None
-
-    def _get_world_coor_from_image(self, u, v):
-        height, width = self.image_size
-        K = intrinsic_from_fov(height, width, 45)  # the fov is 90 degrees
-
-        # Apply back-projection: K_inv @ pixels * depth
-        cam_x, cam_y, cam_z = self.cam_pos
-        cam_x_angle, cam_y_angle, cam_z_angle = self.cam_angle
-
-        # get rotation matrix: from world to camera
-        matrix1 = get_rotation_matrix(- cam_x_angle, [0, 1, 0])
-        # matrix2 = get_rotation_matrix(- cam_y_angle - np.pi, [np.cos(cam_x_angle), 0, np.sin(cam_x_angle)])
-        matrix2 = get_rotation_matrix(- cam_y_angle - np.pi, [1, 0, 0])
-        rotation_matrix = matrix2 @ matrix1
-
-        # get translation matrix: from world to camera
-        translation_matrix = np.zeros((4, 4))
-        translation_matrix[0][0] = 1
-        translation_matrix[1][1] = 1
-        translation_matrix[2][2] = 1
-        translation_matrix[3][3] = 1
-        translation_matrix[0][3] = - cam_x
-        translation_matrix[1][3] = - cam_y
-        translation_matrix[2][3] = - cam_z
-        matrix = np.linalg.inv(rotation_matrix @ translation_matrix)
-
-        u0 = K[0, 2]
-        v0 = K[1, 2]
-        fx = K[0, 0]
-        fy = K[1, 1]
-        vec = ((u - u0) / fx, (v - v0) / fy)
-        depth = self._get_depth(matrix, vec, self.particle_radius)  # Height to be the particle radius
-
-        # Loop through each pixel in the image
-        # Apply equation in fig 3
-        x = (u - u0) * depth / fx
-        y = (v - v0) * depth / fy
-        z = depth
-        cam_coords = np.array([x, y, z, 1])
-        cam_coords = cam_coords.reshape((-1, 4)).transpose()  # 4 x (height x width)
-
-        world_coord = matrix @ cam_coords  # 4 x (height x width)
-        world_coord = world_coord.reshape(4)
-        return world_coord[:3]
-
-    def _get_depth(self, matrix, vec, height):
-        """ Get the depth such that the back-projected point has a fixed height"""
-        return (height - matrix[1, 3]) / (vec[0] * matrix[1, 0] + vec[1] * matrix[1, 1] + matrix[1, 2])
-
-    def reset(self, *args, **kwargs):
-        self.total_steps = 0
-        super().reset(*args, **kwargs)
-
-    def step(self, action):
-        """ Action is in 5D: (u,v) the start of the pick in image coordinate; (dx, dy, dz): the relative position of the place w.r.t. the pick"""
-        u, v = action[:2]
-        u = ((u + 1.) * 0.5) * self.image_size[0]
-        v = ((v + 1.) * 0.5) * self.image_size[1]
-        x, y, z = self._get_world_coor_from_image(u, v)
-        y += 0.01
-        dx, dy, dz = action[2:]
-
-        st_high = np.array([x, 0.2, z, 0])
-        st = np.array([x, y, z, 0])
-        en = st + np.array([dx, dy, dz, 1])
-        # print('st:', st)
-        if self.full:
-            self.total_steps += super().step(st_high)
-            self.total_steps += super().step(st)
-            self.total_steps += super().step(en)
-            en[3] = 0  # Drop cloth
-            # Unpick all particles
-            _, particle_pos = self._get_pos()
-            new_particle_pos = particle_pos.copy()
-            for i in range(self.num_picker):
-                if self.picked_particles[i] is not None:
-                    new_particle_pos[self.picked_particles[i], 3] = self.particle_inv_mass[self.picked_particles[i]]  # Revert the mass
-                    self.picked_particles[i] = None
-            pyflex.set_positions(new_particle_pos)
-            for i in range(20):
-                pyflex.step()
-                if self.env is not None and self.env.recording:
-                    self.env.video_frames.append(self.env.render(mode='rgb_array'))
-            self.total_steps += 20
-        else:
-            raise NotImplementedError
-        return self.total_steps
-
-    def get_model_action(self, action, curr_pos):
-        u, v = action[:2]
-        u = ((u + 1.) * 0.5) * self.image_size[0]
-        v = ((v + 1.) * 0.5) * self.image_size[1]
-        x, y, z = self._get_world_coor_from_image(u, v)
-        y += 0.01
-        dx, dy, dz = action[2:]
-
-        st_high = np.array([x, 0.2, z, 0])
-        st = np.array([x, y, z, 0])
-        en = st + np.array([dx, dy, dz, 1])
-
-        model_actions = []
-        model_action, curr_pos = super().get_model_action(st_high, curr_pos)
-        model_actions.extend(model_action)
-        model_action, curr_pos = super().get_model_action(st, curr_pos)
-        model_actions.extend(model_action)
-        model_action, curr_pos = super().get_model_action(en, curr_pos)
-        model_actions.extend(model_action)
-        return model_actions, curr_pos

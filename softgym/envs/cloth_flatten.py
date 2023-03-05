@@ -28,20 +28,7 @@ class ClothFlattenEnv(ClothEnv):
         self._initial_covered_area = None  # Should not be used until initialized
         
 
-    def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.05, target_point=None, target_pos=None, render=False):
-        for j in range(0, max_wait_step):
-            curr_vel = pyflex.get_velocities()
-            if target_point != None:
-                curr_pos = pyflex.get_positions()
-                curr_pos[target_point * 4: target_point * 4 + 3] = target_pos
-                curr_vel[target_point * 3: target_point * 3 + 3] = [0, 0, 0]
-                pyflex.set_positions(curr_pos)
-                pyflex.set_velocities(curr_vel)
-            pyflex.step()
-            if render:
-                pyflex.render()
-            if np.alltrue(np.abs(curr_vel) < stable_vel_threshold) and j > 5:
-                break
+    
 
     def generate_env_variation(self, num_variations=1, vary_cloth_size=False):
         """ Generate initial states. Note: This will also change the current states! """
@@ -185,19 +172,12 @@ class ClothFlattenEnv(ClothEnv):
 
         return self.get_covered_area(new_pos)
     
-    def _get_corner_positions(self):
-        all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
-        #print('particles num', len(all_particle_positions))
-        # print('first particle position', all_particle_positions[0])
-        # print('last particle position', all_particle_positions[-1])
-        #print('num particles', len(all_particle_positions))
-        return all_particle_positions[self._corner_ids]
+   
     
     def _get_info(self):
         pass
 
-    def get_corner_positions(self, pos):
-        return pos[self._corner_ids]
+    
     
 
     def _reset(self):
