@@ -27,10 +27,11 @@ class Picker(ActionToolBase):
         PLACE = 2
         
 
-    def __init__(self, num_picker=1, picker_radius=0.05, init_pos=(0., -0.1, 0.), picker_threshold=0.005, particle_radius=0.05,
-                 picker_low=(-0.4, 0., -0.4), picker_high=(0.4, 1.0, 0.4), init_particle_pos=None, spring_coef=1.2, **kwargs):
+    def __init__(self, num_picker=1, picker_radius=0.05, init_pos=(0., -0.1, 0.), 
+        picker_threshold=0.005, particle_radius=0.05, picker_low=(-0.4, 0., -0.4), 
+        picker_high=(0.4, 1.0, 0.4), init_particle_pos=None, spring_coef=1.2, **kwargs):
+        
         """
-
         :param gripper_type:
         :param sphere_radius:
         :param init_pos: By default below the ground before the reset is called
@@ -232,6 +233,8 @@ class PickerPickPlace(Picker):
             self._pick_height = kwargs['pick_height']
             self._place_height = kwargs['place_height']
             self._camera_depth = kwargs['camera_depth']
+
+            #print(self._camera_depth, picker_high)
 
             picker_low = [picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, 0, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth,
                           picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, 0, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth]
