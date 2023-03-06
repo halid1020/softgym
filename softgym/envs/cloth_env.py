@@ -11,13 +11,17 @@ from softgym.utils.misc import vectorized_range, vectorized_meshgrid
 class ClothEnv(FlexEnv):
     def __init__(self, observation_mode, action_mode, num_picker=2, render_mode='particle', 
         picker_radius=0.02, picker_threshold=0.002, particle_radius=0.00625, 
-        motion_trajectory='normal', **kwargs):
+        motion_trajectory='normal',
+         **kwargs):
+        
+        self.cloth_particle_radius = particle_radius
+        
+        super().__init__(**kwargs)
+
         self.render_mode = render_mode
         self.action_mode = action_mode
-        self.cloth_particle_radius = particle_radius
-
-        #print('particle_radius', particle_radius)
-        super().__init__(**kwargs)
+       
+        
 
         #assert observation_mode in ['key_point', 'point_cloud', 'cam_rgb', 'cam_rgbd']
         assert action_mode in ['picker', 'pickerpickplace', 'pickerpickplace1', 'sawyer', 'franka', 'picker_qpg']
@@ -36,14 +40,12 @@ class ClothEnv(FlexEnv):
                 env=self, picker_threshold=picker_threshold, 
                 picker_radius=picker_radius,
                 motion_trajectory=motion_trajectory,
-                camera_depth=self.get_current_config()['camera_params']['default_camera']['pos'][1], **kwargs)
+                camera_depth=self.get_current_config()['camera_params']['default_camera']['pos'][1],
+                **kwargs)
+            self.action_step = 0
 
             self.action_space = self.action_tool.action_space
             assert self.action_repeat == 1
-        
-        elif action_mode in ['sawyer', 'franka']:
-            self.action_tool = RobotBase(action_mode)
-            self.action_space = self.action_tool.action_space
 
 
         if observation_mode['state'] == None:
@@ -53,7 +55,6 @@ class ClothEnv(FlexEnv):
         elif observation_mode['state'] == 'positions':
             config = self.get_current_config()
             dimx, dimy = config['ClothSize']
-
             sts_dim = dimx * dimy * 3
             self.particle_obs_dim = sts_dim
         elif observation_mode['state'] == 'corner_pixel':
@@ -76,33 +77,93 @@ class ClothEnv(FlexEnv):
             self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 1),
                                          dtype=np.float32)
 
+    def get_particle_pos(self):
+        pos = pyflex.get_positions()
+        return pos.reshape(-1, 4).copy()
+
+    def get_particle_positions(self):
+        return  self.get_particle_pos()[:, :3].copy()
+
+    def get_picker_pos(self):
+        return self.action_tool.get_picker_pos()
+
+    def get_corner_positions(self, particle_positions=None):
+        if particle_positions is None:
+            particle_positions = self.get_particle_positions()
+        return particle_positions[self._corner_ids]
+
+    def get_flatten_corner_positions(self):
+        return self._flatten_corner_positions
+
+
     def get_cloth_mask(self, pixel_size=(64, 64)):
         depth_images = self.render(mode='rgbd')[:, :, 3]
-        # depth_images = np.expand_dims(depth_images, 2)
-        # print('depth image shape', depth_images.shape)
         if pixel_size != (720,720):
             depth_images = cv2.resize(depth_images, pixel_size, interpolation=cv2.INTER_LINEAR)
-        # print('depth image after shape', depth_images.shape)
-       
         mask = (1.35 < depth_images) & (depth_images < 1.499)
         return mask
 
-    def get_flatten_corner_positions(self):
-        # 4*3
-        return self._flatten_corner_positions
+    def _get_flat_pos(self):
+        config = self.get_current_config()
+        dimx, dimy = config['ClothSize']
+        #print('clothsize', config['ClothSize'])
 
-    def _set_to_flatten(self):
-        # self._get_current_covered_area(pyflex.get_positions().reshape(-))
-        new_pos = self._flatten_pos()
+        x = np.array([i * self.cloth_particle_radius for i in range(dimx)])
+        y = np.array([i * self.cloth_particle_radius for i in range(dimy)])
+        x = x - np.mean(x)
+        y = y - np.mean(y)
+        xx, yy = np.meshgrid(x, y)
+
+        curr_pos = np.zeros([dimx * dimy, 3], dtype=np.float32)
+        curr_pos[:, 0] = xx.flatten()
+        curr_pos[:, 2] = yy.flatten()
+        curr_pos[:, 1] = 5e-3  # Set specifally for particle radius of 0.00625
+        return curr_pos
+
+    def _set_to_flat(self):
+        curr_pos = pyflex.get_positions().reshape((-1, 4))
+        flat_pos = self._get_flat_pos()
+        curr_pos[:, :3] = flat_pos
+        pyflex.set_positions(curr_pos)
+        pyflex.step()
+    
+    def _flatten_pos(self):
+        cloth_dimx, cloth_dimz = self.get_current_config()['ClothSize']
         
+        N = cloth_dimx * cloth_dimz
+        px = np.linspace(0, cloth_dimx * self.cloth_particle_radius, cloth_dimx)
+        px -= cloth_dimx * self.cloth_particle_radius/2 
+        py = np.linspace(0, cloth_dimz * self.cloth_particle_radius, cloth_dimz)
+        py -= cloth_dimz * self.cloth_particle_radius/2
+
+        xx, yy = np.meshgrid(px, py)
+        L = len(xx)
+        W = len(xx[0])
+        self._corner_ids = [0, W-1, (L-1)*W, L*W-1]
+        #print('_corner_ids', self._corner_ids)
+        #print('corner ids', self._corner_ids)
+        new_pos = np.empty(shape=(N, 4), dtype=float)
+        new_pos[:, 0] = xx.flatten()
+        new_pos[:, 1] = self.cloth_particle_radius
+        new_pos[:, 2] = yy.flatten()
+        new_pos[:, 3] = 1.
+        new_pos[:, :3] -= np.mean(new_pos[:, :3], axis=0)
+        self._target_pos = new_pos.copy()
+
+        return new_pos.copy()
+    
+    def get_flatten_positions(self):
+        pos = self._flatten_pos()
+        return pos.reshape(-1, 4)[:, :3].copy()
+
+   
+    def _set_to_flatten(self):
+        new_pos = self._flatten_pos()
         pyflex.set_positions(new_pos.flatten())
-        #pyflex.step()
         self._target_img = self._get_obs()['image']
-        self._flatten_corner_positions = self._get_corner_positions()
-
+        self._flatten_corner_positions = self.get_corner_positions()
         new_pos = self.get_particle_positions()
-
-        return self.get_covered_area(new_pos)
+        return self.get_coverage(new_pos)
 
 
     def get_visibility(self, positions):
@@ -135,59 +196,18 @@ class ClothEnv(FlexEnv):
             if depths[i] < depth_images[x_][y_] + 1e-6:
                 visibility[i] = True
             
-        
-
         return np.asarray(visibility)
 
-    def get_normalised_coverage(self):
-        return self._normalised_coverage()
-
-    def _get_corner_positions(self):
-        all_particle_positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
-        #print('particles num', len(all_particle_positions))
-        # print('first particle position', all_particle_positions[0])
-        # print('last particle position', all_particle_positions[-1])
-        #print('num particles', len(all_particle_positions))
-        return all_particle_positions[self._corner_ids]
+    def get_flatten_coverage(self):
+        return self.get_coverage(self.get_flatten_positions())
     
-    def _normalised_coverage(self):
-        return self._current_coverage_area/self._target_covered_area
+    def get_normalised_coverage(self, particle_positions=None):
+        if particle_positions is None:
+            particle_positions = self.get_particle_positions()
+        coverage_area = self.get_coverage(particle_positions) 
+        return coverage_area/self.get_coverage(self.get_flatten_positions())
     
-    def get_particle_positions(self):
-        pos = pyflex.get_positions()
-        pos = pos.reshape(-1, 4)[:, :3].copy()
-        return pos
-
-    def _flatten_pos(self):
-        cloth_dimx, cloth_dimz = self.get_current_config()['ClothSize']
-        
-        N = cloth_dimx * cloth_dimz
-        px = np.linspace(0, cloth_dimx * self.cloth_particle_radius, cloth_dimx)
-        px -= cloth_dimx * self.cloth_particle_radius/2 
-        py = np.linspace(0, cloth_dimz * self.cloth_particle_radius, cloth_dimz)
-        py -= cloth_dimz * self.cloth_particle_radius/2
-
-        xx, yy = np.meshgrid(px, py)
-        L = len(xx)
-        W = len(xx[0])
-        self._corner_ids = [0, W-1, (L-1)*W, L*W-1]
-        #print('_corner_ids', self._corner_ids)
-        #print('corner ids', self._corner_ids)
-        new_pos = np.empty(shape=(N, 4), dtype=float)
-        new_pos[:, 0] = xx.flatten()
-        new_pos[:, 1] = self.cloth_particle_radius
-        new_pos[:, 2] = yy.flatten()
-        new_pos[:, 3] = 1.
-        new_pos[:, :3] -= np.mean(new_pos[:, :3], axis=0)
-        self._target_pos = new_pos.copy()
-
-        return new_pos.copy()
-    
-    def flatten_pos(self):
-        pos = self._flatten_pos()
-        return pos.reshape(-1, 4)[:, :3].copy()
-    
-    def get_covered_area(self, pos):
+    def get_coverage(self, pos):
         """
         Calculate the covered area by taking max x,y cood and min x,y coord, create a discritized grid between the points
         :param pos: Current positions of the particle states
@@ -218,36 +238,10 @@ class ClothEnv(FlexEnv):
 
         return np.sum(grid) * span[0] * span[1]
 
-
-    def get_corner_positions(self, pos):
-        return pos[self._corner_ids]
-
     def _sample_cloth_size(self):
         return np.random.randint(60, 120), np.random.randint(60, 120)
 
-    def _get_flat_pos(self):
-        config = self.get_current_config()
-        dimx, dimy = config['ClothSize']
-        #print('clothsize', config['ClothSize'])
-
-        x = np.array([i * self.cloth_particle_radius for i in range(dimx)])
-        y = np.array([i * self.cloth_particle_radius for i in range(dimy)])
-        x = x - np.mean(x)
-        y = y - np.mean(y)
-        xx, yy = np.meshgrid(x, y)
-
-        curr_pos = np.zeros([dimx * dimy, 3], dtype=np.float32)
-        curr_pos[:, 0] = xx.flatten()
-        curr_pos[:, 2] = yy.flatten()
-        curr_pos[:, 1] = 5e-3  # Set specifally for particle radius of 0.00625
-        return curr_pos
-
-    def _set_to_flat(self):
-        curr_pos = pyflex.get_positions().reshape((-1, 4))
-        flat_pos = self._get_flat_pos()
-        curr_pos[:, :3] = flat_pos
-        pyflex.set_positions(curr_pos)
-        pyflex.step()
+    
 
     def get_camera_params(self):
         config = self.get_current_config()
@@ -258,16 +252,12 @@ class ClothEnv(FlexEnv):
 
     def get_default_config(self):
         """ Set the default config of the environment and load it to self.config """
-        particle_radius = self.cloth_particle_radius
-        if self.action_mode in ['sawyer', 'franka']:
-            cam_pos, cam_angle = np.array([0.0, 1.62576, 1.04091]), np.array([0.0, -0.844739, 0])
-        else:
-            #cam_pos, cam_angle = np.array([-0.0, 0.82, 0.82]), np.array([0, -45 / 180. * np.pi, 0.])
-            cam_pos, cam_angle = np.array([-0.0, 1.5, 0]), np.array([0, -90 / 180. * np.pi, 0.])
+
+        cam_pos, cam_angle = np.array([-0.0, 1.5, 0]), np.array([0, -90 / 180. * np.pi, 0.])
 
         config = {
             'ClothPos': [-1.6, 2.0, -0.8],
-            'ClothSize': [int(0.4 / particle_radius), int(0.4 / particle_radius)],
+            'ClothSize': [int(0.4 / self.cloth_particle_radius), int(0.4 / self.cloth_particle_radius)],
             'ClothStiff': [0.8, 1, 0.9],  # Stretch, Bend and Shear
             'camera_name': 'default_camera',
             'camera_params': {'default_camera':
@@ -279,6 +269,13 @@ class ClothEnv(FlexEnv):
         }
 
         return config
+
+    def get_step_info(self):
+        if self.save_step_info:
+            return self.step_info.copy()
+        
+        else:
+            raise NotImplementedError
 
     def _get_obs(self):
         obs = {}
@@ -315,11 +312,6 @@ class ClothEnv(FlexEnv):
                 axis=1)
             
             obs['state'] = projected_pixel_positions.flatten()
-
-        # if self.action_mode in ['sphere', 'picker']:
-        #     shapes = pyflex.get_shape_states()
-        #     shapes = np.reshape(shapes, [-1, 14])
-        #     pos = np.concatenate([pos.flatten(), shapes[:, 0:3].flatten()])
         
         return obs
 
@@ -350,19 +342,23 @@ class ClothEnv(FlexEnv):
         scene_params = np.array([*config['ClothPos'], *config['ClothSize'], *config['ClothStiff'], render_mode,
                                  *camera_params['pos'][:], *camera_params['angle'][:], camera_params['width'], camera_params['height'], mass,
                                  config['flip_mesh']])
-        if self.version == 2:
-            robot_params = [1.] if self.action_mode in ['sawyer', 'franka'] else []
-            self.params = (scene_params, robot_params)
-            pyflex.set_scene(env_idx, scene_params, 0, robot_params)
-        elif self.version == 1:
-            pyflex.set_scene(env_idx, scene_params, 0)
+        
+        
+        pyflex.set_scene(env_idx, scene_params, 0)
 
         if state is not None:
             self.set_state(state)
         self.current_config = deepcopy(config)
+    
+    def tick_control_step(self):
+        super().tick_control_step()
+        if self.save_step_info:
+            self.step_info['rgbd'].append(self.get_image(width=self.camera_width, height=self.camera_height, depth=True))
+            self.step_info['coverage'].append(self.get_coverage(self.get_particle_positions()))
 
     
     def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.05, target_point=None, target_pos=None, render=False):
+        t = 0
         for j in range(0, max_wait_step):
             curr_vel = pyflex.get_velocities()
             if target_point != None:
@@ -371,8 +367,9 @@ class ClothEnv(FlexEnv):
                 curr_vel[target_point * 3: target_point * 3 + 3] = [0, 0, 0]
                 pyflex.set_positions(curr_pos)
                 pyflex.set_velocities(curr_vel)
-            pyflex.step()
-            if render:
-                pyflex.render()
+
+            self.tick_control_step()
             if np.alltrue(np.abs(curr_vel) < stable_vel_threshold) and j > 5:
                 break
+        
+        return t

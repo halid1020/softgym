@@ -21,7 +21,7 @@ class FlexEnv(gym.Env):
                  device_id=-1,
                  headless=False,
                  render=True,
-                 horizon=100,
+                 control_horizon=100,
                  camera_width=720,
                  camera_height=720,
                  num_variations=1,
@@ -30,9 +30,11 @@ class FlexEnv(gym.Env):
                  deterministic=True,
                  use_cached_states=False,
                  observation_mode = 'rgbd',
+                 save_step_info=False,
                  save_cached_states=True, **kwargs):
+
+        
         self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
-        print('render', render)
         pyflex.init(headless, render, camera_width, camera_height)
 
         self.record_video, self.video_path, self.video_name = False, None, None
@@ -43,8 +45,13 @@ class FlexEnv(gym.Env):
             device_id = int(os.environ['gpu_id'])
         self.device_id = device_id
 
-        self.horizon = horizon
-        self.time_step = 0
+        self.save_step_info = save_step_info
+        print('self.save_step_info ', self.save_step_info )
+        self.control_horizon = control_horizon
+        self.control_step = 0
+        self._render = render
+
+
         self.action_repeat = action_repeat
         self.recording = False
         self.prev_reward = None
@@ -63,12 +70,7 @@ class FlexEnv(gym.Env):
         self.eval_flag = False
         self.observation_mode = observation_mode
 
-        # version 1 does not support robot, while version 2 does.
-        pyflex_root = os.environ['PYFLEXROOT']
-        if 'Robotics' in pyflex_root:
-            self.version = 2
-        else:
-            self.version = 1
+        self.version = 1
 
     def get_cached_configs_and_states(self, cached_states_path, num_variations):
         """
@@ -100,6 +102,19 @@ class FlexEnv(gym.Env):
 
     def get_current_config(self):
         return self.current_config
+
+    def tick_control_step(self):
+        pyflex.step()
+        if self._render:
+            pyflex.render()
+        self.control_step += 1
+
+        if self.save_step_info:
+
+            #print('tick control action shape', np.zeros(self.step_info['control_signal'][-1].shape).shape)
+            self.step_info['control_signal'].append(np.zeros(self.step_info['control_signal'][-1].shape))
+            self.step_info['picker_pos'].append(self.action_tool.get_picker_pos())
+            self.step_info['particle_pos'].append(self.get_particle_pos())
 
     def update_camera(self, camera_name, camera_param=None):
         """
@@ -183,7 +198,7 @@ class FlexEnv(gym.Env):
             self.set_scene(config, initial_state)
         self.particle_num = pyflex.get_n_particles()
         self.prev_reward = 0.
-        self.time_step = 0
+        self.control_step = 0
 
         obs, reward = self._reset()
 
@@ -200,20 +215,21 @@ class FlexEnv(gym.Env):
             if record_continuous_video and i % 2 == 0:  # No need to record each step
                 frames.append(self.get_image(img_size, img_size))
         obs = self._get_obs()
-        reward = self.compute_reward(action, obs, set_prev_reward=True)
-        info = self._get_info()
+        reward = self.compute_reward()
+        #info = self._get_info()
 
         if self.recording:
             self.video_frames.append(self.render(mode='rgb'))
-        self.time_step += 1
+        #self.control_step += 1
 
         done = False
-        if self.time_step >= self.horizon:
-            
+        if self.control_step >= self.control_horizon:
             done = True
-        if record_continuous_video:
-            info['flex_env_recorded_frames'] = frames
-        return obs, reward, done, info
+
+        # if record_continuous_video:
+        #     info['flex_env_recorded_frames'] = frames
+
+        return obs, reward, done
 
     def initialize_camera(self):
         """

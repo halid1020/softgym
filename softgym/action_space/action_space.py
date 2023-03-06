@@ -6,6 +6,7 @@ import pyflex
 import scipy.spatial
 from enum import Enum
 
+render_height, render_width = 720, 720
 
 class ActionToolBase(metaclass=abc.ABCMeta):
     def __init__(self):
@@ -29,7 +30,7 @@ class Picker(ActionToolBase):
 
     def __init__(self, num_picker=1, picker_radius=0.05, init_pos=(0., -0.1, 0.), 
         picker_threshold=0.005, particle_radius=0.05, picker_low=(-0.4, 0., -0.4), 
-        picker_high=(0.4, 1.0, 0.4), init_particle_pos=None, spring_coef=1.2, **kwargs):
+        picker_high=(0.4, 1.0, 0.4), init_particle_pos=None, spring_coef=1.2, save_step_info=False, render=False, **kwargs):
         
         """
         :param gripper_type:
@@ -38,6 +39,18 @@ class Picker(ActionToolBase):
         """
 
         super(Picker).__init__()
+
+        self.save_step_info=save_step_info
+        self._render = render
+        
+        if self.save_step_info:
+            self.step_info = {
+                'control_signal': [],
+                'particle_pos': [],
+                'picker_pos': [],
+                'rgbd': []
+            }
+
         self.picker_radius = picker_radius
         self.picker_threshold = picker_threshold
         self.num_picker = num_picker
@@ -81,6 +94,10 @@ class Picker(ActionToolBase):
         return np.array(pos)
 
     def reset(self, center):
+        
+        if self.save_step_info:
+            self.clean_step_info()
+
         for i in (0, 2):
             offset = center[i] - (self.picker_high[i] + self.picker_low[i]) / 2.
             self.picker_low[i] += offset
@@ -101,6 +118,28 @@ class Picker(ActionToolBase):
         # pyflex.step() # Remove this as having an additional step here may affect the cloth drop env
         self.particle_inv_mass = pyflex.get_positions().reshape(-1, 4)[:, 3]
         # print('inv_mass_shape after reset:', self.particle_inv_mass.shape)
+
+    # num_pickers * 14
+    def get_picker_pos(self):
+        return np.array(pyflex.get_shape_states()).reshape(-1, 14)
+
+    # num_pickers * 14
+    def set_picker_pos(self, picker_pos):
+        pyflex.set_shape_states(picker_pos)
+
+    # num_pickers * 3
+    def get_picker_position(self):
+        return self.get_picker_pos()[:, :3]
+
+    # num_pickers * 3
+    def set_picker_position(self, picker_position):
+        shape_states = np.array(pyflex.get_shape_states()).reshape(-1, 14)
+        shape_states[:, 3:6] = shape_states[:, :3]
+        shape_states[:, :3] = picker_position
+        self.set_picker_pos(shape_states)
+
+    def get_particle_pos(self):
+        return np.array(pyflex.get_positions()).reshape(-1, 4)
 
     @staticmethod
     def _get_pos():
@@ -125,28 +164,53 @@ class Picker(ActionToolBase):
         shape_states[:, :3] = picker_pos
         pyflex.set_shape_states(shape_states)
 
+    
+    def render(self, mode='rgb'):
+        #pyflex.step()
+        img, depth_img = pyflex.render()
+        H, W = render_height, render_width
+   
+        img = img.reshape(H, W, 4)[::-1, :, :3]  # Need to reverse the height dimension
+        depth_img = depth_img.reshape(H, W, 1)[::-1, :, :1]
+
+        if mode == 'rgbd':
+            return np.concatenate((img, depth_img), axis=2)
+        elif mode == 'rgb':
+            return img
+        elif mode == 'd':
+            return depth_img
+        else:
+            raise NotImplementedError
+
+    def clean_step_info(self):
+        if self.save_step_info:
+            self.step_info = {k: [] for k in self.step_info.keys()}
+        
+    def get_step_info(self):
+        if self.save_step_info:
+            return self.step_info.copy()
+        else:
+            raise NotImplementedError
+
     def step(self, action):
         """ action = [translation, pick/unpick] * num_pickers.
         1. Determine whether to pick/unpick the particle and which one, for each picker
         2. Update picker pos
         3. Update picked particle pos
         """
+        
         action = np.reshape(action, (-1, 4))
-        #print('action', action)
-        
 
-        pick_flag = (action[:, 3] < 1)
-        #hold_flag = (1 <= action[:, 3] < 2)
-        place_flag = (2 <= action[:, 3] < 3)
+        grip_flag = (action[:, 3] < 0)
+        realse_flag = (0 < action[:, 3] < 1)
         
-
         picker_pos, particle_pos = self._get_pos()
         new_picker_pos, new_particle_pos = picker_pos.copy(), particle_pos.copy()
 
         # Un-pick the particles
         # print('check pick id:', self.picked_particles, new_particle_pos.shape, self.particle_inv_mass.shape)
         for i in range(self.num_picker):
-            if (place_flag[i] or pick_flag[i]) and self.picked_particles[i] is not None:
+            if (realse_flag[i] or grip_flag[i]) and self.picked_particles[i] is not None:
                 #print('release ...')
                 new_particle_pos[self.picked_particles[i], 3] = self.particle_inv_mass[self.picked_particles[i]]  # Revert the mass
                 self.picked_particles[i] = None
@@ -156,10 +220,10 @@ class Picker(ActionToolBase):
         # Pick new particles and update the mass and the positions
         for i in range(self.num_picker):
             new_picker_pos[i, :] = self._apply_picker_boundary(picker_pos[i, :] + action[i, :3])
-            if place_flag[i]:
+            if realse_flag[i]:
                 continue
 
-            if pick_flag[i]:  # No particle is currently picked and thus need to select a particle to pick
+            if grip_flag[i]:  # No particle is currently picked and thus need to select a particle to pick
                 #print('Intent to pick .....')
                 dists = scipy.spatial.distance.cdist(picker_pos[i].reshape((-1, 3)), particle_pos[:, :3].reshape((-1, 3)))
                 idx_dists = np.hstack([np.arange(particle_pos.shape[0]).reshape((-1, 1)), dists.reshape((-1, 1))])
@@ -215,6 +279,23 @@ class Picker(ActionToolBase):
                         new_particle_pos[picked_particle_idices[j], :3] = particle_pos[picked_particle_idices[j], :3].copy()
 
         self._set_pos(new_picker_pos, new_particle_pos)
+        
+        
+        ## Update environment
+        pyflex.step()
+        if self._render:
+            pyflex.render()
+        
+        
+        ### Save information
+        if self.save_step_info:
+            self.step_info['control_signal'].append(action)
+            self.step_info['picker_pos'].append(self.get_picker_pos())
+            self.step_info['particle_pos'].append(self.get_particle_pos())
+            self.step_info['rgbd'].append(self.render('rgbd'))
+
+
+        
 
 
 class PickerPickPlace(Picker):
@@ -224,7 +305,16 @@ class PickerPickPlace(Picker):
     If pick, pick everything on the way.
     """
     def __init__(self, num_picker, env=None, picker_low=None, picker_high=None, 
-        step_mode='world_pick_or_place', motion_trajectory='normal', picker_radius=0.02, **kwargs):
+        step_mode='world_pick_or_place', motion_trajectory='normal', picker_radius=0.02, 
+        save_step_info=False, **kwargs):
+
+        super().__init__(num_picker=num_picker,
+                         picker_low=picker_low,
+                         picker_high=picker_high,
+                         picker_radius=picker_radius,
+                         save_step_info=save_step_info,
+                         **kwargs)
+        
         
         if step_mode == "pixel_pick_and_place":
             self._pixel_to_world_ratio = 0.415 # While depth=1
@@ -247,11 +337,7 @@ class PickerPickPlace(Picker):
         if motion_trajectory == 'triangle':
             self._intermidiate_height = kwargs['intermidiate_height']
 
-        super().__init__(num_picker=num_picker,
-                         picker_low=picker_low,
-                         picker_high=picker_high,
-                         picker_radius=picker_radius,
-                         **kwargs)
+        
         picker_low, picker_high = list(picker_low), list(picker_high)
 
         self.action_space = Box(np.array([*picker_low] * self.num_picker),
@@ -282,9 +368,7 @@ class PickerPickPlace(Picker):
             if np.alltrue(dist < norm_delta):
                 delta = end_pos - curr_pos
             super().step(np.hstack([delta, action[:, 3].reshape(-1, 1)])) # Apply average distanec to the target
-            pyflex.step()
-            if render:
-                pyflex.render()
+
             total_steps += 1
             if self.env is not None and self.env.recording:
                 self.env.video_frames.append(self.env.render(mode='rgb_array'))
@@ -293,8 +377,8 @@ class PickerPickPlace(Picker):
 
     def _world_pick_and_place(self, action, render=False):
         total_steps = 0
-        release_signal = 2.1
-        grip_signal = 1.5
+        release_signal = 0.5
+        grip_signal = -0.5
 
         # aciton: Num_pick * 2 (pick and place) * 3
         action = action.reshape(-1, 2, 3)
@@ -327,9 +411,6 @@ class PickerPickPlace(Picker):
 
             # Pick
             super().step(np.hstack([np.zeros((1, 3)), np.zeros((1,1))]))
-            pyflex.step()
-            if render:
-                pyflex.render()
             total_steps += 1
 
 
@@ -350,9 +431,7 @@ class PickerPickPlace(Picker):
 
             # place
             super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), release_signal)]))
-            pyflex.step()
-            if render:
-                pyflex.render()
+            total_steps += 1
             
             # Move a bit
             curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
@@ -367,10 +446,7 @@ class PickerPickPlace(Picker):
 
         elif self._motion_trajectory == 'triangle':
 
-            #print('hello', self._intermidiate_height)
-            #exit(0)
             # Raise to certain height, while releasing
-            #print('pos', pyflex.get_shape_states())
             curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
             curr_pos[:, 1] = self._intermidiate_height
 
@@ -393,22 +469,15 @@ class PickerPickPlace(Picker):
 
             # Pick
             super().step(np.hstack([np.zeros((1, 3)), np.zeros((1,1))]))
-            pyflex.step()
-            if render:
-                pyflex.render()
             total_steps += 1
 
 
-            # Go and Raise the height to the intermidiate position directly
-            
+            # Go and Raise the height to the intermidiate position directly    
             go_to_int_pos_action = (action[:, 0, :].copy() + action[:, 1, :].copy())/2
             go_to_int_pos_action[:, 1] = self._intermidiate_height
-
             go_to_int_pos_action = \
                 np.concatenate([go_to_int_pos_action, np.full((self.num_picker, 1), grip_signal)], axis=1).flatten()
-            #print('go triagle now', go_to_pick_pos_action)
             total_steps += self._world_pick_or_place(go_to_int_pos_action, render)
-            #exit(0)
 
             # Go and lower the height to the plce position directl
             go_to_place_pos_action = action[:, 1, :].copy()
@@ -419,9 +488,6 @@ class PickerPickPlace(Picker):
 
             # place
             super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), release_signal)]))
-            pyflex.step()
-            if render:
-                pyflex.render()
             total_steps += 1
 
              # Move a bit
@@ -471,6 +537,9 @@ class PickerPickPlace(Picker):
         action: Array of pick_num x 4. For each picker, the action should be [x, y, z, pick/drop]. The picker will then first pick/drop, and keep
         the pick/drop state while moving towards x, y, x.
         """
+        if self.save_step_info:
+            self.clean_step_info()
+
         mode = self._step_mode if mode == None else mode
         if mode == "world_pick_or_place":
             return self._world_pick_or_place(action, render=render)
@@ -480,6 +549,8 @@ class PickerPickPlace(Picker):
 
         if mode == "pixel_pick_and_place":
             return self._pixel_pick_and_place(action, render=render)
+
+   
     
 
 
