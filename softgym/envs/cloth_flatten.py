@@ -126,19 +126,9 @@ class ClothFlattenEnv(ClothEnv):
         return self._target_img
 
     
-    
-    
-
-
-    
-    
-   
-    
     def _get_info(self):
         pass
 
-    
-    
 
     def _reset(self):
         """ Right now only use one initial state"""
