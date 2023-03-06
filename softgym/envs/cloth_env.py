@@ -43,6 +43,7 @@ class ClothEnv(FlexEnv):
                 camera_depth=self.get_current_config()['camera_params']['default_camera']['pos'][1],
                 **kwargs)
             self.action_step = 0
+            self.action_horizon = kwargs['action_horizon']
 
             self.action_space = self.action_tool.action_space
             assert self.action_repeat == 1
@@ -353,8 +354,9 @@ class ClothEnv(FlexEnv):
     def tick_control_step(self):
         super().tick_control_step()
         if self.save_step_info:
-            self.step_info['rgbd'].append(self.get_image(width=self.camera_width, height=self.camera_height, depth=True))
+            self.step_info['rgbd'].append(self.get_image(width=128, height=128, depth=True))
             self.step_info['coverage'].append(self.get_coverage(self.get_particle_positions()))
+            self.step_info['reward'].append(self.compute_reward(self.get_particle_positions()))
 
     
     def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.05, target_point=None, target_pos=None, render=False):

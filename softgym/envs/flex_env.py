@@ -225,6 +225,9 @@ class FlexEnv(gym.Env):
         done = False
         if self.control_step >= self.control_horizon:
             done = True
+        
+        if self.action_mode == 'pickerpickplace' and self.action_step >= self.action_horizon:
+            done = True
 
         # if record_continuous_video:
         #     info['flex_env_recorded_frames'] = frames
@@ -250,11 +253,13 @@ class FlexEnv(gym.Env):
         raise NotImplementedError
 
     def render(self, mode='rgb'):
-        pyflex.step()
+        #pyflex.step()
         img, depth_img = pyflex.render()
         width, height = self.camera_params['default_camera']['width'], self.camera_params['default_camera']['height']
         img = img.reshape(height, width, 4)[::-1, :, :3]  # Need to reverse the height dimension
         depth_img = depth_img.reshape(height, width, 1)[::-1, :, :1]
+
+        #print('depth_img', depth_img[0][0])
 
         if mode == 'rgbd':
             return np.concatenate((img, depth_img), axis=2)

@@ -170,7 +170,7 @@ class ClothFoldEnv(ClothEnv):
             for i in range(steps):
                 particle_positions = self.step_info['particle_pos'][i][:, :3]
                 
-                self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], (self.camera_height, self.camera_width))
+                self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], (128, 128))
                 self.step_info['reward'].append(self.compute_reward(particle_positions))
                 self.step_info['coverage'].\
                     append(self.get_coverage(particle_positions))
