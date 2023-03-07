@@ -24,12 +24,12 @@ class ClothEnv(FlexEnv):
         
 
         #assert observation_mode in ['key_point', 'point_cloud', 'cam_rgb', 'cam_rgbd']
-        assert action_mode in ['picker', 'pickerpickplace', 'pickerpickplace1', 'sawyer', 'franka', 'picker_qpg']
+        assert action_mode in ['velocity_control', 'pickerpickplace', 'pickerpickplace1', 'sawyer', 'franka', 'picker_qpg']
         self.observation_mode = observation_mode
 
-        if action_mode == 'picker':
+        if action_mode == 'velocity_control':
             self.action_tool = Picker(num_picker, picker_radius=picker_radius, particle_radius=particle_radius, picker_threshold=picker_threshold,
-                                      picker_low=(-0.4, 0., -0.4), picker_high=(1.0, 0.5, 0.4))
+                                      picker_low=kwargs['picker_low'], picker_high=kwargs['picker_high'])
             self.action_space = self.action_tool.action_space
             self.picker_radius = picker_radius
         
@@ -84,7 +84,6 @@ class ClothEnv(FlexEnv):
 
     def set_pos(self, particle_pos, picker_pos):
         pyflex.set_positions(particle_pos)
-        print('picker_pos', picker_pos.shape)
         pyflex.set_shape_states(picker_pos)
         pyflex.step()
         if self._render:

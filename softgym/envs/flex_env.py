@@ -47,7 +47,6 @@ class FlexEnv(gym.Env):
         self.save_step_info = save_step_info
 
         self.sampling_random_state = np.random.RandomState(kwargs['random_seed'])
-        print('self.save_step_info ', self.save_step_info )
         self.control_horizon = control_horizon
         self.control_step = 0
         self._render = render
@@ -84,7 +83,6 @@ class FlexEnv(gym.Env):
             cur_dir = osp.dirname(osp.abspath(__file__))
             cached_states_path = osp.join(cur_dir, '../cached_initial_states', cached_states_path)
         if self.use_cached_states and osp.exists(cached_states_path):
-            print('I am here', num_variations)
             # Load from cached file
             with open(cached_states_path, "rb") as handle:
                 self.cached_configs, self.cached_init_states = pickle.load(handle)

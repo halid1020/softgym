@@ -294,6 +294,8 @@ class Picker(ActionToolBase):
             self.step_info['particle_pos'].append(self.get_particle_pos())
             self.step_info['rgbd'].append(self.render('rgbd'))
 
+        return 1
+
 
         
 
