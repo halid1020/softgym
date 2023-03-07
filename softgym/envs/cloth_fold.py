@@ -21,11 +21,11 @@ class ClothFoldEnv(ClothEnv):
         
         if self.use_cached_states == False:
             self.context = kwargs['context']
-            self.random_state = np.random.RandomState(kwargs['random_seed'])
+            self.context_random_state = np.random.RandomState(kwargs['random_seed'])
 
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
-        self.reset()
-        self._set_to_flatten()
+        # self.reset()
+        # self._set_to_flatten()
 
     
 
@@ -69,10 +69,10 @@ class ClothFoldEnv(ClothEnv):
                 if np.alltrue(np.abs(curr_vel) < stable_vel_threshold):
                     break
 
-            center_object(self.random_state, self.context['positions'])
+            center_object(self.context_random_state, self.context['positions'])
             
             if self.context['rotations']:
-                angle = self.random_state.rand(1) * np.pi * 2
+                angle = self.context_random_state.rand(1) * np.pi * 2
                 self._rotate_particles(angle)
 
             generated_configs.append(deepcopy(config))
@@ -93,6 +93,8 @@ class ClothFoldEnv(ClothEnv):
 
     def _reset(self):
         """ Right now only use one initial state. Need to make sure _reset always give the same result. Otherwise CEM will fail."""
+        self._set_to_flatten()
+        self.set_scene(self.cached_configs[self.current_config_id], self.cached_init_states[self.current_config_id])
         
         self._flatten_particel_positions = self.get_flatten_positions()
         self._flatten_coverage =  self.get_coverage(self._flatten_particel_positions)
@@ -170,7 +172,7 @@ class ClothFoldEnv(ClothEnv):
             for i in range(steps):
                 particle_positions = self.step_info['particle_pos'][i][:, :3]
                 
-                self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], (128, 128))
+                self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], (64, 64)) # TODO: magic number
                 self.step_info['reward'].append(self.compute_reward(particle_positions))
                 self.step_info['coverage'].\
                     append(self.get_coverage(particle_positions))

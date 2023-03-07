@@ -493,7 +493,8 @@ class PickerPickPlace(Picker):
              # Move a bit
             curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
             curr_pos[:, 0] += 0.05
-            curr_pos[:, 2] += 0.05
+            curr_pos[:, 1] = 0.1
+            #curr_pos[:, 2] += 0.05
             move_action = \
                 np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
             total_steps += self._world_pick_or_place(move_action, render)

@@ -27,7 +27,6 @@ class FlexEnv(gym.Env):
                  num_variations=1,
                  action_repeat=8,
                  camera_name='default_camera',
-                 deterministic=True,
                  use_cached_states=False,
                  observation_mode = 'rgbd',
                  save_step_info=False,
@@ -46,6 +45,8 @@ class FlexEnv(gym.Env):
         self.device_id = device_id
 
         self.save_step_info = save_step_info
+
+        self.sampling_random_state = np.random.RandomState(kwargs['random_seed'])
         print('self.save_step_info ', self.save_step_info )
         self.control_horizon = control_horizon
         self.control_step = 0
@@ -55,7 +56,6 @@ class FlexEnv(gym.Env):
         self.action_repeat = action_repeat
         self.recording = False
         self.prev_reward = None
-        self.deterministic = deterministic
         self.use_cached_states = use_cached_states
         self.save_cached_states = save_cached_states
         self.current_config = self.get_default_config()
@@ -171,31 +171,28 @@ class FlexEnv(gym.Env):
             save_numpy_as_gif(np.array(self.video_frames), video_path, **kwargs)
         del self.video_frames
 
-    def reset(self, config=None, initial_state=None, episode_id=None):
+    def reset(self, episode_id=None):
      
-        if config is None:
-            config_id = episode_id
+        
+        config_id = episode_id
+        if episode_id is None: ## if episode id is not given, we need to randomly start and episode.
+            if self.eval_flag:
+                eval_beg = int(0.1 * len(self.cached_configs))
+                config_id = self.sampling_random_state.randint(low=0,  high=eval_beg)
+            else:
+                train_low = int(0.1 * len(self.cached_configs))
+                config_id =  self.sampling_random_state.randint(low=train_low, high=len(self.cached_configs))
+        elif not self.eval_flag:  ## if episode id is given, we need to find the config id
+            config_id = episode_id + int(0.1 * len(self.cached_configs))
 
-            if episode_id is None: ## if episode id is not given, we need to randomly start and episode.
-                if self.eval_flag:
-                    eval_beg = int(0.1 * len(self.cached_configs))
-                    config_id = self.random_state.randint(low=0,  high=eval_beg) if not self.deterministic else eval_beg
-                else:
-                    train_low = int(0.1 * len(self.cached_configs))
-                    config_id =  self.random_state.randint(low=train_low, high=len(self.cached_configs)) if not self.deterministic else 0
-            elif not self.eval_flag:  ## if episode id is given, we need to find the config id
-                config_id = episode_id + int(0.1 * len(self.cached_configs))
-
-            print('start {} episode {}, config id {}'.\
-                format(('eval' if self.eval_flag else 'train'), episode_id, config_id))
-              
-            self.current_config = self.cached_configs[config_id]
-            self.current_config_id = config_id
-            self.set_scene(self.cached_configs[config_id], self.cached_init_states[config_id])
+        print('start {} episode {}, config id {}'.\
+            format(('eval' if self.eval_flag else 'train'), episode_id, config_id))
             
-        else:
-            self.current_config = config
-            self.set_scene(config, initial_state)
+        self.current_config = self.cached_configs[config_id]
+        self.current_config_id = config_id
+        self.set_scene(self.cached_configs[config_id], self.cached_init_states[config_id])
+         
+        
         self.particle_num = pyflex.get_n_particles()
         self.prev_reward = 0.
         self.control_step = 0

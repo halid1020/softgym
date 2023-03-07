@@ -82,6 +82,13 @@ class ClothEnv(FlexEnv):
         pos = pyflex.get_positions()
         return pos.reshape(-1, 4).copy()
 
+    def set_particle_pos(self, pos):
+        pyflex.set_positions([pos])
+        print('here')
+        # pyflex.step()
+        # if self._render:
+        #     pyflex.render()
+
     def get_particle_positions(self):
         return  self.get_particle_pos()[:, :3].copy()
 
@@ -354,7 +361,7 @@ class ClothEnv(FlexEnv):
     def tick_control_step(self):
         super().tick_control_step()
         if self.save_step_info:
-            self.step_info['rgbd'].append(self.get_image(width=128, height=128, depth=True))
+            self.step_info['rgbd'].append(self.get_image(width=64, height=64, depth=True)) #TODO: magic numbers
             self.step_info['coverage'].append(self.get_coverage(self.get_particle_positions()))
             self.step_info['reward'].append(self.compute_reward(self.get_particle_positions()))
 
