@@ -21,18 +21,19 @@ class FlexEnv(gym.Env):
                  device_id=-1,
                  headless=False,
                  render=True,
-                 horizon=100,
+                 control_horizon=100,
                  camera_width=720,
                  camera_height=720,
                  num_variations=1,
                  action_repeat=8,
                  camera_name='default_camera',
-                 deterministic=True,
                  use_cached_states=False,
                  observation_mode = 'rgbd',
+                 save_step_info=False,
                  save_cached_states=True, **kwargs):
+
+        
         self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
-        print('render', render)
         pyflex.init(headless, render, camera_width, camera_height)
 
         self.record_video, self.video_path, self.video_name = False, None, None
@@ -43,12 +44,17 @@ class FlexEnv(gym.Env):
             device_id = int(os.environ['gpu_id'])
         self.device_id = device_id
 
-        self.horizon = horizon
-        self.time_step = 0
+        self.save_step_info = save_step_info
+
+        self.sampling_random_state = np.random.RandomState(kwargs['random_seed'])
+        self.control_horizon = control_horizon
+        self.control_step = 0
+        self._render = render
+
+
         self.action_repeat = action_repeat
         self.recording = False
         self.prev_reward = None
-        self.deterministic = deterministic
         self.use_cached_states = use_cached_states
         self.save_cached_states = save_cached_states
         self.current_config = self.get_default_config()
@@ -63,12 +69,7 @@ class FlexEnv(gym.Env):
         self.eval_flag = False
         self.observation_mode = observation_mode
 
-        # version 1 does not support robot, while version 2 does.
-        pyflex_root = os.environ['PYFLEXROOT']
-        if 'Robotics' in pyflex_root:
-            self.version = 2
-        else:
-            self.version = 1
+        self.version = 1
 
     def get_cached_configs_and_states(self, cached_states_path, num_variations):
         """
@@ -82,7 +83,6 @@ class FlexEnv(gym.Env):
             cur_dir = osp.dirname(osp.abspath(__file__))
             cached_states_path = osp.join(cur_dir, '../cached_initial_states', cached_states_path)
         if self.use_cached_states and osp.exists(cached_states_path):
-            print('I am here', num_variations)
             # Load from cached file
             with open(cached_states_path, "rb") as handle:
                 self.cached_configs, self.cached_init_states = pickle.load(handle)
@@ -100,6 +100,19 @@ class FlexEnv(gym.Env):
 
     def get_current_config(self):
         return self.current_config
+
+    def tick_control_step(self):
+        pyflex.step()
+        if self._render:
+            pyflex.render()
+        self.control_step += 1
+
+        if self.save_step_info:
+
+            #print('tick control action shape', np.zeros(self.step_info['control_signal'][-1].shape).shape)
+            self.step_info['control_signal'].append(np.zeros(self.step_info['control_signal'][-1].shape))
+            self.step_info['picker_pos'].append(self.action_tool.get_picker_pos())
+            self.step_info['particle_pos'].append(self.get_particle_pos())
 
     def update_camera(self, camera_name, camera_param=None):
         """
@@ -156,34 +169,31 @@ class FlexEnv(gym.Env):
             save_numpy_as_gif(np.array(self.video_frames), video_path, **kwargs)
         del self.video_frames
 
-    def reset(self, config=None, initial_state=None, episode_id=None):
+    def reset(self, episode_id=None):
      
-        if config is None:
-            config_id = episode_id
+        
+        config_id = episode_id
+        if episode_id is None: ## if episode id is not given, we need to randomly start and episode.
+            if self.eval_flag:
+                eval_beg = int(0.1 * len(self.cached_configs))
+                config_id = self.sampling_random_state.randint(low=0,  high=eval_beg)
+            else:
+                train_low = int(0.1 * len(self.cached_configs))
+                config_id =  self.sampling_random_state.randint(low=train_low, high=len(self.cached_configs))
+        elif not self.eval_flag:  ## if episode id is given, we need to find the config id
+            config_id = episode_id + int(0.1 * len(self.cached_configs))
 
-            if episode_id is None: ## if episode id is not given, we need to randomly start and episode.
-                if self.eval_flag:
-                    eval_beg = int(0.1 * len(self.cached_configs))
-                    config_id = self.random_state.randint(low=0,  high=eval_beg) if not self.deterministic else eval_beg
-                else:
-                    train_low = int(0.1 * len(self.cached_configs))
-                    config_id =  self.random_state.randint(low=train_low, high=len(self.cached_configs)) if not self.deterministic else 0
-            elif not self.eval_flag:  ## if episode id is given, we need to find the config id
-                config_id = episode_id + int(0.1 * len(self.cached_configs))
-
-            print('start {} episode {}, config id {}'.\
-                format(('eval' if self.eval_flag else 'train'), episode_id, config_id))
-              
-            self.current_config = self.cached_configs[config_id]
-            self.current_config_id = config_id
-            self.set_scene(self.cached_configs[config_id], self.cached_init_states[config_id])
+        print('start {} episode {}, config id {}'.\
+            format(('eval' if self.eval_flag else 'train'), episode_id, config_id))
             
-        else:
-            self.current_config = config
-            self.set_scene(config, initial_state)
+        self.current_config = self.cached_configs[config_id]
+        self.current_config_id = config_id
+        self.set_scene(self.cached_configs[config_id], self.cached_init_states[config_id])
+         
+        
         self.particle_num = pyflex.get_n_particles()
         self.prev_reward = 0.
-        self.time_step = 0
+        self.control_step = 0
 
         obs, reward = self._reset()
 
@@ -200,20 +210,24 @@ class FlexEnv(gym.Env):
             if record_continuous_video and i % 2 == 0:  # No need to record each step
                 frames.append(self.get_image(img_size, img_size))
         obs = self._get_obs()
-        reward = self.compute_reward(action, obs, set_prev_reward=True)
-        info = self._get_info()
+        reward = self.compute_reward()
+        #info = self._get_info()
 
         if self.recording:
             self.video_frames.append(self.render(mode='rgb'))
-        self.time_step += 1
+        #self.control_step += 1
 
         done = False
-        if self.time_step >= self.horizon:
-            
+        if self.control_step >= self.control_horizon:
             done = True
-        if record_continuous_video:
-            info['flex_env_recorded_frames'] = frames
-        return obs, reward, done, info
+        
+        if self.action_mode == 'pickerpickplace' and self.action_step >= self.action_horizon:
+            done = True
+
+        # if record_continuous_video:
+        #     info['flex_env_recorded_frames'] = frames
+
+        return obs, reward, done
 
     def initialize_camera(self):
         """
@@ -234,11 +248,13 @@ class FlexEnv(gym.Env):
         raise NotImplementedError
 
     def render(self, mode='rgb'):
-        pyflex.step()
+        #pyflex.step()
         img, depth_img = pyflex.render()
         width, height = self.camera_params['default_camera']['width'], self.camera_params['default_camera']['height']
         img = img.reshape(height, width, 4)[::-1, :, :3]  # Need to reverse the height dimension
         depth_img = depth_img.reshape(height, width, 1)[::-1, :, :1]
+
+        #print('depth_img', depth_img[0][0])
 
         if mode == 'rgbd':
             return np.concatenate((img, depth_img), axis=2)
