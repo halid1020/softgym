@@ -82,15 +82,16 @@ class ClothEnv(FlexEnv):
         pos = pyflex.get_positions()
         return pos.reshape(-1, 4).copy()
 
-    def set_particle_pos(self, pos):
-        pyflex.set_positions([pos])
-        print('here')
-        # pyflex.step()
-        # if self._render:
-        #     pyflex.render()
+    def set_pos(self, particle_pos, picker_pos):
+        pyflex.set_positions(particle_pos)
+        print('picker_pos', picker_pos.shape)
+        pyflex.set_shape_states(picker_pos)
+        pyflex.step()
+        if self._render:
+            pyflex.render()
 
     def get_particle_positions(self):
-        return  self.get_particle_pos()[:, :3].copy()
+        return self.get_particle_pos()[:, :3].copy()
 
     def get_picker_pos(self):
         return self.action_tool.get_picker_pos()
