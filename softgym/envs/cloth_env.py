@@ -20,7 +20,7 @@ class ClothEnv(FlexEnv):
 
         self.render_mode = render_mode
         self.action_mode = action_mode
-       
+        self.pixel_to_world_ratio = 0.414
         
 
         #assert observation_mode in ['key_point', 'point_cloud', 'cam_rgb', 'cam_rgbd']
@@ -184,7 +184,7 @@ class ClothEnv(FlexEnv):
 
         camera_hight = 1.5 # TODO: magic number
         depths = camera_hight - positions[:, 1] #x, z, y
-        pixel_to_world_ratio = 0.415 # TODO: magic number
+        pixel_to_world_ratio = self.pixel_to_world_ratio # TODO: magic number
         projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1
         projected_pixel_positions_y = positions[:, 2]/pixel_to_world_ratio/depths #-1, 1
         projected_pixel_positions = np.concatenate(
@@ -311,10 +311,10 @@ class ClothEnv(FlexEnv):
             N = positions.shape[0]
             camera_hight = 1.5 # TODO: magic number
             depths = camera_hight - positions[:, 1] #x, z, y
-            pixel_to_world_ratio = 0.415 # TODO: magic number
+             # TODO: magic number
 
-            projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1
-            projected_pixel_positions_y = positions[:, 2]/pixel_to_world_ratio/depths #-1, 1
+            projected_pixel_positions_x = positions[:, 0]/self.pixel_to_world_ratio/depths #-1, 1
+            projected_pixel_positions_y = positions[:, 2]/self.pixel_to_world_ratio/depths #-1, 1
             projected_pixel_positions = np.concatenate(
                 [projected_pixel_positions_x.reshape(N, 1), projected_pixel_positions_y.reshape(N, 1)],
                 axis=1)

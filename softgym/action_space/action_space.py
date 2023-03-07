@@ -319,7 +319,7 @@ class PickerPickPlace(Picker):
         
         
         if step_mode == "pixel_pick_and_place":
-            self._pixel_to_world_ratio = 0.415 # While depth=1
+            self._pixel_to_world_ratio = 0.414 # While depth=1
             self._picker_low = np.asarray(picker_low)
             self._picker_high = np.asarray(picker_high)
 
@@ -344,7 +344,7 @@ class PickerPickPlace(Picker):
 
         self.action_space = Box(np.array([*picker_low] * self.num_picker),
                                 np.array([*picker_high] * self.num_picker), dtype=np.float32)
-        self.delta_move = 0.01 # maximum velociy 1cm/frame
+        self.delta_move = 0.01 # maximum velociy 2cm/frame
         self.env = env
         self._step_mode = step_mode
 
@@ -494,9 +494,9 @@ class PickerPickPlace(Picker):
 
              # Move a bit
             curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
-            curr_pos[:, 0] += 0.05
-            curr_pos[:, 1] = 0.1
-            #curr_pos[:, 2] += 0.05
+            displacement = 0.05*np.sign(action[:, 1, :].copy() - action[:, 0, :].copy())
+            curr_pos = curr_pos + displacement
+            curr_pos[:, 1] = place_height
             move_action = \
                 np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
             total_steps += self._world_pick_or_place(move_action, render)
