@@ -10,6 +10,8 @@ import cv2
 class ClothFoldEnv(ClothEnv):
 
     def __init__(self, cached_states_path='cloth_folding_tmp.pkl', **kwargs):
+        self.cloth_particle_radius = kwargs['particle_radius']
+        
         super().__init__(**kwargs)
 
         self.fold_group_a = self.fold_group_b = None
@@ -41,7 +43,7 @@ class ClothFoldEnv(ClothEnv):
             config = deepcopy(default_config)
             self.update_camera(config['camera_name'], config['camera_params'][config['camera_name']])
             if vary_cloth_size:
-                cloth_dimx, cloth_dimy = int(self.cloth_dim[0]/self.cloth_particle_raidus), int(self.cloth_dim[1]/self.cloth_particle_raidus)
+                cloth_dimx, cloth_dimy = int(self.cloth_dim[0]/self.cloth_particle_radius), int(self.cloth_dim[1]/self.cloth_particle_radius)
                 
                 
                 self._sample_cloth_size()

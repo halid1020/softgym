@@ -133,10 +133,10 @@ class ClothFlattenEnv(ClothEnv):
     def _reset(self):
         """ Right now only use one initial state"""
         self._initial_particel_pos = self.get_particle_positions()
-        self._initial_covered_area = self.get_covered_area(self._initial_particel_pos)
-        self._current_coverage_area = self._prior_coverage_area = self._initial_covered_area
-        self._target_particel_pos = self.flatten_pos()
-        self._target_covered_area =  self.get_covered_area(self._target_particel_pos)
+        self._initial_covered_area = self.get_coverage(self._initial_particel_pos)
+        self._current_coverage = self._prior_coverage = self._initial_covered_area
+        self._target_particel_pos = self.get_flatten_positions()
+        self._target_covered_area =  self.get_coverage(self._target_particel_pos)
 
 
         if hasattr(self, 'action_tool'):
@@ -157,8 +157,8 @@ class ClothFlattenEnv(ClothEnv):
         else:
             pyflex.step()
 
-        self._prior_coverage_area = self._current_coverage_area
-        self._current_coverage_area = self.get_covered_area(self.get_particle_positions())
+        self._prior_coverage = self._current_coverage
+        self._current_coverage = self.get_coverage(self.get_particle_positions())
         return
 
     
@@ -180,7 +180,7 @@ class ClothFlattenEnv(ClothEnv):
         pyflex.set_positions(pos.flatten())
         pyflex.set_velocities(np.zeros_like(pos))
         pyflex.step()
-        self._current_coverage_area = self.get_covered_area(self.get_particle_positions())
+        self._current_coverage = self.get_covered_area(self.get_particle_positions())
         
     
     def _distance_reward(self, particle_pos):
@@ -211,13 +211,13 @@ class ClothFlattenEnv(ClothEnv):
 
     def _hoque_ddpg_reward(self):
 
-        reward = (self._current_coverage_area - self._prior_coverage_area)/self._target_covered_area
+        reward = (self._current_coverage - self._prior_coverage)/self._target_covered_area
         
         bonus = 0
-        if abs(self._current_coverage_area - self._prior_coverage_area) <= 1e-4:
+        if abs(self._current_coverage - self._prior_coverage) <= 1e-4:
             reward = -0.05
         
-        if self._current_coverage_area/self._target_covered_area > 0.92:
+        if self._current_coverage/self._target_covered_area > 0.92:
             bonus = 1 #reward += 5
         
         reward += bonus
