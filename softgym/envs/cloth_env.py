@@ -206,8 +206,47 @@ class ClothEnv(FlexEnv):
             
         return np.asarray(visibility)
 
-    def get_flatten_coverage(self):
-        return self.get_coverage(self.get_flatten_positions())
+    def get_normalised_coverage(self):
+        return self._normalised_coverage()
+    
+
+    def get_corner_positions(self, position=None):
+        if position == None:
+            positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
+        return positions[self._corner_ids]
+    
+    def _normalised_coverage(self):
+        return self._current_coverage_area/self._target_covered_area
+    
+    def get_particle_positions(self):
+        pos = pyflex.get_positions()
+        pos = pos.reshape(-1, 4)[:, :3].copy()
+        return pos
+
+    def _flatten_pos(self):
+        cloth_dimx, cloth_dimz = self.get_current_config()['ClothSize']
+        
+        N = cloth_dimx * cloth_dimz
+        px = np.linspace(0, cloth_dimx * self.cloth_particle_radius, cloth_dimx)
+        px -= cloth_dimx * self.cloth_particle_radius/2 
+        py = np.linspace(0, cloth_dimz * self.cloth_particle_radius, cloth_dimz)
+        py -= cloth_dimz * self.cloth_particle_radius/2
+
+        xx, yy = np.meshgrid(px, py)
+        L = len(xx)
+        W = len(xx[0])
+        self._corner_ids = [0, W-1, (L-1)*W, L*W-1]
+        #print('_corner_ids', self._corner_ids)
+        #print('corner ids', self._corner_ids)
+        new_pos = np.empty(shape=(N, 4), dtype=float)
+        new_pos[:, 0] = xx.flatten()
+        new_pos[:, 1] = self.cloth_particle_radius
+        new_pos[:, 2] = yy.flatten()
+        new_pos[:, 3] = 1.
+        new_pos[:, :3] -= np.mean(new_pos[:, :3], axis=0)
+        self._target_pos = new_pos.copy()
+
+        return new_pos.copy()
     
     def get_normalised_coverage(self, particle_positions=None):
         if particle_positions is None:
@@ -245,6 +284,9 @@ class ClothEnv(FlexEnv):
         grid[idx] = 1
 
         return np.sum(grid) * span[0] * span[1]
+
+
+    
 
     def _sample_cloth_size(self):
         return np.random.randint(60, 120), np.random.randint(60, 120)
@@ -307,7 +349,7 @@ class ClothEnv(FlexEnv):
             obs['state'] = pos
         
         elif self.observation_mode['state'] == 'corner_pixel':
-            positions =  self._get_corner_positions()
+            positions =  self.get_corner_positions()
             N = positions.shape[0]
             camera_hight = 1.5 # TODO: magic number
             depths = camera_hight - positions[:, 1] #x, z, y
