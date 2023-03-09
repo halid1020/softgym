@@ -209,39 +209,124 @@ class ClothFoldEnv(ClothEnv):
         
         if self.reward_mode == 'normalised_particle_distance':
             longest_distance = 0.4*(2**0.5)
-            l =  self._largest_particle_distate(particle_positions)
+            l =  self._largest_particle_distance()
             return (longest_distance - l)/longest_distance
         
         else:
             raise NotImplementedError
 
-    def _largest_particle_distate(self, particle_positions=None):
-        
-        if particle_positions is None:
-            particle_positions = pyflex.get_positions()
-            particle_positions = particle_positions.reshape((-1, 4))[:, :3]
+    def _get_distance(self, group_a, group_b):
+        position = self.get_particle_positions()
+        cols = [0, 1, 2]
+        pos_group_a = position[np.ix_(group_a, cols)]
+        pos_group_b = position[np.ix_(group_b, cols)]
+        distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
+        return distance
+    
+    def get_edge_ids(self):
+        config = self.get_current_config()
+        cloth_dimx,  cloth_dimy = config['ClothSize']
+        edge_ids = [i for i in range(cloth_dimx)]
+        edge_ids.extend([i*cloth_dimx for i in range(1, cloth_dimy)])
+        edge_ids.extend([(i+1)*cloth_dimx-1 for i in range(1, cloth_dimy)])
+        edge_ids.extend([(cloth_dimy-1)*cloth_dimx + i for i in range(1, cloth_dimx-1)])
+        return edge_ids
+    
+    def _mean_edge_distance(self):
+        if self.fold_mode == 'diagonal':
+            distances_1 = self._get_distance(self.fold_group_a, self.fold_group_b) ## particle-wise distane
+            distances_2 = self._get_distance(self.fold_group_a_flip, self.fold_group_b_flip)
+            edge_ids = self.get_edge_ids()
+            edge_distance_1 = [distances_1[i] for i, p in enumerate(self.fold_group_a) if p in edge_ids]
+            edge_distance_2 = [distances_2[i] for i, p in enumerate(self.fold_group_a_flip) if p in edge_ids]
+
+            return min(np.mean(edge_distance_1), np.mean(edge_distance_2))
+        else:
+            raise NotImplementedError
+
+    def _largest_edge_distance(self):
+        if self.fold_mode == 'diagonal':
+            distances_1 = self._get_distance(self.fold_group_a, self.fold_group_b) ## particle-wise distane
+            distances_2 = self._get_distance(self.fold_group_a_flip, self.fold_group_b_flip)
+            edge_ids = self.get_edge_ids()
+            edge_distance_1 = [distances_1[i] for i, p in enumerate(self.fold_group_a) if p in edge_ids]
+            edge_distance_2 = [distances_2[i] for i, p in enumerate(self.fold_group_a_flip) if p in edge_ids]
+
+            return min(np.max(edge_distance_1), np.max(edge_distance_2))
+        else:
+            raise NotImplementedError
+
+    def _corner_distance(self):
 
         if self.fold_mode == 'diagonal':
-            cols = [0, 2]
-            pos_group_a = particle_positions[np.ix_(self.fold_group_a, cols)]
-            pos_group_b = particle_positions[np.ix_(self.fold_group_b, cols)]
+            distances_1 = self._get_distance(self.fold_group_a, self.fold_group_b) ## particle-wise distane
+            distances_2 = self._get_distance(self.fold_group_a_flip, self.fold_group_b_flip)
+            corner_distance_1 = [distances_1[i] for i, p in enumerate(self.fold_group_a) if p in self._corner_ids]
+            corner_distance_2 = [distances_2[i] for i, p in enumerate(self.fold_group_a_flip) if p in self._corner_ids]
 
-        
-            distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
-            largest_distance_id = np.argmax(distance)
-            particl_wise_distance_1 = distance[largest_distance_id]
+            return min(np.max(corner_distance_1), np.max(corner_distance_2))
+        else:
+            raise NotImplementedError
 
-            pos_group_a = particle_positions[np.ix_(self.fold_group_a_flip, cols)]
-            pos_group_b = particle_positions[np.ix_(self.fold_group_b_flip, cols)]
+    def _mean_particle_distance(self):
 
-            distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
-            largest_distance_id = np.argmax(distance)
-            particl_wise_distance_2 = distance[largest_distance_id]
+        if self.fold_mode == 'diagonal':
+            distances_1 = self._get_distance(self.fold_group_a, self.fold_group_b) ## particle-wise distane
+            distances_2 = self._get_distance(self.fold_group_a_flip, self.fold_group_b_flip)
+            return min(np.mean(distances_1), np.mean(distances_2))
+        else:
+            raise NotImplementedError
 
-            return min(particl_wise_distance_1, particl_wise_distance_2)
+
+
+    def _largest_particle_distance(self):
+        if self.fold_mode == 'diagonal':
+            distances_1 = self._get_distance(self.fold_group_a, self.fold_group_b) ## particle-wise distane
+            distances_2 = self._get_distance(self.fold_group_a_flip, self.fold_group_b_flip)
+            return min(np.max(distances_1), np.max(distances_2))
         else:
             raise NotImplementedError
 
 
     def is_folded(self):
-        return self._largest_particle_distate() < 0.05
+        return self._largest_particle_distance() < 0.05
+
+    # def _get_info(self):
+    #     # Duplicate of the compute reward function!
+    #     pos = pyflex.get_positions()
+    #     pos = pos.reshape((-1, 4))[:, :3]
+    #     pos_group_a = pos[self.fold_group_a]
+    #     pos_group_b = pos[self.fold_group_b]
+    #     pos_group_b_init = self.init_pos[self.fold_group_b]
+    #     group_dist = np.mean(np.linalg.norm(pos_group_a - pos_group_b, axis=1))
+    #     fixation_dist = np.mean(np.linalg.norm(pos_group_b - pos_group_b_init, axis=1))
+    #     performance = -group_dist - 1.2 * fixation_dist
+    #     performance_init = performance if self.performance_init is None else self.performance_init  # Use the original performance
+    #     info = {
+    #         'performance': performance,
+    #         'normalized_performance': (performance - performance_init) / (0. - performance_init),
+    #         'neg_group_dist': -group_dist,
+    #         'neg_fixation_dist': -fixation_dist
+    #     }
+    #     if 'qpg' in self.action_mode:
+    #         info['total_steps'] = self.action_tool.total_steps
+    #     return info
+
+    # def _set_to_folded(self):
+    #     config = self.get_current_config()
+    #     num_particles = np.prod(config['ClothSize'], dtype=int)
+    #     particle_grid_idx = np.array(list(range(num_particles))).reshape(config['ClothSize'][1], config['ClothSize'][0])  # Reversed index here
+
+    #     cloth_dimx = config['ClothSize'][0]
+    #     x_split = cloth_dimx // 2
+    #     fold_group_a = particle_grid_idx[:, :x_split].flatten()
+    #     fold_group_b = np.flip(particle_grid_idx, axis=1)[:, :x_split].flatten()
+
+    #     curr_pos = pyflex.get_positions().reshape((-1, 4))
+    #     curr_pos[fold_group_a, :] = curr_pos[fold_group_b, :].copy()
+    #     curr_pos[fold_group_a, 1] += 0.05  # group a particle position made tcurr_pos[self.fold_group_b, 1] + 0.05e at top of group b position.
+
+    #     pyflex.set_positions(curr_pos)
+    #     for i in range(10):
+    #         pyflex.step()
+    #     return self._get_info()['performance']
