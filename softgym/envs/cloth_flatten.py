@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import cv2
 import pyflex
 from softgym.envs.cloth_env import ClothEnv
 from copy import deepcopy
@@ -22,13 +23,15 @@ class ClothFlattenEnv(ClothEnv):
         """
         super().__init__(**kwargs)
         self._reward_mode = kwargs['reward_mode']
-        self.get_cached_configs_and_states(cached_states_path, self.num_variations)
-        self.reset()
-        self._set_to_flatten()
-        self._initial_covered_area = None  # Should not be used until initialized
-        
 
-    
+        if self.use_cached_states == False:
+            self.context = kwargs['context']
+            self.context_random_state = np.random.RandomState(kwargs['random_seed'])
+        
+        if self.save_step_info:
+            self.step_info = {}
+
+        self.get_cached_configs_and_states(cached_states_path, self.num_variations)
 
     def generate_env_variation(self, num_variations=1, vary_cloth_size=False):
         """ Generate initial states. Note: This will also change the current states! """
@@ -126,17 +129,22 @@ class ClothFlattenEnv(ClothEnv):
         return self._target_img
 
     
-    def _get_info(self):
-        pass
-
 
     def _reset(self):
         """ Right now only use one initial state"""
-        self._initial_particel_pos = self.get_particle_positions()
-        self._initial_covered_area = self.get_coverage(self._initial_particel_pos)
-        self._current_coverage = self._prior_coverage = self._initial_covered_area
-        self._target_particel_pos = self.get_flatten_positions()
-        self._target_covered_area =  self.get_coverage(self._target_particel_pos)
+        self._set_to_flatten()
+        self.set_scene(self.cached_configs[self.current_config_id], self.cached_init_states[self.current_config_id])
+        
+        self._flatten_particel_positions = self.get_flatten_positions()
+        self._flatten_coverage =  self.get_coverage(self._flatten_particel_positions)
+        
+        self._initial_particel_positions = self.get_particle_positions()
+        self._initial_coverage = self.get_coverage(self._initial_particel_positions)
+    
+
+        if self.action_mode == 'pickerpickplace':
+            self.action_step = 0
+            self._current_action_coverage = self._prior_action_coverage = self._initial_coverage
 
 
         if hasattr(self, 'action_tool'):
@@ -148,18 +156,78 @@ class ClothFlattenEnv(ClothEnv):
         return self._get_obs(), None
 
     def _step(self, action):
-        self.action_tool.step(action)
-        if self.action_mode == 'pickerpickplace':
-            self._wait_to_stabalise(render=True)
-       
-        if self.action_mode in ['sawyer', 'franka']:
-            pyflex.step(self.action_tool.next_action)
-        else:
-            pyflex.step()
 
-        self._prior_coverage = self._current_coverage
-        self._current_coverage = self.get_coverage(self.get_particle_positions())
-        return
+        if self.save_step_info:
+            self.step_info = {}
+
+        self.control_step +=  self.action_tool.step(action)
+        
+        if self.save_step_info:
+            self.step_info = self.action_tool.get_step_info()
+            
+            self.step_info['coverage'] = []
+            self.step_info['reward'] = []
+            steps = len(self.step_info['control_signal'])
+
+            for i in range(steps):
+                particle_positions = self.step_info['particle_pos'][i][:, :3]
+                
+                self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], (64, 64)) # TODO: magic number
+                self.step_info['reward'].append(self.compute_reward(particle_positions))
+                self.step_info['coverage'].\
+                    append(self.get_coverage(particle_positions))
+                
+                eval_data = self.evaluate(particle_positions)
+                for k, v in eval_data.items():
+                    if k not in self.step_info.keys():
+                        self.step_info[k] = [v]
+                    else:
+                        self.step_info[k].append(v)
+
+
+        if self.action_mode == 'pickerpickplace':
+            self.action_step += 1
+            self._wait_to_stabalise(render=True,  max_wait_step=20, stable_vel_threshold=0.05)
+
+        else:
+            self.tick_control_step()
+
+        if self.save_step_info:
+            self.step_info = {k: np.stack(v) for k, v in self.step_info.items()}
+
+         ### Update parameters for quasi-static pick and place.
+        if self.action_mode == 'pickerpickplace':
+            self._prior_action_coverage = self._current_action_coverage
+            self._current_action_coverage = self.get_coverage(self.get_particle_positions())
+
+
+    def compute_reward(self, action=None, obs=None, set_prev_reward=False):
+        if self._reward_mode == "distance_reward":
+            return self._distance_reward(self.get_particle_positions())
+        if self._reward_mode == "pixel_rmse":
+            return self._pixel_reward(self.render())
+        if self._reward_mode == "depth_ratio":
+            return self._depth_reward(self.get_particle_positions())
+        if self._reward_mode == "corner_and_depth_ratio":
+            return self._corner_and_depth_reward(self.get_particle_positions())
+        if self._reward_mode == "hoque_ddpg":
+            return self._hoque_ddpg_reward()
+        if self._reward_mode == 'normalised_coverage':
+            return self._normalised_coverage()
+        raise NotImplementedError
+
+    def evaluate(self, particles=None):
+        if particles is None:
+            particles = self.get_particle_positions()
+
+        target_coverage = self._flatten_coverage
+        initial_coverage = self._initial_coverage
+        current_coverage = self.get_coverage(particles)
+
+        return {
+            'normalised_improvement': (current_coverage - initial_coverage)/(target_coverage - initial_coverage),
+            'normalised_coverage': (current_coverage/target_coverage)
+        }
 
     
 
@@ -211,48 +279,18 @@ class ClothFlattenEnv(ClothEnv):
 
     def _hoque_ddpg_reward(self):
 
-        reward = (self._current_coverage - self._prior_coverage)/self._target_covered_area
+        reward = (self._current_action_coverage - self._prior_action_coverage)/self._flatten_coverage
         
         bonus = 0
-        if abs(self._current_coverage - self._prior_coverage) <= 1e-4:
+        if abs(self._current_action_coverage - self._prior_action_coverage) <= 1e-4:
             reward = -0.05
         
-        if self._current_coverage/self._target_covered_area > 0.92:
-            bonus = 1 #reward += 5
-        
+        if self._current_action_coverage /self._flatten_coverage > 0.92:
+            bonus = 1
+
         reward += bonus
         
-         # TODO: -5 for out-of-bound
 
         return reward
 
-    def compute_reward(self, action=None, obs=None, set_prev_reward=False):
-        if self._reward_mode == "distance_reward":
-            return self._distance_reward(self.get_particle_positions())
-        if self._reward_mode == "pixel_rmse":
-            return self._pixel_reward(self.render())
-        if self._reward_mode == "depth_ratio":
-            return self._depth_reward(self.get_particle_positions())
-        if self._reward_mode == "corner_and_depth_ratio":
-            return self._corner_and_depth_reward(self.get_particle_positions())
-        if self._reward_mode == "hoque_ddpg":
-            return self._hoque_ddpg_reward()
-        if self._reward_mode == 'normalised_coverage':
-            return self._normalised_coverage()
-        raise NotImplementedError
-
-    # @property
-    # def performance_bound(self):
-    #     dimx, dimy = self.current_config['ClothSize']
-    #     max_area = dimx * self.cloth_particle_radius * dimy * self.cloth_particle_radius
-    #     min_p = 0
-    #     max_p = max_area
-    #     return min_p, max_p
-
-
-    def get_picked_particle(self):
-        pps = np.ones(shape=self.action_tool.num_picker)  * -1 # -1 means no particles picked
-        for i, pp in enumerate(self.action_tool.picked_particles):
-            if pp is not None:
-                pps[i] = pp
-        return pps
+    
