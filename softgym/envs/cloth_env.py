@@ -163,6 +163,9 @@ class ClothEnv(FlexEnv):
     def get_flatten_positions(self):
         pos = self._flatten_pos()
         return pos.reshape(-1, 4)[:, :3].copy()
+    
+    def get_flatten_coverage(self):
+        return self.get_coverage(self.get_flatten_positions())
 
    
     def _set_to_flatten(self):
@@ -323,7 +326,6 @@ class ClothEnv(FlexEnv):
     def get_step_info(self):
         if self.save_step_info:
             return self.step_info.copy()
-        
         else:
             raise NotImplementedError
 
@@ -406,7 +408,22 @@ class ClothEnv(FlexEnv):
             self.step_info['rgbd'].append(self.get_image(width=64, height=64, depth=True)) #TODO: magic numbers
             self.step_info['coverage'].append(self.get_coverage(self.get_particle_positions()))
             self.step_info['reward'].append(self.compute_reward(self.get_particle_positions()))
+            
+            eval_data = self.evaluate()
+            for k, v in eval_data.items():
+                if k not in self.step_info.keys():
+                    self.step_info[k] = [v]
+                else:
+                    self.step_info[k].append(v)
 
+    def get_edge_ids(self):
+        config = self.get_current_config()
+        cloth_dimx,  cloth_dimy = config['ClothSize']
+        edge_ids = [i for i in range(cloth_dimx)]
+        edge_ids.extend([i*cloth_dimx for i in range(1, cloth_dimy)])
+        edge_ids.extend([(i+1)*cloth_dimx-1 for i in range(1, cloth_dimy)])
+        edge_ids.extend([(cloth_dimy-1)*cloth_dimx + i for i in range(1, cloth_dimx-1)])
+        return edge_ids
     
     def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.05, target_point=None, target_pos=None, render=False):
         t = 0
