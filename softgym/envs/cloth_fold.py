@@ -281,10 +281,10 @@ class ClothFoldEnv(ClothEnv):
 
 
 
-    def _largest_particle_distance(self):
+    def _largest_particle_distance(self, particles=None):
         if self.fold_mode == 'diagonal':
-            distances_1 = self._get_distance(self.fold_group_a, self.fold_group_b) ## particle-wise distane
-            distances_2 = self._get_distance(self.fold_group_a_flip, self.fold_group_b_flip)
+            distances_1 = self._get_distance(particles, self.fold_group_a, self.fold_group_b) ## particle-wise distane
+            distances_2 = self._get_distance(particles, self.fold_group_a_flip, self.fold_group_b_flip)
             return min(np.max(distances_1), np.max(distances_2))
         else:
             raise NotImplementedError
