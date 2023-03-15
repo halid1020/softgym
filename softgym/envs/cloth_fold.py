@@ -290,5 +290,5 @@ class ClothFoldEnv(ClothEnv):
             raise NotImplementedError
 
 
-    def is_folded(self, particles=None):
+    def is_folded(self, particles=None):    
         return self._largest_particle_distance(particles) < 0.05

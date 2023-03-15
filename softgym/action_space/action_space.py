@@ -326,6 +326,7 @@ class PickerPickPlace(Picker):
             self._pick_height = kwargs['pick_height']
             self._place_height = kwargs['place_height']
             self._camera_depth = kwargs['camera_depth']
+            self._end_trajectory_move = kwargs['end_trajectory_move']
 
             #print(self._camera_depth, picker_high)
 
@@ -436,15 +437,15 @@ class PickerPickPlace(Picker):
             total_steps += 1
             
             # Move a bit
-            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
-            curr_pos[:, 0] += 0.2
-            curr_pos[:, 2] += 0.2
-            move_action = \
-                np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
-            total_steps += self._world_pick_or_place(move_action, render)
+            if self._end_trajectory_move:
+                curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+                displacement = 0.05*np.sign(action[:, 1, :].copy() - action[:, 0, :].copy())
+                curr_pos = curr_pos + displacement
+                curr_pos[:, 1] = place_height
+                move_action = \
+                    np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+                total_steps += self._world_pick_or_place(move_action, render)
 
-
-            total_steps += 1
 
         elif self._motion_trajectory == 'triangle':
 
@@ -493,13 +494,14 @@ class PickerPickPlace(Picker):
             total_steps += 1
 
              # Move a bit
-            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
-            displacement = 0.05*np.sign(action[:, 1, :].copy() - action[:, 0, :].copy())
-            curr_pos = curr_pos + displacement
-            curr_pos[:, 1] = place_height
-            move_action = \
-                np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
-            total_steps += self._world_pick_or_place(move_action, render)
+            if self._end_trajectory_move:
+                curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+                displacement = 0.05*np.sign(action[:, 1, :].copy() - action[:, 0, :].copy())
+                curr_pos = curr_pos + displacement
+                curr_pos[:, 1] = place_height
+                move_action = \
+                    np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+                total_steps += self._world_pick_or_place(move_action, render)
 
         
 
