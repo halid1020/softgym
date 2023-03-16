@@ -405,7 +405,7 @@ class ClothEnv(FlexEnv):
     def tick_control_step(self):
         super().tick_control_step()
         if self.save_step_info:
-            self.step_info['rgbd'].append(self.get_image(width=64, height=64, depth=True)) #TODO: magic numbers
+            self.step_info['rgbd'].append(self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)) #TODO: magic numbers
             self.step_info['coverage'].append(self.get_coverage(self.get_particle_positions()))
             self.step_info['reward'].append(self.compute_reward(self.get_particle_positions()))
             

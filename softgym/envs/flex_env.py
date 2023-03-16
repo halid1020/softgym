@@ -30,6 +30,7 @@ class FlexEnv(gym.Env):
                  use_cached_states=False,
                  observation_mode = 'rgbd',
                  save_step_info=False,
+                 save_image_dim=(256, 256),
                  save_cached_states=True, **kwargs):
 
         
@@ -45,6 +46,7 @@ class FlexEnv(gym.Env):
         self.device_id = device_id
 
         self.save_step_info = save_step_info
+        self.save_image_dim = save_image_dim
 
         self.sampling_random_state = np.random.RandomState(kwargs['random_seed'])
         self.control_horizon = control_horizon

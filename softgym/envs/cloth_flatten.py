@@ -172,7 +172,7 @@ class ClothFlattenEnv(ClothEnv):
             for i in range(steps):
                 particle_positions = self.step_info['particle_pos'][i][:, :3]
                 
-                self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], (64, 64)) # TODO: magic number
+                self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], self.save_image_dim)
                 self.step_info['reward'].append(self.compute_reward(particle_positions))
                 self.step_info['coverage'].\
                     append(self.get_coverage(particle_positions))
