@@ -49,7 +49,7 @@ class ClothEnv(FlexEnv):
             assert self.action_repeat == 1
 
 
-        if observation_mode['state'] == None:
+        if ('state' not in observation_mode.keys()) or (observation_mode['state'] == None):
             pass
         elif observation_mode['state'] == 'key_point':
             sts_dim = len(self._get_key_point_idx()) * 3
@@ -63,7 +63,7 @@ class ClothEnv(FlexEnv):
         else:
             raise NotImplementedError
         
-        if observation_mode['state'] != None:
+        if ('state' in observation_mode.keys()) and (observation_mode['state'] != None):
             self.state_space = Box(np.array([-np.inf] * sts_dim), np.array([np.inf] * sts_dim), dtype=np.float32)
 
         if observation_mode['image'] == 'cam_rgb':
@@ -336,8 +336,14 @@ class ClothEnv(FlexEnv):
         
         elif self.observation_mode['image'] == 'cam_rgbd':
             obs['image'] = self.get_image(self.camera_height, self.camera_width, depth=True)
+        elif self.observation_mode['image'] == 'cam_d':
+            obs['image'] = self.get_image(self.camera_height, self.camera_width, depth=True)[:, :, 3:4]
+        else:
+            raise NotImplementedError
         
-        if self.observation_mode['state'] == 'point_cloud':
+        if 'state' not in self.observation_mode.keys():
+            pass
+        elif self.observation_mode['state'] == 'point_cloud':
             particle_pos = np.array(pyflex.get_positions()).reshape([-1, 4])[:, :3].flatten()
             pos = np.zeros(shape=self.particle_obs_dim, dtype=np.float)
             pos[:len(particle_pos)] = particle_pos
