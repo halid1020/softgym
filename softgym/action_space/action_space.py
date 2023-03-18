@@ -39,7 +39,7 @@ class Picker(ActionToolBase):
         """
 
         super(Picker).__init__()
-
+        print('save_step_info', save_step_info)
         self.save_step_info=save_step_info
         self._render = render
         

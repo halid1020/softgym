@@ -29,7 +29,7 @@ class ClothEnv(FlexEnv):
 
         if action_mode == 'velocity_control':
             self.action_tool = Picker(num_picker, picker_radius=picker_radius, particle_radius=particle_radius, picker_threshold=picker_threshold,
-                                      picker_low=kwargs['picker_low'], picker_high=kwargs['picker_high'])
+                                      picker_low=kwargs['picker_low'], picker_high=kwargs['picker_high'], save_step_info=kwargs['save_step_info'])
             self.action_space = self.action_tool.action_space
             self.picker_radius = picker_radius
         

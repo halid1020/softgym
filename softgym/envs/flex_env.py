@@ -204,26 +204,24 @@ class FlexEnv(gym.Env):
 
         return obs, reward
 
-    def step(self, action, record_continuous_video=False, img_size=None):
+    def step(self, action, img_size=None):
         """ If record_continuous_video is set to True, will record an image for each sub-step"""
-        frames = []
         for i in range(self.action_repeat):
+            if self.save_step_info: 
+                self.step_info = {}
+                self.action_tool.clean_step_info()
+
             self._step(action)
-            if record_continuous_video and i % 2 == 0:  # No need to record each step
-                frames.append(self.get_image(img_size, img_size))
         obs = self._get_obs()
         reward = self.compute_reward()
         #info = self._get_info()
 
-        if self.recording:
-            self.video_frames.append(self.render(mode='rgb'))
-        #self.control_step += 1
 
         done = False
-        if self.control_step >= self.control_horizon:
+        if (self.control_horizon is not None) and (self.control_step >= self.control_horizon):
             done = True
         
-        if self.action_mode == 'pickerpickplace' and self.action_step >= self.action_horizon:
+        if self.action_mode != 'velocity_control' and (self.action_horizon is not None) and self.action_step >= self.action_horizon:
             done = True
 
         # if record_continuous_video:

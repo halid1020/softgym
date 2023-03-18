@@ -181,9 +181,7 @@ class ClothFoldEnv(ClothEnv):
         if self.action_mode == 'pickerpickplace':
             self.action_step += 1
             self._wait_to_stabalise(render=True,  max_wait_step=20, stable_vel_threshold=0.05)
-
-        else:
-            self.tick_control_step()
+        
 
         if self.save_step_info:
             self.step_info = {k: np.stack(v) for k, v in self.step_info.items()}
