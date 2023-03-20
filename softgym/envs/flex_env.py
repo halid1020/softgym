@@ -112,7 +112,7 @@ class FlexEnv(gym.Env):
         if self.save_step_info:
 
             #print('tick control action shape', np.zeros(self.step_info['control_signal'][-1].shape).shape)
-            self.step_info['control_signal'].append(np.zeros(self.step_info['control_signal'][-1].shape))
+            self.step_info['control_signal'].append(np.zeros((1, 4))) ## TODO: magic numbers
             self.step_info['picker_pos'].append(self.action_tool.get_picker_pos())
             self.step_info['particle_pos'].append(self.get_particle_pos())
 
