@@ -202,7 +202,7 @@ class Picker(ActionToolBase):
         action = np.reshape(action, (-1, 4))
 
         grip_flag = (action[:, 3] < 0)
-        realse_flag = (0 < action[:, 3] < 1)
+        realse_flag = (0 <= action[:, 3] < 1)
         
         picker_pos, particle_pos = self._get_pos()
         new_picker_pos, new_particle_pos = picker_pos.copy(), particle_pos.copy()
