@@ -23,73 +23,65 @@ class ClothFoldEnv(ClothEnv):
         
         if self.use_cached_states == False:
             self.context = kwargs['context']
-            self.context_random_state = np.random.RandomState(kwargs['random_seed'])
+            
 
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
 
     
 
-    def generate_env_variation(self, num_variations=2, vary_cloth_size=True):
-        """ Generate initial states. Note: This will also change the current states! """
-        max_wait_step = 1000  # Maximum number of steps waiting for the cloth to stablize
-        stable_vel_threshold = 0.2  # Cloth stable when all particles' vel are smaller than this
-        generated_configs, generated_states = [], []
-        default_config = self.get_default_config()
-        default_config['flip_mesh'] = 1
+    # def generate_env_variation(self, num_variations=2, vary_cloth_size=True):
+    #     """ Generate initial states. Note: This will also change the current states! """
+    #     max_wait_step = 1000  # Maximum number of steps waiting for the cloth to stablize
+    #     stable_vel_threshold = 0.2  # Cloth stable when all particles' vel are smaller than this
+    #     generated_configs, generated_states = [], []
+    #     default_config = self.get_default_config()
+    #     default_config['flip_mesh'] = 1
 
-        for i in range(num_variations):
-            config = deepcopy(default_config)
-            self.update_camera(config['camera_name'], config['camera_params'][config['camera_name']])
-            if vary_cloth_size:
-                cloth_dimx, cloth_dimy = int(self.cloth_dim[0]/self.cloth_particle_radius), int(self.cloth_dim[1]/self.cloth_particle_radius)
+    #     for i in range(num_variations):
+    #         config = deepcopy(default_config)
+    #         self.update_camera(config['camera_name'], config['camera_params'][config['camera_name']])
+    #         if vary_cloth_size:
+    #             cloth_dimx, cloth_dimy = int(self.cloth_dim[0]/self.cloth_particle_radius), int(self.cloth_dim[1]/self.cloth_particle_radius)
                 
                 
-                self._sample_cloth_size()
-                config['ClothSize'] = [cloth_dimx, cloth_dimy]
-            else:
-                cloth_dimx, cloth_dimy = config['ClothSize']
+    #             self._sample_cloth_size()
+    #             config['ClothSize'] = [cloth_dimx, cloth_dimy]
+    #         else:
+    #             cloth_dimx, cloth_dimy = config['ClothSize']
 
-            self.set_scene(config)
-            self.action_tool.reset([0., -1., 0.])
-            pos = pyflex.get_positions().reshape(-1, 4)
-            pos[:, :3] -= np.mean(pos, axis=0)[:3]
-            if self.action_mode in ['sawyer', 'franka']: # Take care of the table in robot case
-                pos[:, 1] = 0.57
-            else:
-                pos[:, 1] = 0.005
-            pos[:, 3] = 1
-            pyflex.set_positions(pos.flatten())
-            pyflex.set_velocities(np.zeros_like(pos))
-            for _ in range(5):  # In case if the cloth starts in the air
-                pyflex.step()
+    #         self.set_scene(config)
+    #         self.action_tool.reset([0., -1., 0.])
+    #         pos = pyflex.get_positions().reshape(-1, 4)
+    #         pos[:, :3] -= np.mean(pos, axis=0)[:3]
+    #         if self.action_mode in ['sawyer', 'franka']: # Take care of the table in robot case
+    #             pos[:, 1] = 0.57
+    #         else:
+    #             pos[:, 1] = 0.005
+    #         pos[:, 3] = 1
+    #         pyflex.set_positions(pos.flatten())
+    #         pyflex.set_velocities(np.zeros_like(pos))
+    #         for _ in range(5):  # In case if the cloth starts in the air
+    #             pyflex.step()
 
-            for wait_i in range(max_wait_step):
-                pyflex.step()
-                curr_vel = pyflex.get_velocities()
-                if np.alltrue(np.abs(curr_vel) < stable_vel_threshold):
-                    break
+    #         for wait_i in range(max_wait_step):
+    #             pyflex.step()
+    #             curr_vel = pyflex.get_velocities()
+    #             if np.alltrue(np.abs(curr_vel) < stable_vel_threshold):
+    #                 break
 
-            center_object(self.context_random_state, self.context['positions'])
+    #         center_object(self.context_random_state, self.context['positions'])
             
-            if self.context['rotations']:
-                angle = self.context_random_state.rand(1) * np.pi * 2
-                self._rotate_particles(angle)
+    #         if self.context['rotations']:
+    #             angle = self.context_random_state.rand(1) * np.pi * 2
+    #             self._rotate_particles(angle)
 
-            generated_configs.append(deepcopy(config))
-            print('config {}: {}'.format(i, config['camera_params']))
-            generated_states.append(deepcopy(self.get_state()))
+    #         generated_configs.append(deepcopy(config))
+    #         print('config {}: {}'.format(i, config['camera_params']))
+    #         generated_states.append(deepcopy(self.get_state()))
 
-        return generated_configs, generated_states
+    #     return generated_configs, generated_states
 
-    def _rotate_particles(self, angle):
-        pos = pyflex.get_positions().reshape(-1, 4)
-        center = np.mean(pos, axis=0)
-        pos -= center
-        new_pos = pos.copy()
-        new_pos[:, 0] = (np.cos(angle) * pos[:, 0] - np.sin(angle) * pos[:, 2])
-        new_pos[:, 2] = (np.sin(angle) * pos[:, 0] + np.cos(angle) * pos[:, 2])
-        new_pos += center
-        pyflex.set_positions(new_pos)
+
 
     def _reset(self):
         """ Right now only use one initial state. Need to make sure _reset always give the same result. Otherwise CEM will fail."""

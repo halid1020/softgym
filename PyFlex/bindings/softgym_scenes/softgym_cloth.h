@@ -15,6 +15,9 @@ public:
     float cam_angle_z;
     int cam_width;
     int cam_height;
+    Colour front_colour;
+    Colour back_colour;
+
 
 	SoftgymCloth(const char* name) : Scene(name) {}
 
@@ -28,7 +31,7 @@ public:
     //params ordering: xpos, ypos, zpos, xsize, zsize, stretch, bend, shear
     // render_type, cam_X, cam_y, cam_z, angle_x, angle_y, angle_z, width, height
 	void Initialize(py::array_t<float> scene_params, int thread_idx=0)
-    {
+    {  
         auto ptr = (float *) scene_params.request().ptr;
 	    float initX = ptr[0];
 	    float initY = ptr[1];
@@ -48,6 +51,10 @@ public:
         cam_angle_z = ptr[14];
         cam_width = int(ptr[15]);
         cam_height = int(ptr[16]);
+
+        
+        front_colour = Colour(ptr[19], ptr[20], ptr[21]);
+        back_colour = Colour(ptr[22], ptr[23], ptr[24]);
 
         // Cloth
         float stretchStiffness = ptr[5]; //0.9f;
@@ -82,6 +89,16 @@ public:
 	                    swap(g_buffers->triangles[idx* 3 * 2 +3], g_buffers->triangles[idx*3*2+4]);
                 }
         }
+        g_colors[3] = front_colour;
+        g_colors[4] = back_colour;
+        // for (int i=0; i<int(g_mesh->GetNumVertices()*0.5); ++i)
+        //         //g_mesh->m_colours[i] = 1.5f*colors[5];
+        //      g_mesh->m_colours[i] = 1.5f*front_colour;
+
+        // for (int i=int(g_mesh->GetNumVertices()*0.5); i<g_mesh->GetNumVertices(); ++i)
+        //     //g_mesh->m_colours[i] = 1.5f*colors[6];
+        //     g_mesh->m_colours[i] = 1.5f*back_colour;
+
 		g_numSubsteps = 4;
 		g_params.numIterations = 30;
 
@@ -103,47 +120,6 @@ public:
         g_drawPoints = render_type & 1;
         g_drawCloth = (render_type & 2) >>1;
         g_drawSprings = false;
-
-
-        // table
-//        NvFlexRigidShape table;
-        // Half x, y, z
-//        NvFlexMakeRigidBoxShape(&table, -1, 0.27f, 0.55f, 0.3f, NvFlexMakeRigidPose(Vec3(-0.04f, 0.0f, 0.0f), Quat()));
-//        table.filter = 0;
-//        table.material.friction = 0.95f;
-//		table.user = UnionCast<void*>(AddRenderMaterial(Vec3(0.35f, 0.45f, 0.65f)));
-
-//        float density = 1000.0f;
-//        NvFlexRigidBody body;
-//		NvFlexMakeRigidBody(g_flexLib, &body, Vec3(1.0f, 1.0f, 0.0f), Quat(), &table, &density, 1);
-//
-//        g_buffers->rigidShapes.push_back(table);
-//        g_buffers->rigidBodies.push_back(body);
-
-        // Box object
-//        float scaleBox = 0.05f;
-//        float densityBox = 2000000000.0f;
-
-//        Mesh* boxMesh = ImportMesh(make_path(boxMeshPath, "/data/box.ply"));
-//        boxMesh->Transform(ScaleMatrix(scaleBox));
-//
-//        NvFlexTriangleMeshId boxId = CreateTriangleMesh(boxMesh, 0.00125f);
-//
-//        NvFlexRigidShape box;
-//        NvFlexMakeRigidTriangleMeshShape(&box, g_buffers->rigidBodies.size(), boxId, NvFlexMakeRigidPose(0, 0), 1.0f, 1.0f, 1.0f);
-//        box.filter = 0x0;
-//        box.material.friction = 1.0f;
-//        box.material.torsionFriction = 0.1;
-//        box.material.rollingFriction = 0.0f;
-//        box.thickness = 0.00125f;
-//
-//        NvFlexRigidBody boxBody;
-//        NvFlexMakeRigidBody(g_flexLib, &boxBody, Vec3(0.21f, 0.7f, -0.1375f), Quat(), &box, &density, 1);
-//
-//        g_buffers->rigidBodies.push_back(boxBody);
-//        g_buffers->rigidShapes.push_back(box);
-
-//        g_params.numPostCollisionIterations = 15;
 
     }
 
