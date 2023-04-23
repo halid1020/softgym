@@ -392,6 +392,9 @@ class ClothEnv(FlexEnv):
         coverage_area = self.get_coverage(particle_positions) 
         return coverage_area/self.get_coverage(self.get_flatten_positions())
     
+    def get_cloth_size(self):
+        return self.get_current_config()['ClothSize']
+    
     def get_coverage(self, pos):
         """
         Calculate the covered area by taking max x,y cood and min x,y coord, create a discritized grid between the points
