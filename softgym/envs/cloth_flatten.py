@@ -24,9 +24,8 @@ class ClothFlattenEnv(ClothEnv):
         super().__init__(**kwargs)
         self._reward_mode = kwargs['reward_mode']
 
-        if self.use_cached_states == False:
-            self.context = kwargs['context']
-            self.context_random_state = np.random.RandomState(kwargs['random_seed'])
+        
+          
         
         if self.save_step_info:
             self.step_info = {}
