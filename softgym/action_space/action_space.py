@@ -328,14 +328,29 @@ class PickerPickPlace(Picker):
             self._camera_depth = kwargs['camera_depth']
             self._end_trajectory_move = kwargs['end_trajectory_move']
 
-            #print(self._camera_depth, picker_high)
 
             picker_low = [picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, 0, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth,
                           picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, 0, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth]
 
             picker_high = [picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._camera_depth, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth,
                            picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._camera_depth, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth]
-              
+        
+        elif step_mode == "pixel_pick_and_place_z":
+            self._pixel_to_world_ratio = 0.414 # While depth=1
+            self._picker_low = np.asarray(picker_low)
+            self._picker_high = np.asarray(picker_high)
+            self._camera_depth = kwargs['camera_depth']
+            self._end_trajectory_move = kwargs['end_trajectory_move']
+
+
+            picker_low = [picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, 0, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth,
+                          picker_low[0]*self._pixel_to_world_ratio*self._camera_depth, 0, picker_low[1]*self._pixel_to_world_ratio*self._camera_depth]
+
+            picker_high = [picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._camera_depth, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth,
+                           picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._camera_depth, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth]
+        else:
+            raise NotImplementedError
+
         self._motion_trajectory = motion_trajectory
         if motion_trajectory == 'triangle':
             self._intermidiate_height = kwargs['intermidiate_height']
@@ -498,7 +513,7 @@ class PickerPickPlace(Picker):
                 curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
                 displacement = 0.05*np.sign(action[:, 1, :].copy() - action[:, 0, :].copy())
                 curr_pos = curr_pos + displacement
-                curr_pos[:, 1] = place_height
+                curr_pos[:, 1] = 0.2 ## Magic Number
                 move_action = \
                     np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
                 total_steps += self._world_pick_or_place(move_action, render)
@@ -511,8 +526,17 @@ class PickerPickPlace(Picker):
         # Input is 4D, normalised pixel position, [-1, 1]
         # Calculate world pick and place
         action = action.reshape(-1, 2, 2)
-        pick_height = self._pick_height
-        place_height = self._place_height
+        new_action = np.zeros((self.num_picker, 2, 3))
+        new_action[:, :, :2] = action
+        new_action[:, 0, 2] = self._pick_height
+        new_action[:, 1, 2] = self._place_height
+        return self._pixle_pick_and_place_z(new_action, render)
+
+    
+    def _pixle_pick_and_place_z(self, action, render=True):
+        action = action.reshape(-1, 2, 3)
+        pick_height = action[:, 0, 2]
+        place_height = action[:, 1, 2]
 
         xs = action[:, :, 0]*self._pixel_to_world_ratio
         ys = action[:, :, 1]*self._pixel_to_world_ratio
@@ -554,6 +578,11 @@ class PickerPickPlace(Picker):
 
         if mode == "pixel_pick_and_place":
             return self._pixel_pick_and_place(action, render=render)
+        
+        if mode == 'pixel_pick_and_place_z':
+            return self._pixle_pick_and_place_z(action, render=render)
+        
+        raise NotImplementedError
 
    
     
@@ -589,6 +618,8 @@ class PickerPickPlace(Picker):
 
             ret = np.random.rand(self.num_picker, 2, 2) * (high-low) + low
             return ret.flatten()
+        else:
+            raise NotImplementedError
 
 
         return super().sample()

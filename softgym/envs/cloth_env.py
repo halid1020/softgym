@@ -25,6 +25,8 @@ class ClothEnv(FlexEnv):
 
         # Context
         self.recolour_config = kwargs['recolour_config']
+        if self.use_cached_states == False:
+            self.context = kwargs['context']
         self.context_random_state = np.random.RandomState(kwargs['random_seed'])
         
 
