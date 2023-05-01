@@ -376,8 +376,6 @@ class ClothEnv(FlexEnv):
         L = len(xx)
         W = len(xx[0])
         self._corner_ids = [0, W-1, (L-1)*W, L*W-1]
-        #print('_corner_ids', self._corner_ids)
-        #print('corner ids', self._corner_ids)
         new_pos = np.empty(shape=(N, 4), dtype=float)
         new_pos[:, 0] = xx.flatten()
         new_pos[:, 1] = self.cloth_particle_radius
@@ -395,7 +393,8 @@ class ClothEnv(FlexEnv):
         return coverage_area/self.get_coverage(self.get_flatten_positions())
     
     def get_cloth_size(self):
-        return self.get_current_config()['ClothSize']
+        W, H =  self.get_current_config()['ClothSize']
+        return H, W
     
     def get_coverage(self, pos):
         """
@@ -591,6 +590,7 @@ class ClothEnv(FlexEnv):
     def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.05, target_point=None, target_pos=None, render=False):
         t = 0
         for j in range(0, max_wait_step):
+            t += 1
             curr_vel = pyflex.get_velocities()
             if target_point != None:
                 curr_pos = pyflex.get_positions()
@@ -602,5 +602,5 @@ class ClothEnv(FlexEnv):
             self.tick_control_step()
             if np.alltrue(np.abs(curr_vel) < stable_vel_threshold) and j > 5:
                 break
-        
+        #print('wait steps', t)
         return t

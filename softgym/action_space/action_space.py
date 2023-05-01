@@ -354,6 +354,10 @@ class PickerPickPlace(Picker):
         self._motion_trajectory = motion_trajectory
         if motion_trajectory == 'triangle':
             self._intermidiate_height = kwargs['intermidiate_height']
+        elif motion_trajectory == 'triangle_with_height_ratio':
+            self._intermidiate_height_ratio = kwargs['intermidiate_height_ratio']
+            self._release_height = kwargs['release_height']
+            self._minimum_intermidiate_height = kwargs['minimum_intermidiate_height']
 
         
         picker_low, picker_high = list(picker_low), list(picker_high)
@@ -517,6 +521,75 @@ class PickerPickPlace(Picker):
                 move_action = \
                     np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
                 total_steps += self._world_pick_or_place(move_action, render)
+
+        elif self._motion_trajectory == 'triangle_with_height_ratio':
+
+            # Raise to certain height, while releasing
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+            curr_pos[:, 1] = self._release_height
+
+            raise_action = \
+                np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(raise_action, render)
+
+            # Go to pick position while releasing without changing the height
+            go_to_pick_pos_action = action[:, 0, :].copy()
+            go_to_pick_pos_action[:, 1] = self._release_height
+            go_to_pick_pos_action = \
+                np.concatenate([go_to_pick_pos_action, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(go_to_pick_pos_action, render)
+
+            # Lower the height
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+            curr_pos[:, 1] = pick_height
+            lower_action = np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(lower_action, render)
+
+            # Pick
+            super().step(np.hstack([np.zeros((1, 3)), np.zeros((1,1))]))
+            total_steps += 1
+
+
+            # Go and Raise the height to the intermidiate position directly    
+            go_to_int_pos_action = (action[:, 0, :].copy() + action[:, 1, :].copy())/2
+            
+            go_to_int_pos_action[:, 1] = max(
+                self._intermidiate_height_ratio * np.linalg.norm(action[:, 1, :].copy() - action[:, 0, :].copy(), axis=1),
+                self._minimum_intermidiate_height)
+        
+            go_to_int_pos_action = \
+                np.concatenate([go_to_int_pos_action, np.full((self.num_picker, 1), grip_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(go_to_int_pos_action, render)
+
+            # Go and lower the height to the plce position directl
+            go_to_place_pos_action = action[:, 1, :].copy()
+            go_to_place_pos_action[:, 1] = place_height
+            go_to_place_pos_action = \
+                np.concatenate([go_to_place_pos_action, np.full((self.num_picker, 1), grip_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(go_to_place_pos_action, render)
+
+            # place
+            super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), release_signal)]))
+            total_steps += 1
+
+            #Raise
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+            curr_pos[:, 1] = self._release_height
+            move_action = \
+                np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(move_action, render)
+
+            # Move a bit
+            if self._end_trajectory_move:
+                curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+                displacement = 0.04*np.sign(action[:, 1, :].copy() - action[:, 0, :].copy())
+                curr_pos = curr_pos + displacement
+                curr_pos[:, 1] = self._release_height
+                move_action = \
+                    np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
+                total_steps += self._world_pick_or_place(move_action, render)
+        else:
+            raise NotImplementedError
 
         
 

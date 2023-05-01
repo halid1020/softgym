@@ -32,97 +32,6 @@ class ClothFlattenEnv(ClothEnv):
 
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
 
-    # def generate_env_variation(self, num_variations=1, vary_cloth_size=False):
-    #     """ Generate initial states. Note: This will also change the current states! """
-    #     max_wait_step = 300  # Maximum number of steps waiting for the cloth to stablize
-    #     stable_vel_threshold = 0.01  # Cloth stable when all particles' vel are smaller than this
-    #     generated_configs, generated_states = [], []
-    #     default_config = self.get_default_config()
-
-    #     for i in range(num_variations):
-    #         config = deepcopy(default_config)
-    #         self.update_camera(config['camera_name'], config['camera_params'][config['camera_name']])
-    #         if vary_cloth_size:
-    #             cloth_dimx, cloth_dimy = self._sample_cloth_size()
-    #             config['ClothSize'] = [cloth_dimx, cloth_dimy]
-    #         else:
-    #             cloth_dimx, cloth_dimy = config['ClothSize']
-    #         self.set_scene(config)
-    #         self.action_tool.reset([0., -1., 0.])
-    #         self._set_to_flatten()
-    #         pos = pyflex.get_positions().reshape(-1, 4)
-    #         pos[:, :3] -= np.mean(pos, axis=0)[:3]
-    #         if self.action_mode in ['sawyer', 'franka']:  # Take care of the table in robot case
-    #             pos[:, 1] = 0.57
-    #         else:
-    #             pos[:, 1] = 0.005
-    #         pos[:, 3] = 1
-    #         pyflex.set_positions(pos.flatten())
-    #         pyflex.set_velocities(np.zeros_like(pos))
-    #         pyflex.step()
-
-    #         num_particle = cloth_dimx * cloth_dimy
-
-    #         # Pick up the cloth and wait to stablize
-    #         pickpoint = random.randint(0, num_particle - 1)
-    #         curr_pos = pyflex.get_positions()
-    #         original_inv_mass = curr_pos[pickpoint * 4 + 3]
-    #         curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth
-    #         pickpoint_pos = curr_pos[pickpoint * 4: pickpoint * 4 + 3].copy()  # Pos of the pickup point is fixed to this point
-    #         pickpoint_pos[1] += random.random()*0.4
-    #         pyflex.set_positions(curr_pos)
-    #         self._wait_to_stabalise(max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
-            
-
-    #         # Drop the cloth and wait to stablize
-    #         curr_pos = pyflex.get_positions()
-    #         curr_pos[pickpoint * 4 + 3] = original_inv_mass
-    #         pyflex.set_positions(curr_pos)          
-    #         self._wait_to_stabalise(max_wait_step, stable_vel_threshold, None, None)
-
-    #         center_object()
-
-    #         # Drag the cloth and wait to stablise
-    #         if random.random() < 0.7:
-    #             pickpoint = random.randint(0, num_particle - 1)
-    #             curr_pos = pyflex.get_positions()
-    #             original_inv_mass = curr_pos[pickpoint * 4 + 3]
-    #             curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth
-    #             pickpoint_pos = curr_pos[pickpoint * 4: pickpoint * 4 + 3].copy()  # Pos of the pickup point is fixed to this point
-    #             pickpoint_pos[0] += (np.random.random(1)*2 - 1)*0.3
-    #             pickpoint_pos[2] += (np.random.random(1)*2 - 1)*0.3
-    #             pickpoint_pos[1] = 0.1
-    #             pyflex.set_positions(curr_pos)
-    #             self._wait_to_stabalise(max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
-
-
-    #             # Drop the cloth and wait to stablize
-    #             curr_pos = pyflex.get_positions()
-    #             curr_pos[pickpoint * 4 + 3] = original_inv_mass
-    #             pyflex.set_positions(curr_pos)          
-    #             self._wait_to_stabalise(max_wait_step, stable_vel_threshold, None, None)
-
-    #             center_object()
-
-
-            
-            
-
-    #         if self.action_mode == 'sphere' or self.action_mode.startswith('picker'):
-    #             curr_pos = pyflex.get_positions()
-    #             self.action_tool.reset(curr_pos[pickpoint * 4:pickpoint * 4 + 3] + [0., 0.2, 0.])
-            
-    #         pyflex.step()
-            
-                
-    #         generated_configs.append(deepcopy(config))
-    #         generated_states.append(deepcopy(self.get_state()))
-    #         self.current_config = config  # Needed in _set_to_flatten function
-    #         generated_configs[-1]['flatten_area'] = self._set_to_flatten()  # Record the maximum flatten area
-
-    #         print('config {}: camera params {}, flatten area: {}'.format(i, config['camera_params'], generated_configs[-1]['flatten_area']))
-
-    #     return generated_configs, generated_states
     
     def get_goal_observation(self):
         return self._target_img
@@ -186,7 +95,7 @@ class ClothFlattenEnv(ClothEnv):
 
         if self.action_mode == 'pickerpickplace':
             self.action_step += 1
-            self._wait_to_stabalise(render=True,  max_wait_step=20, stable_vel_threshold=0.05)
+            self._wait_to_stabalise(render=True,  max_wait_step=100, stable_vel_threshold=0.05)
 
         else:
             self.tick_control_step()
