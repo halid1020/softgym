@@ -358,6 +358,7 @@ class PickerPickPlace(Picker):
             self._intermidiate_height_ratio = kwargs['intermidiate_height_ratio']
             self._release_height = kwargs['release_height']
             self._minimum_intermidiate_height = kwargs['minimum_intermidiate_height']
+            self._maximum_intermidiate_height = kwargs['maximum_intermidiate_height']
 
         
         picker_low, picker_high = list(picker_low), list(picker_high)
@@ -553,9 +554,9 @@ class PickerPickPlace(Picker):
             # Go and Raise the height to the intermidiate position directly    
             go_to_int_pos_action = (action[:, 0, :].copy() + action[:, 1, :].copy())/2
             
-            go_to_int_pos_action[:, 1] = max(
+            go_to_int_pos_action[:, 1] = min(max(
                 self._intermidiate_height_ratio * np.linalg.norm(action[:, 1, :].copy() - action[:, 0, :].copy(), axis=1),
-                self._minimum_intermidiate_height)
+                self._minimum_intermidiate_height), self._maximum_intermidiate_height)
         
             go_to_int_pos_action = \
                 np.concatenate([go_to_int_pos_action, np.full((self.num_picker, 1), grip_signal)], axis=1).flatten()
