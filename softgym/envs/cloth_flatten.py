@@ -15,7 +15,7 @@ from softgym.utils.pyflex_utils import random_pick_and_place
 from time import sleep
 
 class ClothFlattenEnv(ClothEnv):
-    def __init__(self, cached_states_path='cloth_crumple.pkl', **kwargs):
+    def __init__(self, **kwargs):
         """
         :param cached_states_path:
         :param num_picker: Number of pickers if the aciton_mode is picker
@@ -30,7 +30,7 @@ class ClothFlattenEnv(ClothEnv):
         if self.save_step_info:
             self.step_info = {}
 
-        self.get_cached_configs_and_states(cached_states_path, self.num_variations)
+        self.get_cached_configs_and_states(kwargs['cached_states_path'], self.num_variations)
 
     
     def get_goal_observation(self):
