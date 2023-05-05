@@ -563,6 +563,7 @@ class PickerPickPlace(Picker):
             total_steps += self._world_pick_or_place(go_to_int_pos_action, render)
 
             # Go and lower the height to the plce position directl
+            #print('place_height', place_height)
             go_to_place_pos_action = action[:, 1, :].copy()
             go_to_place_pos_action[:, 1] = place_height
             go_to_place_pos_action = \

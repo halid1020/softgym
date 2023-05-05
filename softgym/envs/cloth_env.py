@@ -88,7 +88,7 @@ class ClothEnv(FlexEnv):
     def generate_env_variation(self, num_variations=1, vary_cloth_size=False):
         """ Generate initial states. Note: This will also change the current states! """
         max_wait_step = 300  # Maximum number of steps waiting for the cloth to stablize
-        stable_vel_threshold = 0.01  # Cloth stable when all particles' vel are smaller than this
+        stable_vel_threshold = 0.02  # Cloth stable when all particles' vel are smaller than this
         generated_configs, generated_states = [], []
         default_config = self.get_default_config().copy()
 
@@ -190,8 +190,7 @@ class ClothEnv(FlexEnv):
             
 
             if self.action_mode == 'sphere' or self.action_mode.startswith('picker'):
-                curr_pos = pyflex.get_positions()
-                self.action_tool.reset(curr_pos[pickpoint * 4:pickpoint * 4 + 3] + [0., 0.2, 0.])
+                self.action_tool.reset(np.asarray([0.5, 0.2, 0.5]))
             
             pyflex.step()
             
@@ -587,8 +586,9 @@ class ClothEnv(FlexEnv):
         edge_ids.extend([(cloth_dimy-1)*cloth_dimx + i for i in range(1, cloth_dimx-1)])
         return edge_ids
     
-    def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.05, target_point=None, target_pos=None, render=False):
+    def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.2, target_point=None, target_pos=None, render=False):
         t = 0
+        #print('stable vel threshold', stable_vel_threshold)
         for j in range(0, max_wait_step):
             t += 1
             curr_vel = pyflex.get_velocities()
@@ -600,6 +600,7 @@ class ClothEnv(FlexEnv):
                 pyflex.set_velocities(curr_vel)
 
             self.tick_control_step()
+            #print('vel', np.max(np.abs(curr_vel)))
             if np.alltrue(np.abs(curr_vel) < stable_vel_threshold) and j > 5:
                 break
         #print('wait steps', t)

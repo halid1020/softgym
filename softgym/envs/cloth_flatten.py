@@ -15,7 +15,7 @@ from softgym.utils.pyflex_utils import random_pick_and_place
 from time import sleep
 
 class ClothFlattenEnv(ClothEnv):
-    def __init__(self, **kwargs):
+    def __init__(self, cached_states_path='mono_square_fabric.pkl', **kwargs):
         """
         :param cached_states_path:
         :param num_picker: Number of pickers if the aciton_mode is picker
@@ -29,8 +29,9 @@ class ClothFlattenEnv(ClothEnv):
         
         if self.save_step_info:
             self.step_info = {}
+        
 
-        self.get_cached_configs_and_states(kwargs['cached_states_path'], self.num_variations)
+        self.get_cached_configs_and_states(cached_states_path, self.num_variations)
 
     
     def get_goal_observation(self):
@@ -57,8 +58,8 @@ class ClothFlattenEnv(ClothEnv):
 
         if hasattr(self, 'action_tool'):
             curr_pos = pyflex.get_positions()
-            cx, cy = self._get_center_point(curr_pos)
-            self.action_tool.reset([cx, 0.2, cy])
+            #cx, cy = self._get_center_point(curr_pos)
+            self.action_tool.reset([0.2, 0.2, 0.2])
         pyflex.step()
         self.init_covered_area = None
         return self._get_obs(), None
@@ -95,7 +96,7 @@ class ClothFlattenEnv(ClothEnv):
 
         if self.action_mode == 'pickerpickplace':
             self.action_step += 1
-            self._wait_to_stabalise(render=True,  max_wait_step=300, stable_vel_threshold=0.05)
+            self._wait_to_stabalise(render=True,  max_wait_step=300)
 
         else:
             self.tick_control_step()
