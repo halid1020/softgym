@@ -41,6 +41,7 @@ class ClothEnv(FlexEnv):
             self.picker_radius = picker_radius
         
         elif action_mode == 'pickerpickplace':
+            print('here')
             self.action_tool = PickerPickPlace(
                 num_picker=num_picker, 
                 particle_radius=particle_radius, 
@@ -84,6 +85,9 @@ class ClothEnv(FlexEnv):
         elif observation_mode['image'] == 'cam_d':
             self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 1),
                                          dtype=np.float32)
+            
+    def get_action_space(self):
+        return self.action_space
             
     def generate_env_variation(self, num_variations=1, vary_cloth_size=False):
         """ Generate initial states. Note: This will also change the current states! """
