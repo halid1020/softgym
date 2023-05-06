@@ -9,6 +9,7 @@ from softgym.envs.cloth_drop import ClothDropEnv
 from softgym.envs.cloth_fold_crumpled import ClothFoldCrumpledEnv
 from softgym.envs.cloth_fold_drop import ClothFoldDropEnv
 from softgym.envs.cloth_diagonal_fold import ClothDiagonalFoldEnv
+from softgym.envs.cloth_rectangular_fold import ClothRectangularFoldEnv
 
 from collections import OrderedDict
 
@@ -188,6 +189,7 @@ SOFTGYM_ENVS = OrderedDict({
     'ClothFlatten': ClothFlattenEnv,
     'ClothFold': ClothFoldEnv,
     'ClothDiagonalFold': ClothDiagonalFoldEnv,
+    'ClothRectangularFold': ClothRectangularFoldEnv,
     'ClothDrop': ClothDropEnv,
     'ClothFoldDrop': ClothFoldDropEnv,
     'ClothFlattenPPP': ClothFlattenEnv,
