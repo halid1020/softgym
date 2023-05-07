@@ -54,47 +54,9 @@ class ClothFoldEnv(ClothEnv):
             self.action_tool.reset([middle_point[0], 0.1, middle_point[2]])
         
 
-        
-        # config = self.get_current_config()
-        # cloth_dimx, cloth_dimz = config['ClothSize']
-        # #print('cloth size', config['ClothSize'])
-        # self._corner_ids = [0, cloth_dimx-1, (cloth_dimz-1)*cloth_dimx, cloth_dimz*cloth_dimx-1]
-
-        # num_particles = np.prod(config['ClothSize'], dtype=int)
-        # particle_grid_idx = np.array(list(range(num_particles))).reshape(config['ClothSize'][0], config['ClothSize'][1]).T  # Reversed index here
-        # vertical_flip_particle_grid_idx = np.flip(particle_grid_idx, 1)
-
-
-        # if self.fold_mode == 'diagonal': ### Only Valid For Square Fabrics
-        #     upper_triangle_ids = np.triu_indices(cloth_dimx)
-        #     self.fold_group_a = particle_grid_idx[upper_triangle_ids].flatten()
-        #     self.fold_group_b = particle_grid_idx.T[upper_triangle_ids].flatten()
-        #     self.fold_group_a_flip =  vertical_flip_particle_grid_idx[upper_triangle_ids].flatten()
-        #     self.fold_group_b_flip = vertical_flip_particle_grid_idx.T[upper_triangle_ids].flatten()
-
-            
-        # elif self.fold_mode == 'side': ## Need to test this out.
-        #     cloth_dimx = config['ClothSize'][0]
-        #     x_split = cloth_dimx // 2
-        #     self.fold_group_a = particle_grid_idx[:, :x_split].flatten()
-        #     self.fold_group_b = np.flip(particle_grid_idx, axis=1)[:, :x_split].flatten()
-
-        # else:
-        #     raise NotImplementedError
-
-        # colors = np.zeros(num_particles)
-        # colors[self.fold_group_a] = 1
+    
 
         pyflex.step()
-
-        # self.init_pos = pyflex.get_positions().reshape((-1, 4))[:, :3]
-        # pos_a = self.init_pos[self.fold_group_a, :]
-        # pos_b = self.init_pos[self.fold_group_b, :]
-        # self.prev_dist = np.mean(np.linalg.norm(pos_a - pos_b, axis=1))
-
-        # self.performance_init = None
-        # info = self._get_info()
-        # self.performance_init = info['performance']
         return self._get_obs(), None
 
     def _step(self, action):
@@ -150,6 +112,7 @@ class ClothFoldEnv(ClothEnv):
         else:
             raise NotImplementedError
 
+    #TODO: evaluation cannot deal with the wrinkle situations.
     def evaluate(self, particles=None):
         return {
             # This evaluation only can be done in simulation.
@@ -157,19 +120,10 @@ class ClothFoldEnv(ClothEnv):
             'largest_particle_disntace': self._largest_particle_distance(particles),
             
             # This can be done in perception
-            'corner_distance': self._corner_distance(particles),
+            'largest_corner_distance': self._largest_corner_distance(particles),
             'mean_edge_distance': self._mean_edge_distance(particles),
             'largest_edge_distance': self._largest_edge_distance(particles),
         }
-
-    # def _get_distance(self, positions, group_a, group_b):
-    #     if positions is None:
-    #         position = self.get_particle_positions()
-    #     cols = [0, 1, 2]
-    #     pos_group_a = position[np.ix_(group_a, cols)]
-    #     pos_group_b = position[np.ix_(group_b, cols)]
-    #     distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
-    #     return distance
     
     def _mean_edge_distance(self, particles=None):
         raise NotImplementedError
@@ -177,7 +131,7 @@ class ClothFoldEnv(ClothEnv):
     def _largest_edge_distance(self, particles=None):
         raise NotImplementedError
 
-    def _corner_distance(self, particles=None):
+    def _largest_corner_distance(self, particles=None):
         raise NotImplementedError
 
     def _mean_particle_distance(self, particles=None):

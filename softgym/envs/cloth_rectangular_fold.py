@@ -75,7 +75,7 @@ class ClothRectangularFoldEnv(ClothFoldEnv):
         return min(np.max(edge_distance_1), np.max(edge_distance_2))
 
 
-    def _corner_distance(self, particles=None):
+    def _largest_corner_distance(self, particles=None):
 
         distances_1 = self._get_distance(particles, self.fold_group_a, self.fold_group_b) ## particle-wise distane
         distances_2 = self._get_distance(particles, self.fold_group_a_prime, self.fold_group_b_prime)
