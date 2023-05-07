@@ -15,15 +15,12 @@ class ClothFoldEnv(ClothEnv):
         super().__init__(**kwargs)
 
         self.fold_group_a = self.fold_group_b = None
-        #self.init_pos, self.prev_dist = None, None
-        #self.init_pos = None
         self.cloth_dim = kwargs['cloth_dim']
-        #self.fold_mode = kwargs['fold_mode']
         self.reward_mode = kwargs['reward_mode']
         self.initial_state = kwargs['initial_state']
         
-        if self.use_cached_states == False:
-            self.context = kwargs['context']
+        
+        self.context = kwargs['context']
             
 
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
@@ -35,6 +32,16 @@ class ClothFoldEnv(ClothEnv):
         self._set_to_flatten()
         self.set_scene(self.cached_configs[self.current_config_id], self.cached_init_states[self.current_config_id])
         
+        # If initiail state is set to flatten and it allows uses cached initial states
+        # the, the enviornment allow change the center position and orientation of the fabric.
+        if self.initial_state == 'flatten' and self.use_cached_states:
+            self._set_to_flatten()
+            center_object(self.context_random_state, self.context['position'])
+            if self.context['rotation']:
+                angle = self.context_random_state.rand(1) * np.pi * 2
+                self._rotate_particles(angle)
+
+
         self._flatten_particel_positions = self.get_flatten_positions()
         self._flatten_coverage =  self.get_coverage(self._flatten_particel_positions)
         

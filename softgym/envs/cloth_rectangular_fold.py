@@ -25,23 +25,16 @@ class ClothRectangularFoldEnv(ClothFoldEnv):
         ### rectangular folding utilities
         config = self.get_current_config()
         num_particles = np.prod(config['ClothSize'], dtype=int)
-        particle_grid_idx = np.array(list(range(num_particles))).reshape(config['ClothSize'][0], config['ClothSize'][1]).T  # Reversed index here
-        #vertical_flip_particle_grid_idx = np.flip(particle_grid_idx, 1)
+        particle_grid_idx = np.array(list(range(num_particles))).reshape(config['ClothSize'][1], config['ClothSize'][0])#.T  # Reversed index here
 
-        cloth_dimx, cloth_dimy = config['ClothSize']
-        x_split, y_split= cloth_dimx // 2, cloth_dimy // 2
-
-        self.fold_group_a = particle_grid_idx[:, :x_split].flatten()
-        self.fold_group_a_prime = particle_grid_idx[:y_split, :].flatten()
-
-        
-        self.fold_group_b = np.flip(particle_grid_idx.copy(), axis=1)[:, :x_split].flatten()
-        self.fold_group_b_prime = np.flip(particle_grid_idx.copy(), axis=0)[:y_split, :].flatten()
-
-        # print('fold_group_a', self.fold_group_a[:10]//cloth_dimx, self.fold_group_a[:10]%cloth_dimy)
-        # print('fold_group_b', self.fold_group_b[:10]//cloth_dimx, self.fold_group_b[:10]%cloth_dimy)
-        # print('fold_group_a_flip', self.fold_group_a_prime[:10]//cloth_dimx, self.fold_group_a_prime[:10]%cloth_dimy)
-        # print('fold_group_b_flip', self.fold_group_b_prime[:10]//cloth_dimx, self.fold_group_b_prime[:10]%cloth_dimy)
+        self.fold_groups = []
+        for _ in range(2):
+            X = particle_grid_idx.shape[0]
+            x_split = X // 2
+            group_a = particle_grid_idx[:x_split, :].flatten()
+            group_b = np.flip(particle_grid_idx[x_split:2*x_split, :], axis=0).flatten()
+            self.fold_groups.append((group_a, group_b))
+            particle_grid_idx = np.rot90(particle_grid_idx)
 
         return res_a, res_b 
     
@@ -55,44 +48,50 @@ class ClothRectangularFoldEnv(ClothFoldEnv):
         return distance
     
     def _mean_edge_distance(self, particles=None):
-        print('here')
-        distances_1 = self._get_distance(particles, self.fold_group_a, self.fold_group_b) ## particle-wise distane
-        distances_2 = self._get_distance(particles, self.fold_group_a_prime, self.fold_group_b_prime)
+        
+        distances = []
         edge_ids = self.get_edge_ids()
-        edge_distance_1 = [distances_1[i] for i, p in enumerate(self.fold_group_a) if p in edge_ids]
-        edge_distance_2 = [distances_2[i] for i, p in enumerate(self.fold_group_a_prime) if p in edge_ids]
-
-        return min(np.mean(edge_distance_1), np.mean(edge_distance_2))
+        edge_distance = []
+        for group_a, group_b in self.fold_groups:
+            distances.append(self._get_distance(particles, group_a, group_b))
+            edge_distance.append(np.mean([distances[-1][i] for i, p in enumerate(group_a) if p in edge_ids]))
+        
+        return np.min(edge_distance)
 
     def _largest_edge_distance(self, particles=None):
 
-        distances_1 = self._get_distance(particles, self.fold_group_a, self.fold_group_b) ## particle-wise distane
-        distances_2 = self._get_distance(particles, self.fold_group_a_prime, self.fold_group_b_prime)
+        distances = []
         edge_ids = self.get_edge_ids()
-        edge_distance_1 = [distances_1[i] for i, p in enumerate(self.fold_group_a) if p in edge_ids]
-        edge_distance_2 = [distances_2[i] for i, p in enumerate(self.fold_group_a_prime) if p in edge_ids]
-
-        return min(np.max(edge_distance_1), np.max(edge_distance_2))
+        edge_distance = []
+        for group_a, group_b in self.fold_groups:
+            distances.append(self._get_distance(particles, group_a, group_b))
+            edge_distance.append(np.max([distances[-1][i] for i, p in enumerate(group_a) if p in edge_ids]))
+        
+        return np.min(edge_distance)
 
 
     def _largest_corner_distance(self, particles=None):
+        distances = []
+        corner_distance = []
+        for group_a, group_b in self.fold_groups:
+            distances.append(self._get_distance(particles, group_a, group_b))
+            corner_distance.append(np.max([distances[-1][i] for i, p in enumerate(group_a) if p in self._corner_ids]))
 
-        distances_1 = self._get_distance(particles, self.fold_group_a, self.fold_group_b) ## particle-wise distane
-        distances_2 = self._get_distance(particles, self.fold_group_a_prime, self.fold_group_b_prime)
-        corner_distance_1 = [distances_1[i] for i, p in enumerate(self.fold_group_a) if p in self._corner_ids]
-        corner_distance_2 = [distances_2[i] for i, p in enumerate(self.fold_group_a_prime) if p in self._corner_ids]
+        return np.min(corner_distance)
 
-        return min(np.max(corner_distance_1), np.max(corner_distance_2))
 
     def _mean_particle_distance(self, particles=None):
 
-        distances_1 = self._get_distance(particles, self.fold_group_a, self.fold_group_b) ## particle-wise distane
-        distances_2 = self._get_distance(particles, self.fold_group_a_prime, self.fold_group_b_prime)
-        return min(np.mean(distances_1), np.mean(distances_2))
-
+        distances = []
+        for group_a, group_b in self.fold_groups:
+            distances.append(np.mean(self._get_distance(particles, group_a, group_b)))
+        
+        return np.min(distances)
 
 
     def _largest_particle_distance(self, particles=None):
-        distances_1 = self._get_distance(particles, self.fold_group_a, self.fold_group_b) ## particle-wise distane
-        distances_2 = self._get_distance(particles, self.fold_group_a_prime, self.fold_group_b_prime)
-        return min(np.max(distances_1), np.max(distances_2))
+        distances = []
+        for group_a, group_b in self.fold_groups:
+            distances.append(np.max(self._get_distance(particles, group_a, group_b)))
+        
+        return np.min(distances)
