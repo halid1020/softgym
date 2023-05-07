@@ -132,20 +132,60 @@ class ClothFoldEnv(ClothEnv):
             'largest_edge_distance': self._largest_edge_distance(particles),
         }
     
+    def _get_distance(self, positions, group_a, group_b):
+        if positions is None:
+            position = self.get_particle_positions()
+        cols = [0, 1, 2]
+        pos_group_a = position[np.ix_(group_a, cols)]
+        pos_group_b = position[np.ix_(group_b, cols)]
+        distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
+        return distance
+    
     def _mean_edge_distance(self, particles=None):
-        raise NotImplementedError
+        
+        distances = []
+        edge_ids = self.get_edge_ids()
+        edge_distance = []
+        for group_a, group_b in self.fold_groups:
+            distances.append(self._get_distance(particles, group_a, group_b))
+            edge_distance.append(np.mean([distances[-1][i] for i, p in enumerate(group_a) if p in edge_ids]))
+        
+        return np.min(edge_distance)
 
     def _largest_edge_distance(self, particles=None):
-        raise NotImplementedError
+
+        distances = []
+        edge_ids = self.get_edge_ids()
+        edge_distance = []
+        for group_a, group_b in self.fold_groups:
+            distances.append(self._get_distance(particles, group_a, group_b))
+            edge_distance.append(np.max([distances[-1][i] for i, p in enumerate(group_a) if p in edge_ids]))
+        
+        return np.min(edge_distance)
+
 
     def _largest_corner_distance(self, particles=None):
-        raise NotImplementedError
+        distances = []
+        corner_distance = []
+        for group_a, group_b in self.fold_groups:
+            distances.append(self._get_distance(particles, group_a, group_b))
+            corner_distance.append(np.max([distances[-1][i] for i, p in enumerate(group_a) if p in self._corner_ids]))
+
+        return np.min(corner_distance)
+
 
     def _mean_particle_distance(self, particles=None):
-        raise NotImplementedError
+
+        distances = []
+        for group_a, group_b in self.fold_groups:
+            distances.append(np.mean(self._get_distance(particles, group_a, group_b)))
+        
+        return np.min(distances)
+
 
     def _largest_particle_distance(self, particles=None):
-        raise NotImplementedError
-
-    def is_success(self, particles=None):    
-        return self._largest_particle_distance(particles) < 0.05
+        distances = []
+        for group_a, group_b in self.fold_groups:
+            distances.append(np.max(self._get_distance(particles, group_a, group_b)))
+        
+        return np.min(distances)

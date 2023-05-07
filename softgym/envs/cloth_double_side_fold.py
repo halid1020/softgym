@@ -9,7 +9,7 @@ import numpy as np
 
 from softgym.envs.cloth_fold import ClothFoldEnv
 
-class ClothSideFoldEnv(ClothFoldEnv):
+class ClothDoubleSideFoldEnv(ClothFoldEnv):
 
     def __init__(self, cached_states_path='cloth_folding_tmp.pkl', **kwargs):
         #self.cloth_particle_radius = kwargs['particle_radius']
@@ -28,12 +28,16 @@ class ClothSideFoldEnv(ClothFoldEnv):
         particle_grid_idx = np.array(list(range(num_particles))).reshape(config['ClothSize'][1], config['ClothSize'][0])  # Reversed index here
 
         self.fold_groups = []
-        for _ in range(4):
+        for _ in range(2):
             X = particle_grid_idx.shape[0]
             x_split = X // 4
-            group_a = particle_grid_idx[:x_split].flatten()
-            group_b = np.flip(particle_grid_idx[x_split:2*x_split], axis=0).flatten()
+            group_a = np.concatenate([particle_grid_idx[:x_split].flatten(), particle_grid_idx[X-x_split:].flatten()])
+            group_b = np.concatenate([
+                np.flip(particle_grid_idx[x_split:2*x_split], axis=0).flatten(),
+                np.flip(particle_grid_idx[X-x_split:X], axis=0).flatten()])
+            
+                
             self.fold_groups.append((group_a, group_b))
             particle_grid_idx = np.rot90(particle_grid_idx)
 
-        return res_a, res_b
+        return res_a, res_b 
