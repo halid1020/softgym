@@ -537,7 +537,6 @@ class PickerPickPlace(Picker):
 
             # Raise to certain height, while releasing
             curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].reshape(self.num_picker, -1)
-            print('curr_pos', curr_pos.shape)
 
             curr_pos[:, 1] = self._release_height
 

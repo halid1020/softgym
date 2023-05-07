@@ -56,10 +56,18 @@ class ClothFlattenEnv(ClothEnv):
             self._current_action_coverage = self._prior_action_coverage = self._initial_coverage
 
 
+        # if hasattr(self, 'action_tool'):
+        #     curr_pos = pyflex.get_positions()
+        #     #cx, cy = self._get_center_point(curr_pos)
+        #     self.action_tool.reset(np.asarray([[0.2, 0.2, 0.2]]))
+
         if hasattr(self, 'action_tool'):
-            curr_pos = pyflex.get_positions()
-            #cx, cy = self._get_center_point(curr_pos)
-            self.action_tool.reset([0.2, 0.2, 0.2])
+            particle_pos = pyflex.get_positions().reshape(-1, 4)
+            p1, p2, p3, p4 = self._get_key_point_idx()
+            key_point_pos = particle_pos[(p1, p2), :3]
+            middle_point = np.mean(key_point_pos, axis=0)
+            self.action_tool.reset([middle_point[0], 0.1, middle_point[2]])
+            
         pyflex.step()
         self.init_covered_area = None
         return self._get_obs(), None
