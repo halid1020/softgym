@@ -321,7 +321,7 @@ class PickerPickPlace(Picker):
         
         
         if step_mode == "pixel_pick_and_place":
-            self._pixel_to_world_ratio = 0.413 # TODO; magic number, While depth=1
+            self._pixel_to_world_ratio = 0.4135 # TODO; magic number, While depth=1
             self._picker_low = np.asarray(picker_low)
             self._picker_high = np.asarray(picker_high)
 
@@ -343,7 +343,7 @@ class PickerPickPlace(Picker):
             #                picker_high[0]*self._pixel_to_world_ratio*self._camera_depth, self._camera_depth, picker_high[1]*self._pixel_to_world_ratio*self._camera_depth]
         
         elif step_mode == "pixel_pick_and_place_z":
-            self._pixel_to_world_ratio = 0.413 # TODO; magic number, While depth=1
+            self._pixel_to_world_ratio = 0.4135 # TODO; magic number, While depth=1
             self._picker_low = np.asarray(picker_low)
             self._picker_high = np.asarray(picker_high)
             self._camera_depth = kwargs['camera_depth']

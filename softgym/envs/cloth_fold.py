@@ -88,7 +88,7 @@ class ClothFoldEnv(ClothEnv):
 
         if self.action_mode == 'pickerpickplace':
             self.action_step += 1
-            self._wait_to_stabalise(render=True,  max_wait_step=300, stable_vel_threshold=0.2)
+            self._wait_to_stabalise()
         
 
         if self.save_step_info:
@@ -124,12 +124,12 @@ class ClothFoldEnv(ClothEnv):
         return {
             # This evaluation only can be done in simulation.
             'mean_particle_distance': self._mean_particle_distance(particles),
-            'largest_particle_disntace': self._largest_particle_distance(particles),
+            'largest_particle_distanceq': self._largest_particle_distance(particles),
             
             # This can be done in perception
             'largest_corner_distance': self._largest_corner_distance(particles),
             'mean_edge_distance': self._mean_edge_distance(particles),
-            'largest_edge_distance': self._largest_edge_distance(particles),
+            'largest_edge_distance': self._largest_edge_distance(particles)
         }
     
     def _get_distance(self, positions, group_a, group_b):

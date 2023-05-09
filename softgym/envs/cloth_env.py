@@ -21,7 +21,7 @@ class ClothEnv(FlexEnv):
 
         self.render_mode = render_mode
         self.action_mode = action_mode
-        self.pixel_to_world_ratio = 0.414
+        self.pixel_to_world_ratio = 0.4135
 
         # Context
         self.recolour_config = kwargs['recolour_config']
@@ -41,7 +41,6 @@ class ClothEnv(FlexEnv):
             self.picker_radius = picker_radius
         
         elif action_mode == 'pickerpickplace':
-            print('here')
             self.action_tool = PickerPickPlace(
                 num_picker=num_picker, 
                 particle_radius=particle_radius, 
@@ -590,22 +589,34 @@ class ClothEnv(FlexEnv):
         edge_ids.extend([(cloth_dimy-1)*cloth_dimx + i for i in range(1, cloth_dimx-1)])
         return edge_ids
     
-    def _wait_to_stabalise(self, max_wait_step=20, stable_vel_threshold=0.2, target_point=None, target_pos=None, render=False):
+    def _wait_to_stabalise(self, max_wait_step=300, stable_vel_threshold=0.00055):
         t = 0
+        stable_step = 0
         #print('stable vel threshold', stable_vel_threshold)
+        last_pos = pyflex.get_positions().reshape(-1, 4)[:, :3]
         for j in range(0, max_wait_step):
             t += 1
-            curr_vel = pyflex.get_velocities()
-            if target_point != None:
-                curr_pos = pyflex.get_positions()
-                curr_pos[target_point * 4: target_point * 4 + 3] = target_pos
-                curr_vel[target_point * 3: target_point * 3 + 3] = [0, 0, 0]
-                pyflex.set_positions(curr_pos)
-                pyflex.set_velocities(curr_vel)
+            cur_pos = pyflex.get_positions().reshape(-1, 4)[:, :3]
+            curr_vel = np.linalg.norm(cur_pos - last_pos, axis=1)
+            # curr_vel = pyflex.get_velocities()
+            #curr_vel = pyflex.get_accelerations()
+            #print('cur vel shape', curr_vel.shape)
+            # if target_point != None:
+            #     curr_pos = pyflex.get_positions()
+            #     curr_pos[target_point * 4: target_point * 4 + 3] = target_pos
+            #     curr_vel[target_point * 3: target_point * 3 + 3] = [0, 0, 0]
+            #     pyflex.set_positions(curr_pos)
+            #     pyflex.set_velocities(curr_vel)
 
             self.tick_control_step()
-            #print('vel', np.max(np.abs(curr_vel)))
-            if np.alltrue(np.abs(curr_vel) < stable_vel_threshold) and j > 5:
+            if stable_step > 10:
                 break
+            if np.max(curr_vel) < stable_vel_threshold:
+                stable_step += 1
+            else:
+                stable_step = 0
+
+            last_pos = cur_pos
+            
         #print('wait steps', t)
         return t

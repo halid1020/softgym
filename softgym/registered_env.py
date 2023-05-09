@@ -13,6 +13,8 @@ from softgym.envs.cloth_rectangular_fold import ClothRectangularFoldEnv
 from softgym.envs.cloth_side_fold import ClothSideFoldEnv
 from softgym.envs.cloth_double_side_fold import ClothDoubleSideFoldEnv
 from softgym.envs.cloth_cross_fold import ClothCrossFoldEnv
+from softgym.envs.cloth_double_side_cross_fold import ClothDoubleSideCrossFoldEnv
+from softgym.envs.cloth_double_side_rectangular_fold import ClothDoubleSideRectangularFoldEnv
 
 from collections import OrderedDict
 
@@ -197,6 +199,8 @@ SOFTGYM_ENVS = OrderedDict({
     'ClothSideFold': ClothSideFoldEnv,
     'ClothDoubleSideFold': ClothDoubleSideFoldEnv,
     'ClothCrossFold': ClothCrossFoldEnv,
+    'ClothDoubleSideCrossFold': ClothDoubleSideCrossFoldEnv,
+    'ClothDoubleSideRectangularFold': ClothDoubleSideRectangularFoldEnv,
 
     'ClothDrop': ClothDropEnv,
     'ClothFoldDrop': ClothFoldDropEnv,
