@@ -76,6 +76,7 @@ class FlexEnv(gym.Env):
 
     def set_save_step_info(self, flag):
         self.save_step_info = flag
+        self.action_tool.set_save_step_info(flag)
 
     def get_cached_configs_and_states(self, cached_states_path, num_variations):
         """

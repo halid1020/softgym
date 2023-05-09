@@ -42,16 +42,10 @@ class Picker(ActionToolBase):
 
         super(Picker).__init__()
         print('save_step_info', save_step_info)
-        self.save_step_info=save_step_info
+        
+        self.set_save_step_info(save_step_info)
         self._render = render
         
-        if self.save_step_info:
-            self.step_info = {
-                'control_signal': [],
-                'particle_pos': [],
-                'picker_pos': [],
-                'rgbd': []
-            }
 
         self.picker_radius = picker_radius
         self.picker_threshold = picker_threshold
@@ -66,6 +60,16 @@ class Picker(ActionToolBase):
         space_low = np.array([-0.1, -0.1, -0.1, 0] * self.num_picker) * 0.1  # [dx, dy, dz, [0, 1]]
         space_high = np.array([0.1, 0.1, 0.1, 10] * self.num_picker) * 0.1
         self.action_space = Box(space_low, space_high, dtype=np.float32)
+    
+    def set_save_step_info(self, save_step_info):
+        self.save_step_info=save_step_info
+        if self.save_step_info:
+            self.step_info = {
+                'control_signal': [],
+                'particle_pos': [],
+                'picker_pos': [],
+                'rgbd': []
+            }
 
     def update_picker_boundary(self, picker_low, picker_high):
         self.picker_low, self.picker_high = np.array(picker_low).copy(), np.array(picker_high).copy()
