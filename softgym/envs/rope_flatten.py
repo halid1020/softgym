@@ -145,7 +145,7 @@ class RopeFlattenEnv(RopeNewEnv):
     def _world_to_pixel(self, positions):
         camera_hight = 1.5 # TODO: magic number
         depths = camera_hight - positions[:, 1] #x, z, y
-        pixel_to_world_ratio = 0.415 # TODO: magic number
+        pixel_to_world_ratio = 0.4135 # TODO: magic number
 
         N = positions.shape[0]
         projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1

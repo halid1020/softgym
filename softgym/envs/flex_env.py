@@ -49,6 +49,7 @@ class FlexEnv(gym.Env):
         self.save_image_dim = save_image_dim
 
         self.sampling_random_state = np.random.RandomState(kwargs['random_seed'])
+        print('Random seed for sampling initial states: ', kwargs['random_seed'])
         self.control_horizon = control_horizon
         self.control_step = 0
         self._render = render
@@ -75,6 +76,7 @@ class FlexEnv(gym.Env):
 
     def set_save_step_info(self, flag):
         self.save_step_info = flag
+        self.action_tool.set_save_step_info(flag)
 
     def get_cached_configs_and_states(self, cached_states_path, num_variations):
         """
@@ -87,6 +89,9 @@ class FlexEnv(gym.Env):
         if not cached_states_path.startswith('/'):
             cur_dir = osp.dirname(osp.abspath(__file__))
             cached_states_path = osp.join(cur_dir, '../cached_initial_states', cached_states_path)
+
+        print(cached_states_path, osp.exists(cached_states_path))
+        
         if self.use_cached_states and osp.exists(cached_states_path):
             # Load from cached file
             with open(cached_states_path, "rb") as handle:
@@ -248,6 +253,9 @@ class FlexEnv(gym.Env):
         if you do not want to set the camera, you can just not implement CenterCamera in your scene.h file,
         and pass no camera params to your scene.
         """
+        raise NotImplementedError
+
+    def get_action_space(self):
         raise NotImplementedError
 
     def render(self, mode='rgb'):

@@ -9,6 +9,8 @@ public:
     float cam_angle_z;
     int cam_width;
     int cam_height;
+    Colour front_colour;
+    Colour back_colour;
 
 	SoftgymRigidCloth(const char* name) : Scene(name) {}
 
@@ -17,7 +19,7 @@ public:
 
 	void Initialize(py::array_t<float> scene_params, int thread_idx = 0)
 	{
-
+        cout << "initializing rigid cloth" << endl;
 		// Parse scene_params
 		auto ptr = (float *) scene_params.request().ptr;
 		int dimx = ptr[0], dimy = ptr[1], dimz = ptr[2]; // Dimension
@@ -32,6 +34,12 @@ public:
         cam_angle_z = ptr[11];
         cam_width = int(ptr[12]);
         cam_height = int(ptr[13]);
+
+        front_colour = Colour(ptr[14], ptr[15], ptr[16]);
+        back_colour = Colour(ptr[17], ptr[18], ptr[19]);
+
+        cout << ptr[14] << " " << ptr[15] << " " << ptr[16] << endl;
+        cout << ptr[17] << " " << ptr[18] << " " << ptr[19] << endl;
 
 
         float sx = dimx * radius, sy = dimy* radius, sz = dimz*radius;
@@ -50,9 +58,7 @@ public:
 		    radius,  Vec3(0.0f, 0.0f, 0.0f), // spacing and velocity
 		    invMass, true, rigidStiffness, NvFlexMakePhase(group++, 0), true, 0.0f); //invMass, rigid, rigidStiffness, phase, skin, jitter
 		}
-//		cout<<"here"<<g_buffers->triangles.size()<<end;
-//		cout<<g_mesh->m_colours.size()<<end;
-//		g_mesh->m_colours[i] = 1.25f*colors[((unsigned int)(phase))%7];
+
 
         if (numPiece ==1)
         {
@@ -67,10 +73,12 @@ public:
                 Colour(0.612f, 0.194f, 0.394f)
             };
 
-            for (int i=0; i<int(g_mesh->GetNumVertices()*0.6); ++i)
-                g_mesh->m_colours[i] = 1.5f*colors[5];
-            for (int i=int(g_mesh->GetNumVertices()*0.6); i<g_mesh->GetNumVertices(); ++i)
-                g_mesh->m_colours[i] = 1.5f*colors[6];
+            for (int i=0; i<int(g_mesh->GetNumVertices()*0.5); ++i)
+                //g_mesh->m_colours[i] = 1.5f*colors[5];
+                g_mesh->m_colours[i] = front_colour;
+            for (int i=int(g_mesh->GetNumVertices()*0.5); i<g_mesh->GetNumVertices(); ++i)
+                //g_mesh->m_colours[i] = 1.5f*colors[6];
+                g_mesh->m_colours[i] = back_colour;
         }
 
         g_params.radius = radius ;
