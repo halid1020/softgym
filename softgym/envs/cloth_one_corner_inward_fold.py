@@ -9,7 +9,7 @@ import numpy as np
 
 from softgym.envs.cloth_fold import ClothFoldEnv
 
-class ClothDiagonalFoldEnv(ClothFoldEnv):
+class ClothOneCornerInwardFoldEnv(ClothFoldEnv):
 
     def __init__(self, cached_states_path='cloth_folding_tmp.pkl', **kwargs):
         #self.cloth_particle_radius = kwargs['particle_radius']
@@ -31,8 +31,8 @@ class ClothDiagonalFoldEnv(ClothFoldEnv):
         assert X == Y, "Only allow square fabric"
 
         self.fold_groups = []
-        for _ in range(2):
-            x_split = X
+        for _ in range(4):
+            x_split = X // 2
             upper_triangle_ids = np.triu_indices(x_split)
             group_a = particle_grid_idx[:x_split, :x_split][upper_triangle_ids].flatten()
             group_b = particle_grid_idx[:x_split, :x_split].T[upper_triangle_ids].flatten()
