@@ -9,7 +9,7 @@ import numpy as np
 
 from softgym.envs.cloth_fold import ClothFoldEnv
 
-class ClothDiagonalFoldEnv(ClothFoldEnv):
+class ClothDiagonalCrossFoldEnv(ClothFoldEnv):
 
     def __init__(self, cached_states_path='cloth_folding_tmp.pkl', **kwargs):
         #self.cloth_particle_radius = kwargs['particle_radius']
@@ -31,13 +31,18 @@ class ClothDiagonalFoldEnv(ClothFoldEnv):
         assert X == Y, "Only allow square fabric"
 
         self.fold_groups = []
-        for _ in range(2):
-            x_split = X
-            upper_triangle_ids = np.triu_indices(x_split)
-            group_a = particle_grid_idx[:x_split, :x_split][upper_triangle_ids].flatten()
-            group_b = particle_grid_idx[:x_split, :x_split].T[upper_triangle_ids].flatten()
-            self.fold_groups.append((group_a, group_b))
-            particle_grid_idx = np.rot90(particle_grid_idx)
+        x_split = X
+        upper_triangle_ids = np.triu_indices(x_split)
+        group_a = np.concatenate([
+            particle_grid_idx[:x_split, :x_split][upper_triangle_ids].flatten(),
+            np.flip(particle_grid_idx[:x_split, :x_split], axis=0)[:x_split, :x_split][upper_triangle_ids].flatten()])
+        
+        group_b = np.concatenate([
+            particle_grid_idx[:x_split, :x_split].T[upper_triangle_ids].flatten(),
+            np.flip(particle_grid_idx[:x_split, :x_split], axis=0)[:x_split, :x_split].T[upper_triangle_ids].flatten()])
+        
+        self.fold_groups.append((group_a, group_b))
+        particle_grid_idx = np.rot90(particle_grid_idx)
 
         return res_a, res_b
 
