@@ -206,9 +206,9 @@ SOFTGYM_ENVS = OrderedDict({
     'ClothDoubleSideRectangularFold': ClothDoubleSideRectangularFoldEnv,
 
     'ClothDiagonalFold': ClothDiagonalFoldEnv,
-    'ClothOneCornerFold': ClothOneCornerInwardFoldEnv,
-    'ClothDoubleCornerFold': ClothDoubleCornerInwardFoldEnv,
-    'ClothAllCornerFold': ClothAllCornerInwardFoldEnv,
+    'ClothOneCornerInwardFold': ClothOneCornerInwardFoldEnv,
+    'ClothDoubleCornerInwardFold': ClothDoubleCornerInwardFoldEnv,
+    'ClothAllCornerInwardFold': ClothAllCornerInwardFoldEnv,
     'ClothDiagonalCrossFold': ClothDiagonalCrossFoldEnv,
 
     'ClothDrop': ClothDropEnv,
