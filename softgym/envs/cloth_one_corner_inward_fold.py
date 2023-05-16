@@ -19,7 +19,6 @@ class ClothOneCornerInwardFoldEnv(ClothFoldEnv):
 
     def _reset(self):
         """ Right now only use one initial state. Need to make sure _reset always give the same result. Otherwise CEM will fail."""
-        
         res_a, res_b = super()._reset()
 
         ### side folding utilities
@@ -34,8 +33,10 @@ class ClothOneCornerInwardFoldEnv(ClothFoldEnv):
         for _ in range(4):
             x_split = X // 2
             upper_triangle_ids = np.triu_indices(x_split)
-            group_a = particle_grid_idx[:x_split, :x_split][upper_triangle_ids].flatten()
-            group_b = particle_grid_idx[:x_split, :x_split].T[upper_triangle_ids].flatten()
+            particles = particle_grid_idx[:x_split, :x_split].copy()
+            group_a = particles[upper_triangle_ids].flatten().copy()
+            group_b = np.flip(np.flip(particles, axis=0), axis=1).T[upper_triangle_ids].flatten().copy()
+
             self.fold_groups.append((group_a, group_b))
             particle_grid_idx = np.rot90(particle_grid_idx)
 

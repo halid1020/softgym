@@ -34,13 +34,18 @@ class ClothDoubleCornerInwardFoldEnv(ClothFoldEnv):
         for _ in range(2):
             x_split = X // 2
             upper_triangle_ids = np.triu_indices(x_split)
+            
+            
+            # particles = particle_grid_idx[:x_split, :x_split].copy()
+            # group_a = particles[upper_triangle_ids].flatten().copy()
+            # group_b = np.flip(np.flip(particles, axis=0), axis=1).T[upper_triangle_ids].flatten().copy()
 
             group_a = np.concatenate([
                 particle_grid_idx[:x_split, :x_split][upper_triangle_ids].flatten(), 
                 particle_grid_idx[X-x_split:, X-x_split:][upper_triangle_ids].flatten()])
             group_b = np.concatenate([
-                particle_grid_idx[:x_split, :x_split].T[upper_triangle_ids].flatten(),  
-                particle_grid_idx[X-x_split:, X-x_split:].T[upper_triangle_ids].flatten()])
+                np.flip(np.flip(particle_grid_idx[:x_split, :x_split], axis=0), axis=1).T[upper_triangle_ids].flatten(),  
+                np.flip(np.flip(particle_grid_idx[X-x_split:, X-x_split:], axis=0), axis=1).T[upper_triangle_ids].flatten()])
 
             self.fold_groups.append((group_a, group_b))
             particle_grid_idx = np.rot90(particle_grid_idx)

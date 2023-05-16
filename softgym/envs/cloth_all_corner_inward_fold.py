@@ -43,10 +43,10 @@ class ClothAllCornerInwardFoldEnv(ClothFoldEnv):
             particle_grid_idx[X-x_split:, :x_split][upper_triangle_ids].flatten()])
         
         group_b = np.concatenate([
-            particle_grid_idx[:x_split, :x_split].T[upper_triangle_ids].flatten(),  
-            particle_grid_idx[X-x_split:, X-x_split:].T[upper_triangle_ids].flatten(),
-            particle_grid_idx[X-x_split:, :x_split].T[upper_triangle_ids].flatten(),
-            particle_grid_idx[:x_split, X-x_split:].T[upper_triangle_ids].flatten()])
+            np.flip(np.flip(particle_grid_idx[:x_split, :x_split], axis=0), axis=1).T[upper_triangle_ids].flatten(),  
+            np.flip(np.flip(particle_grid_idx[X-x_split:, X-x_split:], axis=0), axis=1).T[upper_triangle_ids].flatten(),
+            particle_grid_idx[:x_split, X-x_split:].T[upper_triangle_ids].flatten(),
+            particle_grid_idx[X-x_split:, :x_split].T[upper_triangle_ids].flatten()])
 
         self.fold_groups.append((group_a, group_b))
 

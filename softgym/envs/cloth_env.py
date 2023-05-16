@@ -589,7 +589,7 @@ class ClothEnv(FlexEnv):
         edge_ids.extend([(cloth_dimy-1)*cloth_dimx + i for i in range(1, cloth_dimx-1)])
         return edge_ids
     
-    def _wait_to_stabalise(self, max_wait_step=300, stable_vel_threshold=0.00055):
+    def _wait_to_stabalise(self, max_wait_step=300, stable_vel_threshold=0.0006):
         t = 0
         stable_step = 0
         #print('stable vel threshold', stable_vel_threshold)

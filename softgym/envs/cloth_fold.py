@@ -135,10 +135,11 @@ class ClothFoldEnv(ClothEnv):
     def _get_distance(self, positions, group_a, group_b):
         if positions is None:
             position = self.get_particle_positions()
-        cols = [0, 1, 2]
+        cols = [0, 2]
         pos_group_a = position[np.ix_(group_a, cols)]
         pos_group_b = position[np.ix_(group_b, cols)]
         distance = np.linalg.norm(pos_group_a-pos_group_b, axis=1)
+        #print('distance', distance.shape)
         return distance
     
     def _mean_edge_distance(self, particles=None):
@@ -147,8 +148,10 @@ class ClothFoldEnv(ClothEnv):
         edge_ids = self.get_edge_ids()
         edge_distance = []
         for group_a, group_b in self.fold_groups:
-            distances.append(self._get_distance(particles, group_a, group_b))
-            edge_distance.append(np.mean([distances[-1][i] for i, p in enumerate(group_a) if p in edge_ids]))
+            group_ab = np.concatenate([group_a, group_b])
+            group_ba = np.concatenate([group_b, group_a])
+            distances = self._get_distance(particles, group_ab, group_ba)
+            edge_distance.append(np.mean([distances[i] for i, p in enumerate(group_ab) if p in edge_ids]))
         
         return np.min(edge_distance)
 
@@ -158,8 +161,10 @@ class ClothFoldEnv(ClothEnv):
         edge_ids = self.get_edge_ids()
         edge_distance = []
         for group_a, group_b in self.fold_groups:
-            distances.append(self._get_distance(particles, group_a, group_b))
-            edge_distance.append(np.max([distances[-1][i] for i, p in enumerate(group_a) if p in edge_ids]))
+            group_ab = np.concatenate([group_a, group_b])
+            group_ba = np.concatenate([group_b, group_a])
+            distances = self._get_distance(particles, group_ab, group_ba)
+            edge_distance.append(np.max([distances[i] for i, p in enumerate(group_ab) if p in edge_ids]))
         
         return np.min(edge_distance)
 
@@ -168,8 +173,11 @@ class ClothFoldEnv(ClothEnv):
         distances = []
         corner_distance = []
         for group_a, group_b in self.fold_groups:
-            distances.append(self._get_distance(particles, group_a, group_b))
-            corner_distance.append(np.max([distances[-1][i] for i, p in enumerate(group_a) if p in self._corner_ids]))
+            group_ab = np.concatenate([group_a, group_b])
+            group_ba = np.concatenate([group_b, group_a])
+            distances = self._get_distance(particles, group_ab, group_ba)
+            corner_distance.append(np.max([distances[i] for i, p in enumerate(group_ab) if p in self._corner_ids]))
+            #print(corner_distance)
 
         return np.min(corner_distance)
 
