@@ -29,7 +29,7 @@ class ClothDoubleSideCrossFoldEnv(ClothFoldEnv):
 
         self.fold_groups = []
         for _ in range(2):
-            X, Y = particle_grid_idx.shape[0]
+            X, Y = particle_grid_idx.shape
             x_split, y_split = X // 4, Y // 2
             group_a = np.concatenate([particle_grid_idx[:x_split].flatten(), particle_grid_idx[X-x_split:].flatten()])
             group_b = np.concatenate([
