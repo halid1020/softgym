@@ -133,14 +133,19 @@ namespace
 Mesh* ImportMesh(const char* path)
 {
 	std::string ext = GetExtension(path);
+	cout << "Importing mesh " << path << ", extension: " << ext << endl;
 
 	Mesh* mesh = NULL;
 
 	if (ext == "ply")
 		mesh = ImportMeshFromPly(path);
-	else if (ext == "obj")
+	else if (ext == "obj") {
 		mesh = ImportMeshFromObj(path);
-
+	}
+	else {
+		printf("Unsupported mesh format: %s\n", ext.c_str());
+		assert(0);
+	}
 
 	return mesh;
 }
@@ -391,18 +396,23 @@ struct VertexKey
 
 Mesh* ImportMeshFromObj(const char* path)
 {
+
     ifstream file(path);
 
-    if (!file)
-        return NULL;
+    // if (!file)
+	// 	cout << "Failed to open file " << path << endl;
+    //     return NULL;
+
 
     Mesh* m = new Mesh();
+
 
     vector<Point3> positions;
     vector<Vector3> normals;
     vector<Vector2> texcoords;
     vector<Vector3> colors;
     vector<uint32_t>& indices = m->m_indices;
+
 
     //typedef unordered_map<VertexKey, uint32_t, MemoryHash<VertexKey> > VertexMap;
     typedef map<VertexKey, uint32_t> VertexMap;
@@ -412,7 +422,7 @@ Mesh* ImportMeshFromObj(const char* path)
     const uint32_t kMaxLineLength = 1024;
     char buffer[kMaxLineLength];
 
-    //double startTime = GetSeconds();
+    double startTime = GetSeconds();
 
     while (file)
     {
@@ -589,7 +599,7 @@ Mesh* ImportMeshFromObj(const char* path)
         m->m_normals[i] = SafeNormalize(m->m_normals[i], Vector3(0.0f, 1.0f, 0.0f));
     }
         
-    //cout << "Imported mesh " << path << " in " << (GetSeconds()-startTime)*1000.f << "ms" << endl;
+    cout << "Imported mesh in " << (GetSeconds()-startTime)*1000.f << "ms" << endl;
 
     return m;
 }

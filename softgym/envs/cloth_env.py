@@ -88,7 +88,7 @@ class ClothEnv(FlexEnv):
     def get_action_space(self):
         return self.action_space
             
-    def generate_env_variation(self, num_variations=1, vary_cloth_size=False):
+    def generate_env_variation(self, num_variations=1): #, vary_cloth_size=False)
         """ Generate initial states. Note: This will also change the current states! """
         max_wait_step = 300  # Maximum number of steps waiting for the cloth to stablize
         stable_vel_threshold = 0.02  # Cloth stable when all particles' vel are smaller than this
@@ -121,11 +121,11 @@ class ClothEnv(FlexEnv):
             
                 
             self.update_camera(config['camera_name'], config['camera_params'][config['camera_name']])
-            if vary_cloth_size:
-                cloth_dimx, cloth_dimy = self._sample_cloth_size()
-                config['ClothSize'] = [cloth_dimx, cloth_dimy]
-            else:
-                cloth_dimx, cloth_dimy = config['ClothSize']
+            # if vary_cloth_size:
+            #     cloth_dimx, cloth_dimy = self._sample_cloth_size()
+            #     config['ClothSize'] = [cloth_dimx, cloth_dimy]
+            # else:
+            cloth_dimx, cloth_dimy = config['ClothSize']
             self.set_scene(config)
             self.action_tool.reset([0., -1., 0.])
             self._set_to_flatten()

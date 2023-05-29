@@ -23,8 +23,6 @@ class ClothFlattenEnv(ClothEnv):
         """
         super().__init__(**kwargs)
         self._reward_mode = kwargs['reward_mode']
-
-        
           
         
         if self.save_step_info:

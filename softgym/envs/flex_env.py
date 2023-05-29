@@ -261,6 +261,7 @@ class FlexEnv(gym.Env):
     def render(self, mode='rgb'):
         #pyflex.step()
         img, depth_img = pyflex.render()
+        
         width, height = self.camera_params['default_camera']['width'], self.camera_params['default_camera']['height']
         img = img.reshape(height, width, 4)[::-1, :, :3]  # Need to reverse the height dimension
         depth_img = depth_img.reshape(height, width, 1)[::-1, :, :1]
