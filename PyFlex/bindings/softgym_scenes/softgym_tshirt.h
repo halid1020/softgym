@@ -19,6 +19,9 @@ public:
     int cam_width;
     int cam_height;
     char tshirt_path[100];
+    // maps from vertex index to particle index
+    map<uint32_t, uint32_t> vid2pid;
+    map<uint32_t, uint32_t> pid2vid;
 
     SoftgymTshirt(const char* name) : Scene(name) {}
 
@@ -85,6 +88,28 @@ public:
         if (!m)
             return;
 
+        if (!g_mesh)
+			g_mesh = m;
+
+        // Set colors to the g_mesh
+        for (uint32_t i=0; i < m->GetNumVertices(); ++i) {
+
+            if (m->m_positions[i].z > 0.0) {
+                m->m_colours[i] = Colour(0.0f, 0.0f, 1.0f);
+            } else {
+                cout << "red" << endl;
+                m->m_colours[i] = Colour(1.0f, 0.0f, 0.0f);
+            }
+        }
+
+
+
+        // append to mesh
+		//startVertex = g_mesh->GetNumVertices();
+
+		// g_mesh->Transform(TranslationMatrix(Point3(0)));
+		// g_mesh->AddMesh(m);
+
         // rotate mesh
         m->Transform(RotationMatrix(rotation, Vec3(0.0f, 1.0f, 0.0f)));
 
@@ -100,6 +125,10 @@ public:
         m->Transform(xform);
         m->GetBounds(meshLower, meshUpper);
 
+        
+
+
+
         // index of particles
         uint32_t baseIndex = uint32_t(g_buffers->positions.size());
         uint32_t currentIndex = baseIndex;
@@ -108,8 +137,8 @@ public:
         map<vector<float>, uint32_t> vertex;
         map<vector<float>, uint32_t>::iterator it;
 
-        // maps from vertex index to particle index
-        map<uint32_t, uint32_t> indMap;
+        
+        
 
         // to check for duplicate connections
         map<uint32_t,list<uint32_t> > edgeMap;
@@ -136,7 +165,9 @@ public:
             it = vertex.find(pos0);
             if (it == vertex.end()) {
                 vertex[pos0] = currentIndex;
-                indMap[a] = currentIndex++;
+                vid2pid[a] = currentIndex++;
+                pid2vid[currentIndex] = a;
+
                 Vec3 p0 = lower + meshLower + Vec3(v0.x, v0.y, v0.z);
                 g_buffers->positions.push_back(Vec4(p0.x, p0.y, p0.z, invMass));
                 g_buffers->velocities.push_back(velocity);
@@ -144,13 +175,16 @@ public:
             }
             else
             {
-                indMap[a] = it->second;
+                vid2pid[a] = it->second;
+                pid2vid[it->second] = a;
             }
 
             it = vertex.find(pos1);
             if (it == vertex.end()) {
                 vertex[pos1] = currentIndex;
-                indMap[b] = currentIndex++;
+                vid2pid[b] = currentIndex++;
+                pid2vid[currentIndex] = b;
+
                 Vec3 p1 = lower + meshLower + Vec3(v1.x, v1.y, v1.z);
                 g_buffers->positions.push_back(Vec4(p1.x, p1.y, p1.z, invMass));
                 g_buffers->velocities.push_back(velocity);
@@ -158,13 +192,16 @@ public:
             }
             else
             {
-                indMap[b] = it->second;
+                vid2pid[b] = it->second;
+                pid2vid[it->second] = b;
             }
 
             it = vertex.find(pos2);
             if (it == vertex.end()) {
                 vertex[pos2] = currentIndex;
-                indMap[c] = currentIndex++;
+                vid2pid[c] = currentIndex++;
+                pid2vid[currentIndex] = c;
+
                 Vec3 p2 = lower + meshLower + Vec3(v2.x, v2.y, v2.z);
                 g_buffers->positions.push_back(Vec4(p2.x, p2.y, p2.z, invMass));
                 g_buffers->velocities.push_back(velocity);
@@ -172,13 +209,14 @@ public:
             }
             else
             {
-                indMap[c] = it->second;
+                vid2pid[c] = it->second;
+                pid2vid[it->second] = c;
             }
 
             // create triangles
-            g_buffers->triangles.push_back(indMap[a]);
-            g_buffers->triangles.push_back(indMap[b]);
-            g_buffers->triangles.push_back(indMap[c]);
+            g_buffers->triangles.push_back(vid2pid[a]);
+            g_buffers->triangles.push_back(vid2pid[b]);
+            g_buffers->triangles.push_back(vid2pid[c]);
 
             // connect springs
 
@@ -187,7 +225,7 @@ public:
             // for a-b
             if (edgeMap.find(a) == edgeMap.end())
             {
-                CreateSpring(indMap[a], indMap[b], stiffness);
+                CreateSpring(vid2pid[a], vid2pid[b], stiffness);
                 edgeMap[a].push_back(b);
             }
             else
@@ -196,7 +234,7 @@ public:
                 it = find(edgeMap[a].begin(), edgeMap[a].end(), b);
                 if (it == edgeMap[a].end())
                 {
-                    CreateSpring(indMap[a], indMap[b], stiffness);
+                    CreateSpring(vid2pid[a], vid2pid[b], stiffness);
                     edgeMap[a].push_back(b);
                 }
             }
@@ -204,7 +242,7 @@ public:
             // for a-c
             if (edgeMap.find(a) == edgeMap.end())
             {
-                CreateSpring(indMap[a], indMap[c], stiffness);
+                CreateSpring(vid2pid[a], vid2pid[c], stiffness);
                 edgeMap[a].push_back(c);
             }
             else
@@ -213,7 +251,7 @@ public:
                 it = find(edgeMap[a].begin(), edgeMap[a].end(), c);
                 if (it == edgeMap[a].end())
                 {
-                    CreateSpring(indMap[a], indMap[c], stiffness);
+                    CreateSpring(vid2pid[a], vid2pid[c], stiffness);
                     edgeMap[a].push_back(c);
                 }
             }
@@ -221,7 +259,7 @@ public:
             // for b-c
             if (edgeMap.find(b) == edgeMap.end())
             {
-                CreateSpring(indMap[b], indMap[c], stiffness);
+                CreateSpring(vid2pid[b], vid2pid[c], stiffness);
                 edgeMap[b].push_back(c);
             }
             else
@@ -230,14 +268,15 @@ public:
                 it = find(edgeMap[b].begin(), edgeMap[b].end(), c);
                 if (it == edgeMap[b].end())
                 {
-                    CreateSpring(indMap[b], indMap[c], stiffness);
+                    CreateSpring(vid2pid[b], vid2pid[c], stiffness);
                     edgeMap[b].push_back(c);
                 }
             }
 
         }
 
-        delete m;
+
+        // delete m;
     }
 
 
@@ -255,28 +294,37 @@ public:
         float velX = ptr[5];
         float velY = ptr[6];
         float velZ = ptr[7];
-        float stiff = ptr[8];
-        float mass = ptr[9];
-        float radius = ptr[10];
-        cam_x = ptr[11];
-        cam_y = ptr[12];
-        cam_z = ptr[13];
-        cam_angle_x = ptr[14];
-        cam_angle_y = ptr[15];
-        cam_angle_z = ptr[16];
-        cam_width = int(ptr[17]);
-        cam_height = int(ptr[18]);
-        int render_type = ptr[19]; // 0: only points, 1: only mesh, 2: points + mesh
+        
+        float stretchStiffness = ptr[8];
+		float bendStiffness = ptr[9];
+		float shearStiffness = ptr[10];
+
+        // float stiff = ptr[11];
+        float mass = ptr[11];
+        float radius = ptr[12];
+        cam_x = ptr[13];
+        cam_y = ptr[14];
+        cam_z = ptr[15];
+        cam_angle_x = ptr[16];
+        cam_angle_y = ptr[17];
+        cam_angle_z = ptr[18];
+        cam_width = int(ptr[19]);
+        cam_height = int(ptr[20]);
+        int render_type = 1; //ptr[21]; // 0: only points, 1: only mesh, 2: points + mesh
 
         int phase = NvFlexMakePhase(0, eNvFlexPhaseSelfCollide | eNvFlexPhaseSelfCollideFilter);
         float static_friction = 0.5;
         float dynamic_friction = 1.0;
 
-        createTshirt(make_path(tshirt_path, "/data/T-shirt_onelayer.obj"), Vec3(initX, initY, initZ), scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, stiff);
+        createTshirt(
+            make_path(tshirt_path, "/data/T-shirt.obj"), 
+            Vec3(initX, initY, initZ), 
+            scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, 
+            stretchStiffness);
 
         g_numSubsteps = 4;
         g_params.numIterations = 30;
-        g_params.dynamicFriction = dynamic_friction;
+        g_params.dynamicFriction = 0.75f;
         g_params.particleFriction = 1.0f;
         g_params.damping = 1.0f;
         g_params.sleepThreshold = 0.02f;
@@ -285,12 +333,12 @@ public:
         g_sceneLower = Vec3(-1.0f);
         g_sceneUpper = Vec3(1.0f);
 
-        g_params.radius = radius;
-        g_params.collisionDistance = 0.01f;
+        g_params.radius = radius*1.8f;
+        g_params.collisionDistance =  0.005f;
 
-        g_drawPoints = render_type & 1;
-        g_drawCloth = (render_type & 2) >>1;
-        g_drawMesh = false;
+        g_drawPoints = (render_type & 2) >>1; 
+        g_drawCloth = false; //(render_type & 2) >>1;
+        g_drawMesh = render_type & 1;
         g_drawSprings = false;
         g_drawDiffuse = false;
 
@@ -303,5 +351,24 @@ public:
         g_camAngle = Vec3(cam_angle_x, cam_angle_y, cam_angle_z);
         g_screenHeight = cam_height;
         g_screenWidth = cam_width;
+    }
+
+    // Update partciels positions to g_mesh
+    void UpdateMesh()
+    {
+        //cout << "update mesh hello" << endl;
+        // update mesh by iterating through all mesh vertices
+        for (int i = 0; i < g_mesh->m_positions.size(); i++)
+        {
+            // get particle position
+            Vec4 pos = g_buffers->positions[vid2pid[i]];
+
+            // update mesh position
+            g_mesh->m_positions[i] = Point3(pos.x, pos.y, pos.z);
+        }
+    }
+
+    void Update(py::array_t<float> update_params) {
+        UpdateMesh();
     }
 };

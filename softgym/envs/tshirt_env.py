@@ -27,10 +27,10 @@ class TshirtEnv(ClothEnv):
         cam_pos, cam_angle = np.array([-0.0, 1.5, 0]), np.array([0, -90 / 180. * np.pi, 0.])
         config = {
             'pos': [0, 0, 0],
-            'scale': 0.36,
+            'scale': 0.3,
             'rot': 0.0,
             'vel': [0., 0., 0.],
-            'stiff': 0.9,
+            'stiff': [0.5, 1, 0.9],
             'mass': 0.05,
             'radius': self.cloth_particle_radius,
             'camera_name': 'default_camera',
@@ -90,7 +90,8 @@ class TshirtEnv(ClothEnv):
             config['pos'][:], 
             [config['scale'], config['rot']], 
             config['vel'][:], 
-            [config['stiff'], config['mass'], config['radius']],
+            config['stiff'], 
+            [config['mass'], config['radius']],
             camera_params['pos'][:], 
             camera_params['angle'][:], 
             [camera_params['width'], camera_params['height']], 
@@ -105,6 +106,7 @@ class TshirtEnv(ClothEnv):
         
         self.set_scene(self.cached_configs[self.current_config_id], self.cached_init_states[self.current_config_id])
         self._set_to_flatten()
+        self._wait_to_stabalise()
         # self._flatten_particel_positions = self.get_flatten_positions()
         # self._flatten_coverage =  self.get_coverage(self._flatten_particel_positions)
         
@@ -130,6 +132,12 @@ class TshirtEnv(ClothEnv):
         pyflex.step()
         self.init_covered_area = None
         return self._get_obs(), None
+    
+    def compute_reward(self, action=None, obs=None, set_prev_reward=False):
+        return 1.0
+    
+    def evaluate(self):
+        return {}
     
     def _step(self, action):
 
