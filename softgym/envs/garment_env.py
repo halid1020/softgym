@@ -1,3 +1,5 @@
+import os
+import sys
 import numpy as np
 from copy import deepcopy
 from scipy.spatial.transform import Rotation as R
@@ -61,19 +63,40 @@ class GarmentEnv(ClothEnv):
         for i in range(num_variations):
             config = deepcopy(default_config)
             if 'size' in self.context:
-                print("varying size")
                 config['scale'] = self.context_random_state.uniform(
                     np.array(self.context['size']['scale']['lower_bound']),
                     np.array(self.context['size']['scale']['upper_bound']))
             
             if 'colour' in self.context:
-                print("varying colour")
                 config['front_colour'] = self.context_random_state.uniform(
                     np.array(self.context['colour']['front_colour']['lower_bound']), 
                     np.array(self.context['colour']['front_colour']['upper_bound']))
                 config['back_colour'] = self.context_random_state.uniform(
                     np.array(self.context['colour']['back_colour']['lower_bound']),
                     np.array(self.context['colour']['back_colour']['upper_bound']))
+                config['inside_colour'] = self.context_random_state.uniform(
+                    np.array(self.context['colour']['inside_colour']['lower_bound']),
+                    np.array(self.context['colour']['inside_colour']['upper_bound']))
+                
+            if 'garment' in self.context:
+                print('vary garment type')
+                #### choose a garment type from self.context['garment_type']
+                config['garment_type'] = self.context_random_state.choice(self.context['garment'])
+
+
+            #### The shapes are saved in PyFlex/data/TriGarments/<garment_type> folders
+            ### PyFlex can be find in the environment variable PYFLEXROOT
+            #### Get the number of shapes for the chosen garment type            
+            num_shapes = len(os.listdir(os.path.join(os.environ['PYFLEXROOT'], 'data', 'TriGarments', config['garment_type'])))
+
+            
+            if 'shape' in self.context:
+                print('vary shape')
+                config['shape_id'] = int(self.context_random_state.uniform(
+                    self.context['shape']['lower_bound'],
+                    self.context['shape']['upper_bound'])*num_shapes)
+            
+
             
                 
             self.update_camera(config['camera_name'], config['camera_params'][config['camera_name']])
@@ -191,6 +214,8 @@ class GarmentEnv(ClothEnv):
 
         camera_params = config['camera_params'][config['camera_name']]
         env_idx = 5
+
+        print(config)
         
         scene_params = np.concatenate([
             config['pos'][:], 
