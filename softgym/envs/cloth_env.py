@@ -150,15 +150,15 @@ class ClothEnv(FlexEnv):
                 curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth
                 pickpoint_pos = curr_pos[pickpoint * 4: pickpoint * 4 + 3].copy()  # Pos of the pickup point is fixed to this point
                 pickpoint_pos[1] += self.context_random_state.random()*0.4
-                pyflex.set_positions(curr_pos)
-                self._wait_to_stabalise(max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
+                pyflex.set_positions(curr_pos.flatten())
+                self._wait_to_stabalise() #max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
                 
 
                 # Drop the cloth and wait to stablize
                 curr_pos = pyflex.get_positions()
                 curr_pos[pickpoint * 4 + 3] = original_inv_mass
-                pyflex.set_positions(curr_pos)          
-                self._wait_to_stabalise(max_wait_step, stable_vel_threshold, None, None)
+                pyflex.set_positions(curr_pos.flatten())          
+                self._wait_to_stabalise() #max_wait_step, stable_vel_threshold, None, None)
 
                 center_object(self.context_random_state, self.context['position'])
 
@@ -172,15 +172,15 @@ class ClothEnv(FlexEnv):
                     pickpoint_pos[0] += (np.random.random(1)*2 - 1)*0.3
                     pickpoint_pos[2] += (np.random.random(1)*2 - 1)*0.3
                     pickpoint_pos[1] = 0.1
-                    pyflex.set_positions(curr_pos)
-                    self._wait_to_stabalise(max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
+                    pyflex.set_positions(curr_pos.flatten())
+                    self._wait_to_stabalise() #max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
 
 
                     # Drop the cloth and wait to stablize
                     curr_pos = pyflex.get_positions()
                     curr_pos[pickpoint * 4 + 3] = original_inv_mass
-                    pyflex.set_positions(curr_pos)          
-                    self._wait_to_stabalise(max_wait_step, stable_vel_threshold, None, None)
+                    pyflex.set_positions(curr_pos.flatten())          
+                    self._wait_to_stabalise() #max_wait_step, stable_vel_threshold, None, None)
 
                     center_object(self.context_random_state, self.context['position'])
 
@@ -208,21 +208,21 @@ class ClothEnv(FlexEnv):
         return generated_configs, generated_states
     
     def _rotate_particles(self, angle):
-        pos = pyflex.get_positions().reshape(-1, 4)
-        center = np.mean(pos, axis=0)
-        pos -= center
+        pos = pyflex.get_positions().reshape(-1, 4).copy()
+        center = np.mean(pos[:, [0, 2]], axis=0, keepdims=True) 
+        pos[:, [0, 2]] -= center
         new_pos = pos.copy()
         new_pos[:, 0] = (np.cos(angle) * pos[:, 0] - np.sin(angle) * pos[:, 2])
         new_pos[:, 2] = (np.sin(angle) * pos[:, 0] + np.cos(angle) * pos[:, 2])
-        new_pos += center
-        pyflex.set_positions(new_pos)
+        new_pos[:, [0, 2]] += center
+        pyflex.set_positions(new_pos.flatten())
 
     def get_particle_pos(self):
         pos = pyflex.get_positions()
         return pos.reshape(-1, 4).copy()
 
     def set_pos(self, particle_pos, picker_pos):
-        pyflex.set_positions(particle_pos)
+        pyflex.set_positions(particle_pos.flatten())
         pyflex.set_shape_states(picker_pos)
         pyflex.step()
         if self._render:
@@ -271,7 +271,7 @@ class ClothEnv(FlexEnv):
         curr_pos = pyflex.get_positions().reshape((-1, 4))
         flat_pos = self._get_flat_pos()
         curr_pos[:, :3] = flat_pos
-        pyflex.set_positions(curr_pos)
+        pyflex.set_positions(curr_pos.flatten())
         pyflex.step()
     
     def _flatten_pos(self):
@@ -589,15 +589,29 @@ class ClothEnv(FlexEnv):
         edge_ids.extend([(cloth_dimy-1)*cloth_dimx + i for i in range(1, cloth_dimx-1)])
         return edge_ids
     
-    def _wait_to_stabalise(self, max_wait_step=300, stable_vel_threshold=0.0006):
+    def _wait_to_stabalise(self, max_wait_step=300, stable_vel_threshold=0.0006,
+            target_point=None, target_pos=None):
         t = 0
         stable_step = 0
         #print('stable vel threshold', stable_vel_threshold)
         last_pos = pyflex.get_positions().reshape(-1, 4)[:, :3]
         for j in range(0, max_wait_step):
             t += 1
+
+           
             cur_pos = pyflex.get_positions().reshape(-1, 4)[:, :3]
             curr_vel = np.linalg.norm(cur_pos - last_pos, axis=1)
+            if target_point != None:
+                cur_poss = pyflex.get_positions()
+                curr_vell = pyflex.get_velocities()
+                cur_poss[target_point * 4: target_point * 4 + 3] = target_pos
+                
+                curr_vell[target_point * 3: target_point * 3 + 3] = [0, 0, 0]
+                pyflex.set_positions(cur_poss.flatten())
+                pyflex.set_velocities(curr_vell)
+                curr_vel = curr_vell
+
+
             # curr_vel = pyflex.get_velocities()
             #curr_vel = pyflex.get_accelerations()
             #print('cur vel shape', curr_vel.shape)

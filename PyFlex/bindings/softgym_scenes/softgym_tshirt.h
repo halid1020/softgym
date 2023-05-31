@@ -19,6 +19,9 @@ public:
     int cam_width;
     int cam_height;
     char tshirt_path[100];
+    Colour front_colour;
+    Colour back_colour;
+
     // maps from vertex index to particle index
     map<uint32_t, uint32_t> vid2pid;
     map<uint32_t, uint32_t> pid2vid;
@@ -81,50 +84,40 @@ public:
     }
 
 
-    void createTshirt(const char* filename, Vec3 lower, float scale, float rotation, Vec3 velocity, int phase, float invMass, float stiffness)
+    void createTshirt(const char* filename, Vec3 lower, float scale, float rotation, 
+        Vec3 velocity, int phase, float invMass, float stiffness, Colour front_colour, Colour back_colour)
     {
         // import the mesh
         Mesh* m = ImportMesh(filename);
         if (!m)
             return;
 
-        if (!g_mesh)
-			g_mesh = m;
-
-        // Set colors to the g_mesh
-        for (uint32_t i=0; i < m->GetNumVertices(); ++i) {
-
-            if (m->m_positions[i].z > 0.0) {
-                m->m_colours[i] = Colour(0.0f, 0.0f, 1.0f);
-            } else {
-                cout << "red" << endl;
-                m->m_colours[i] = Colour(1.0f, 0.0f, 0.0f);
-            }
-        }
-
-
-
-        // append to mesh
-		//startVertex = g_mesh->GetNumVertices();
-
-		// g_mesh->Transform(TranslationMatrix(Point3(0)));
-		// g_mesh->AddMesh(m);
-
-        // rotate mesh
-        m->Transform(RotationMatrix(rotation, Vec3(0.0f, 1.0f, 0.0f)));
-
+        // Get the middle of the meshm then translate to origin
         Vec3 meshLower, meshUpper;
         m->GetBounds(meshLower, meshUpper);
 
+        Vec3 mid = (meshUpper+meshLower)/2;
         Vec3 edges = meshUpper-meshLower;
         float maxEdge = max(max(edges.x, edges.y), edges.z);
 
         // put mesh at the origin and scale to specified size
-        Matrix44 xform = ScaleMatrix(scale/maxEdge)*TranslationMatrix(Point3(-meshLower));
-
+        Matrix44 xform = ScaleMatrix(scale/maxEdge)*TranslationMatrix(Point3(-mid));
         m->Transform(xform);
         m->GetBounds(meshLower, meshUpper);
 
+
+        // Set colors to the g_mesh
+        int t1(0), t2(0);
+        for (uint32_t i=0; i < m->GetNumVertices(); ++i) {
+
+            if (m->m_positions[i].z > 0.0) {
+                m->m_colours[i] = front_colour;
+                t1++;
+            } else {
+                m->m_colours[i] = back_colour;
+                t2++;
+            }
+        }
         
 
 
@@ -142,6 +135,9 @@ public:
 
         // to check for duplicate connections
         map<uint32_t,list<uint32_t> > edgeMap;
+
+
+
 
         // loop through the faces
         for (uint32_t i=0; i < m->GetNumFaces(); ++i)
@@ -172,6 +168,10 @@ public:
                 g_buffers->positions.push_back(Vec4(p0.x, p0.y, p0.z, invMass));
                 g_buffers->velocities.push_back(velocity);
                 g_buffers->phases.push_back(phase);
+                g_buffers->uvs.push_back({
+                    m->m_colours[a].r,
+                    m->m_colours[a].g,
+                    m->m_colours[a].b});
             }
             else
             {
@@ -189,6 +189,10 @@ public:
                 g_buffers->positions.push_back(Vec4(p1.x, p1.y, p1.z, invMass));
                 g_buffers->velocities.push_back(velocity);
                 g_buffers->phases.push_back(phase);
+                g_buffers->uvs.push_back({
+                    m->m_colours[b].r,
+                    m->m_colours[b].g,
+                    m->m_colours[b].b});
             }
             else
             {
@@ -206,6 +210,10 @@ public:
                 g_buffers->positions.push_back(Vec4(p2.x, p2.y, p2.z, invMass));
                 g_buffers->velocities.push_back(velocity);
                 g_buffers->phases.push_back(phase);
+                g_buffers->uvs.push_back({
+                    m->m_colours[c].r,
+                    m->m_colours[c].g,
+                    m->m_colours[c].b});
             }
             else
             {
@@ -276,7 +284,7 @@ public:
         }
 
 
-        // delete m;
+        delete m;
     }
 
 
@@ -310,17 +318,25 @@ public:
         cam_angle_z = ptr[18];
         cam_width = int(ptr[19]);
         cam_height = int(ptr[20]);
-        int render_type = 1; //ptr[21]; // 0: only points, 1: only mesh, 2: points + mesh
+        int render_type = ptr[21]; // 0: only points, 1: only mesh, 2: points + mesh
+
+        front_colour = Colour(ptr[22], ptr[23], ptr[24]);
+        back_colour = Colour(ptr[25], ptr[26], ptr[27]);
+
+
 
         int phase = NvFlexMakePhase(0, eNvFlexPhaseSelfCollide | eNvFlexPhaseSelfCollideFilter);
         float static_friction = 0.5;
         float dynamic_friction = 1.0;
 
+
         createTshirt(
             make_path(tshirt_path, "/data/T-shirt.obj"), 
             Vec3(initX, initY, initZ), 
             scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, 
-            stretchStiffness);
+            stretchStiffness,
+            front_colour, back_colour);
+
 
         g_numSubsteps = 4;
         g_params.numIterations = 30;
@@ -343,6 +359,7 @@ public:
         g_drawDiffuse = false;
 
         cout << "tris: " << g_buffers->triangles.size() << endl;
+        
     }
 
     virtual void CenterCamera(void)
@@ -353,22 +370,23 @@ public:
         g_screenWidth = cam_width;
     }
 
-    // Update partciels positions to g_mesh
-    void UpdateMesh()
-    {
-        //cout << "update mesh hello" << endl;
-        // update mesh by iterating through all mesh vertices
-        for (int i = 0; i < g_mesh->m_positions.size(); i++)
-        {
-            // get particle position
-            Vec4 pos = g_buffers->positions[vid2pid[i]];
+    // // Update partciels positions to g_mesh
+    // void UpdateMesh()
+    // {
+    //     //cout << "update mesh hello" << endl;
+    //     // update mesh by iterating through all mesh vertices
+    //     for (int i = 0; i < g_mesh->m_positions.size(); i++)
+    //     {
+    //         // get particle position
+    //         Vec4 pos = g_buffers->positions[vid2pid[i]];
 
-            // update mesh position
-            g_mesh->m_positions[i] = Point3(pos.x, pos.y, pos.z);
-        }
-    }
+    //         // update mesh position
+    //         g_mesh->m_positions[i] = Point3(pos.x, pos.y, pos.z);
+    //     }
+    //     g_mesh->CalculateNormals();
+    // }
 
-    void Update(py::array_t<float> update_params) {
-        UpdateMesh();
-    }
+    // void Update(py::array_t<float> update_params) {
+    //     UpdateMesh();
+    // }
 };
