@@ -8,7 +8,16 @@ import pyflex
 from softgym.envs.cloth_env import ClothEnv
 from softgym.utils.pyflex_utils import center_object
 
-class TshirtEnv(ClothEnv):
+## Create a enum from garment type to garment id
+garment_type_to_id = {
+    'Tshirt': 0,
+    'Trousers': 1,
+    'Dress': 2, 
+    'Top': 3,
+    'Jumpsuit': 4
+}
+
+class GarmentEnv(ClothEnv):
     def __init__(self,  **kwargs):       
         super().__init__(**kwargs)
         self.get_cached_configs_and_states("", num_variations=kwargs['num_variations'])
@@ -23,6 +32,8 @@ class TshirtEnv(ClothEnv):
             'vel': [0., 0., 0.],
             'stiff': [0.8, 1, 0.9],
             'mass': 0.005,
+            'garment_type': 'Tshirt',
+            'shape_id': 0,
             'radius': self.cloth_particle_radius,
             'camera_name': 'default_camera',
             'camera_params': {'default_camera':
@@ -32,7 +43,8 @@ class TshirtEnv(ClothEnv):
                                    'height': self.camera_height}},
             'drop_height': 0.0,
             'front_colour':  [0.673, 0.111, 0.0],
-            'back_colour': [0.612, 0.194, 0.394]
+            'back_colour': [0.612, 0.194, 0.394],
+            'inside_colour': [0.673, 0.111, 0.0],
         }
 
         return config
@@ -144,12 +156,14 @@ class TshirtEnv(ClothEnv):
 
     def _set_to_flatten(self):
         pyflex.set_positions(self.default_pos)
-        self.rotate_particles([180,0,90])
+        self.rotate_particles([0,180,0])
         positions = pyflex.get_positions().reshape(-1, 4)
         positions[:, 1] -= min(positions[:, 1]) + 0.02
         pyflex.set_positions(positions.flatten())
         pyflex.step()
+        center_object(self.context_random_state, 0)
         self._wait_to_stabalise()
+        
         new_pos = self.get_particle_positions()
         return self.get_coverage(new_pos)
 
@@ -177,6 +191,7 @@ class TshirtEnv(ClothEnv):
 
         camera_params = config['camera_params'][config['camera_name']]
         env_idx = 5
+        
         scene_params = np.concatenate([
             config['pos'][:], 
             [config['scale'], config['rot']], 
@@ -188,8 +203,11 @@ class TshirtEnv(ClothEnv):
             [camera_params['width'], camera_params['height']], 
             [render_mode],
             config['front_colour'][:],
-            config['back_colour'][:]
+            config['back_colour'][:],
+            config['inside_colour'][:],
+            [garment_type_to_id[config['garment_type']], config['shape_id']]
         ])
+
         pyflex.set_scene(env_idx, scene_params, 0)
         if state is not None:
             self.set_state(state)

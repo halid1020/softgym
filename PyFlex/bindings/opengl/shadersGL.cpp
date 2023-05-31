@@ -1214,7 +1214,7 @@ void DrawCloth(const Vec4* positions, const Vec4* normals, const float* uvs,
 		glUniform1f(uBias, 0.0f);
 
 		GLint uExpand = glGetUniformLocation(s_diffuseProgram, "expand");
-		std::cout << "expand: " << expand << std::endl;
+		//std::cout << "expand: " << expand << std::endl;
 		glUniform1f(uExpand, expand);
 	}
 #endif

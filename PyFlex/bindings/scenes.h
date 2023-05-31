@@ -87,4 +87,4 @@ public:
 #include "scenes/triggervolume.h"
 #include "scenes/viscosity.h"
 #include "scenes/waterballoon.h"
-#include "softgym_scenes/softgym_tshirt.h" // softgym tshirt
+#include "softgym_scenes/softgym_garment.h" // softgym tshirt

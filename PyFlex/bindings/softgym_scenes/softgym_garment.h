@@ -6,8 +6,11 @@
 #include <cmath>
 #include <list>
 #include <iterator>
+#include <string>
 
-class SoftgymTshirt : public Scene
+
+
+class SoftgymGarment : public Scene
 {
 public:
     float cam_x;
@@ -21,12 +24,27 @@ public:
     char tshirt_path[100];
     Colour front_colour;
     Colour back_colour;
+    Colour inside_colour;
+    uint8_t garment_id;
+    uint8_t shape_id;
 
     // maps from vertex index to particle index
     map<uint32_t, uint32_t> vid2pid;
     map<uint32_t, uint32_t> pid2vid;
 
-    SoftgymTshirt(const char* name) : Scene(name) {}
+    // Map from garment id to garment name with strings
+    map<uint8_t, string> garment_id2name;
+
+    SoftgymGarment(const char* name): Scene(name) {
+        
+
+        // Initialize the garment id to name map
+        garment_id2name[0] = "Tshirt";
+        garment_id2name[1] = "Trousers";
+        garment_id2name[2] = "Dress";
+        garment_id2name[3] = "Top";
+        garment_id2name[4] = "Jumpsuit";
+    }
 
     char* make_path(char* full_path, std::string path) {
         strcpy(full_path, getenv("PYFLEXROOT"));
@@ -85,7 +103,8 @@ public:
 
 
     void createTshirt(const char* filename, Vec3 lower, float scale, float rotation, 
-        Vec3 velocity, int phase, float invMass, float stiffness, Colour front_colour, Colour back_colour)
+        Vec3 velocity, int phase, float invMass, float stiffness, 
+        Colour front_colour, Colour back_colour, Colour inside_colour)
     {
         // import the mesh
         Mesh* m = ImportMesh(filename);
@@ -110,7 +129,7 @@ public:
         int t1(0), t2(0);
         for (uint32_t i=0; i < m->GetNumVertices(); ++i) {
 
-            if (m->m_positions[i].z > 0.0) {
+            if (m->m_positions[i].y > 0.0) {
                 m->m_colours[i] = front_colour;
                 t1++;
             } else {
@@ -119,6 +138,7 @@ public:
             }
         }
         
+        g_colors[3] = inside_colour;
 
 
 
@@ -322,6 +342,10 @@ public:
 
         front_colour = Colour(ptr[22], ptr[23], ptr[24]);
         back_colour = Colour(ptr[25], ptr[26], ptr[27]);
+        inside_colour = Colour(ptr[28], ptr[29], ptr[30]);
+
+        std::string garment_type = garment_id2name[ptr[31]];
+        int shape_id = uint(ptr[32]);
 
 
 
@@ -330,12 +354,19 @@ public:
         float dynamic_friction = 1.0;
 
 
+        // create path for the garment from the garment id and shape id, /data/TriGarments/{garment name}/{garment name}_{shape id}.obj
+        // make {gament anem} and {shape id} as parameters
+        std::string shape_id_padded = std::to_string(shape_id);
+        shape_id_padded = std::string(4 - shape_id_padded.length(), '0') + shape_id_padded;
+        std::string garment_path = "/data/TriGarments/" + garment_type + "/" + garment_type + "_" + shape_id_padded + ".obj";
+        
+
         createTshirt(
-            make_path(tshirt_path, "/data/T-shirt.obj"), 
+            make_path(tshirt_path, garment_path), 
             Vec3(initX, initY, initZ), 
             scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, 
             stretchStiffness,
-            front_colour, back_colour);
+            front_colour, back_colour, inside_colour);
 
 
         g_numSubsteps = 4;
