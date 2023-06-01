@@ -22,7 +22,7 @@ garment_type_to_id = {
 class GarmentEnv(ClothEnv):
     def __init__(self,  **kwargs):       
         super().__init__(**kwargs)
-        self.get_cached_configs_and_states("", num_variations=kwargs['num_variations'])
+        self.get_cached_configs_and_states(kwargs['cached_states_path'], num_variations=kwargs['num_variations'])
 
 
     def get_default_config(self):
@@ -114,7 +114,10 @@ class GarmentEnv(ClothEnv):
 
             # Pick up the cloth and wait to stablize
             if self.context['state']:
-                pickpoint = self.context_random_state.randint(0, num_particle - 1)
+                visible_particle = self.get_visibility() ## This returns a list of bools indicating whether the particle is visible
+                ### Choose the pickpoint that is visible
+                visible_pickpoints = np.where(visible_particle)[0]
+                pickpoint = self.context_random_state.choice(visible_pickpoints)
                 curr_pos = pyflex.get_positions()
                 original_inv_mass = curr_pos[pickpoint * 4 + 3]
                 curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth
@@ -134,7 +137,11 @@ class GarmentEnv(ClothEnv):
 
                 # Drag the cloth and wait to stablise
                 if self.context_random_state.random() < 0.7:
-                    pickpoint = self.context_random_state.randint(0, num_particle - 1)
+                    visible_particle = self.get_visibility() ## This returns a list of bools indicating whether the particle is visible
+                    ### Choose the pickpoint that is visible
+                    visible_pickpoints = np.where(visible_particle)[0]
+                    pickpoint = self.context_random_state.choice(visible_pickpoints)
+                    
                     curr_pos = pyflex.get_positions()
                     original_inv_mass = curr_pos[pickpoint * 4 + 3]
                     curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth

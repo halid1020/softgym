@@ -380,7 +380,7 @@ public:
         g_sceneLower = Vec3(-1.0f);
         g_sceneUpper = Vec3(1.0f);
 
-        g_params.radius = radius*1.8f;
+        g_params.radius = radius*1.8f*(scale/0.3);
         g_params.collisionDistance =  0.005f;
 
         g_drawPoints = (render_type & 2) >>1; 

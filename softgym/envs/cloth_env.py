@@ -316,9 +316,12 @@ class ClothEnv(FlexEnv):
         return self.get_coverage(new_pos)
 
 
-    def get_visibility(self, positions):
+    def get_visibility(self, positions=None):
         # TODO: need to refactor this, so bad.
         # This has to be online.
+
+        if positions is None:
+            positions = self.get_particle_positions()
 
         N = positions.shape[0]
         
