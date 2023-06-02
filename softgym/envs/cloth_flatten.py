@@ -141,10 +141,48 @@ class ClothFlattenEnv(ClothEnv):
 
         return {
             'normalised_improvement': (current_coverage - initial_coverage)/(target_coverage - initial_coverage),
-            'normalised_coverage': (current_coverage/target_coverage)
+            'normalised_coverage': (current_coverage/target_coverage),
+            'wrinkle_pixel_ratio': self._get_wrinkle_pixel_ratio(particles)
         }
-
     
+    def _get_wrinkle_pixel_ratio(self, particles=None):
+        if particles is not None:
+            old_particles = pyflex.get_positions()
+            to_set_particles = old_particles.copy().reshape(-1, 4)
+            to_set_particles[:, :3] = particles
+            pyflex.set_positions(to_set_particles.flatten())
+            #pyflex.step()
+
+        rgb = self.render(mode='rgb')
+        rgb = cv2.resize(rgb, (128, 128))
+        mask = self.get_cloth_mask(pixel_size=(128, 128))
+
+        if mask.dtype != np.uint8:  # Ensure mask has a valid data type (uint8)
+            mask = mask.astype(np.uint8)
+
+        # plt.imshow(mask)
+        # plt.show()
+
+
+
+        if particles is not None:
+            pyflex.set_positions(old_particles)
+            #pyflex.step()
+
+        # Use cv2 edge detection to get the wrinkle ratio.
+        gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+        edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+        # plt.imshow(edges)
+        # plt.show()
+
+        masked_edges = cv2.bitwise_and(edges, mask)
+        # plt.imshow(masked_edges)
+        # plt.show()
+
+        wrinkle_ratio = np.sum(masked_edges) / np.sum(mask)
+
+        return wrinkle_ratio
+        
 
     def _get_center_point(self, pos):
         pos = np.reshape(pos, [-1, 4])
