@@ -9,6 +9,9 @@ import pyflex
 
 from softgym.envs.cloth_env import ClothEnv
 from softgym.utils.pyflex_utils import center_object
+from scipy.spatial import ConvexHull, convex_hull_plot_2d
+from scipy.spatial.qhull import QhullError
+import matplotlib.pyplot as plt
 
 ## Create a enum from garment type to garment id
 garment_type_to_id = {
@@ -108,13 +111,32 @@ class GarmentEnv(ClothEnv):
             self.action_tool.reset([0., -1., 0.])
             flatten_area = self._set_to_flatten()
             self._wait_to_stabalise()
+             
+            # ### Plot the rgb image with annotated key points
+            # resolution = (720, 720)
+            # rgb = self.render(mode='rgb')
+            # rgb = cv2.resize(rgb, resolution)
+            # key_positions = self.get_key_positions()
+            # key_visible_positions, key_projected_positions = self.get_visibility(
+            #     key_positions, resolution=resolution)
+            
+            # for vis, pos in zip(key_visible_positions, key_projected_positions):
+            #     if (np.max(np.abs(pos)) < 1.0):
+            #         pos = (pos + 1.0) * resolution[0] / 2
+            #         rgb = cv2.circle(rgb, (int(pos[0]), int(pos[1])), 8, (0, 0, 255), 2)
+
+
+            # plt.imshow(rgb)
+            # plt.show()
+            # ####################################################
+
             pos = pyflex.get_positions().reshape(-1, 4)
 
             num_particle = pos.shape[0]
 
             # Pick up the cloth and wait to stablize
             if self.context['state']:
-                visible_particle = self.get_visibility() ## This returns a list of bools indicating whether the particle is visible
+                visible_particle, _ = self.get_visibility() ## This returns a list of bools indicating whether the particle is visible
                 ### Choose the pickpoint that is visible
                 visible_pickpoints = np.where(visible_particle)[0]
                 pickpoint = self.context_random_state.choice(visible_pickpoints)
@@ -137,7 +159,7 @@ class GarmentEnv(ClothEnv):
 
                 # Drag the cloth and wait to stablise
                 if self.context_random_state.random() < 0.7:
-                    visible_particle = self.get_visibility() ## This returns a list of bools indicating whether the particle is visible
+                    visible_particle, _ = self.get_visibility() ## This returns a list of bools indicating whether the particle is visible
                     ### Choose the pickpoint that is visible
                     visible_pickpoints = np.where(visible_particle)[0]
                     pickpoint = self.context_random_state.choice(visible_pickpoints)
@@ -185,17 +207,16 @@ class GarmentEnv(ClothEnv):
         return generated_configs, generated_states
 
     def _set_to_flatten(self):
-        pyflex.set_positions(self.default_pos)
-        self.rotate_particles([0,180,0])
-        positions = pyflex.get_positions().reshape(-1, 4)
-        positions[:, 1] -= min(positions[:, 1]) + 0.02
-        pyflex.set_positions(positions.flatten())
-        pyflex.step()
-        center_object(self.context_random_state, 0)
+        pyflex.set_positions(self.canonical_pos)
         self._wait_to_stabalise()
-        
-        new_pos = self.get_particle_positions()
-        return self.get_coverage(new_pos)
+        return self.get_coverage(self.get_particle_positions())
+    
+    def get_normalised_coverage(self, particle_positions=None):
+        if particle_positions is None:
+            particle_positions = self.get_particle_positions()
+        coverage_area = self.get_coverage(particle_positions)
+        cananical_area = self.get_coverage(self.canonical_pos.reshape(-1, 4)[:, :3].copy())
+        return coverage_area
 
     def rotate_particles(self, angle):
         r = R.from_euler('zyx', angle, degrees=True)
@@ -222,7 +243,7 @@ class GarmentEnv(ClothEnv):
         camera_params = config['camera_params'][config['camera_name']]
         env_idx = 5
 
-        print(config)
+        #print(config)
         
         scene_params = np.concatenate([
             config['pos'][:], 
@@ -241,14 +262,86 @@ class GarmentEnv(ClothEnv):
         ])
 
         pyflex.set_scene(env_idx, scene_params, 0)
+        self.default_pos = pyflex.get_positions()
+
+        ### Get key ids
+        self.canonicalise() ### set the cannical position
+        self.key_ids = self._extract_key_ids()
+
+        ### Set to Flatten
+        self._flatten_area = self._set_to_flatten()
+        self.flatten_pos = pyflex.get_positions().copy()
+
+        ### Set the state
         if state is not None:
             self.set_state(state)
-        self.default_pos = pyflex.get_positions().reshape(-1, 4)
+        self.initial_state_pos = pyflex.get_positions()
+    
+    def get_key_ids(self):
+        return self.key_ids
+    
+    def get_key_positions(self):
+        return self.get_particle_positions()[self.key_ids]
+
+    def get_flatten_key_positions(self):
+
+        return self.flatten_pos.reshape(-1, 4)[:, :3][self.key_ids].copy()
+
+
+    def canonicalise(self):
+        pyflex.set_positions(self.default_pos)
+        self.rotate_particles([180,180,0])
+        positions = pyflex.get_positions().reshape(-1, 4)
+        positions[:, 1] -= min(positions[:, 1]) + 0.02
+        pyflex.set_positions(positions.flatten())
+        pyflex.step()
+        center_object(self.context_random_state, 0)
+        self.canonical_pos = pyflex.get_positions()
+
+    
+
+    
+    def _get_convex_hull(self, particles_2d):
+        hull = ConvexHull(particles_2d)
+        
+
+        vertices = hull.vertices
+        
+        ### If two vertices are too close in particles_2d, remove one
+
+        while True:
+
+            vertices_to_remove = []
+            for i in range(len(vertices)):
+                for j in range(i+1, len(vertices)):
+                    if np.linalg.norm(particles_2d[vertices[i]] - particles_2d[vertices[j]]) < 0.025:
+                        vertices_to_remove.append(j)
+            if len(vertices_to_remove) == 0:
+                break    
+            vertices = np.delete(vertices, vertices_to_remove)
+            break
+
+        return vertices
+
+    
+    def _extract_key_ids(self):
+        pyflex.set_positions(self.canonical_pos)
+        pyflex.step()
+
+        particles = self.get_particle_positions()
+        particles_2d = particles[:, [0, 2]]
+
+        convex_hull_vertices = self._get_convex_hull(particles_2d)
+
+        return convex_hull_vertices
+
+
+
 
     def _reset(self):
         """ Right now only use one initial state"""
         
-        self.set_scene(self.cached_configs[self.current_config_id], self.cached_init_states[self.current_config_id])
+        #self.set_scene(self.cached_configs[self.current_config_id], self.cached_init_states[self.current_config_id])
         # self._flatten_particel_positions = self.get_flatten_positions()
         # self._flatten_coverage =  self.get_coverage(self._flatten_particel_positions)
         
@@ -325,28 +418,3 @@ class GarmentEnv(ClothEnv):
         if self.action_mode == 'pickerpickplace':
             self._prior_action_coverage = self._current_action_coverage
             self._current_action_coverage = self.get_coverage(self.get_particle_positions())
-    
-
-    # def reset(self,given_goal=None, given_goal_pos=None):
-    #     self.set_scene()
-    #     self.particle_num = pyflex.get_n_particles()
-    #     self.prev_reward = 0.
-    #     self.time_step = 0
-    #     self._set_to_flatten()
-    #     if hasattr(self, 'action_tool'):
-    #         self.action_tool.reset([0, 0.1, 0])
-    #         self.set_picker_pos(self.reset_pos)
-    #     self.goal = given_goal 
-    #     self.goal_pos = given_goal_pos 
-    #     if self.recording:
-    #         self.video_frames.append(self.render(mode='rgb_array'))
-
-    #     self.render(mode='rgb_array')
-    #     self._set_to_flatten()
-    #     self.move_to_pos([0,0.05,0])
-    #     for i in range(10):
-    #         pyflex.step()
-    #         #self.render(mode='rgb_array')
-    #     obs = self._get_obs()
-
-    #     return obs

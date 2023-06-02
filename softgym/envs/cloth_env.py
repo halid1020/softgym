@@ -9,6 +9,8 @@ from copy import deepcopy
 from softgym.utils.misc import vectorized_range, vectorized_meshgrid
 from softgym.utils.pyflex_utils import center_object
 
+import matplotlib.pyplot as plt
+
 class ClothEnv(FlexEnv):
     def __init__(self, observation_mode, action_mode, num_picker=2, render_mode='particle', 
         picker_radius=0.02, picker_threshold=0.002, particle_radius=0.00625, 
@@ -129,6 +131,10 @@ class ClothEnv(FlexEnv):
             self.set_scene(config)
             self.action_tool.reset([0., -1., 0.])
             self._set_to_flatten()
+
+           
+
+
             pos = pyflex.get_positions().reshape(-1, 4)
             pos[:, :3] -= np.mean(pos, axis=0)[:3]
             if self.action_mode in ['sawyer', 'franka']:  # Take care of the table in robot case
@@ -316,7 +322,7 @@ class ClothEnv(FlexEnv):
         return self.get_coverage(new_pos)
 
 
-    def get_visibility(self, positions=None):
+    def get_visibility(self, positions=None, resolution=(64, 64)):
         # TODO: need to refactor this, so bad.
         # This has to be online.
 
@@ -337,22 +343,63 @@ class ClothEnv(FlexEnv):
             axis=1)
 
         depth_images = self.render(mode='rgbd')[:, :, 3]
-        depth_images = cv2.resize(depth_images, (128, 128))
+        depth_images = cv2.resize(depth_images, resolution)
         #print(depth_images.shape)
 
         for i in range(N):
             x, y = projected_pixel_positions[i][0],  projected_pixel_positions[i][1]
             if x < -1 or x > 1 or y < -1 or y > 1:
                 continue
-            x_ = int((y + 1)/2 * 128)
-            y_ = int((x + 1)/2 * 128)
+            x_ = int((y + 1)/2 * resolution[0])
+            y_ = int((x + 1)/2 * resolution[1])
             if depths[i] < depth_images[x_][y_] + 1e-6:
                 visibility[i] = True
             
-        return np.asarray(visibility)
+        return np.asarray(visibility), projected_pixel_positions
 
     def get_normalised_coverage(self):
         return self._normalised_coverage()
+    
+    def get_wrinkle_ratio(self):
+        return self._get_wrinkle_pixel_ratio()
+    
+    def _get_wrinkle_pixel_ratio(self, particles=None):
+        if particles is not None:
+            old_particles = pyflex.get_positions()
+            to_set_particles = old_particles.copy().reshape(-1, 4)
+            to_set_particles[:, :3] = particles
+            pyflex.set_positions(to_set_particles.flatten())
+            #pyflex.step()
+
+        rgb = self.render(mode='rgb')
+        rgb = cv2.resize(rgb, (128, 128))
+        mask = self.get_cloth_mask(pixel_size=(128, 128))
+
+        if mask.dtype != np.uint8:  # Ensure mask has a valid data type (uint8)
+            mask = mask.astype(np.uint8)
+
+        # plt.imshow(mask)
+        # plt.show()
+
+
+
+        if particles is not None:
+            pyflex.set_positions(old_particles)
+            #pyflex.step()
+
+        # Use cv2 edge detection to get the wrinkle ratio.
+        gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+        edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+        # plt.imshow(edges)
+        # plt.show()
+
+        masked_edges = cv2.bitwise_and(edges, mask)
+        # plt.imshow(masked_edges)
+        # plt.show()
+
+        wrinkle_ratio = np.sum(masked_edges) / np.sum(mask)
+
+        return wrinkle_ratio
     
 
     def get_corner_positions(self, position=None):
