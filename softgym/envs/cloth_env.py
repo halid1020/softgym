@@ -357,8 +357,8 @@ class ClothEnv(FlexEnv):
             
         return np.asarray(visibility), projected_pixel_positions
 
-    def get_normalised_coverage(self):
-        return self._normalised_coverage()
+    # def get_normalised_coverage(self):
+    #     return self._normalised_coverage()
     
     def get_wrinkle_ratio(self):
         return self._get_wrinkle_pixel_ratio()

@@ -260,6 +260,7 @@ class GarmentEnv(ClothEnv):
             config['inside_colour'][:],
             [garment_type_to_id[config['garment_type']], config['shape_id']]
         ])
+        self.camera_params['default_camera'] = camera_params
 
         pyflex.set_scene(env_idx, scene_params, 0)
         self.default_pos = pyflex.get_positions()
@@ -267,6 +268,24 @@ class GarmentEnv(ClothEnv):
         ### Get key ids
         self.canonicalise() ### set the cannical position
         self.key_ids = self._extract_key_ids()
+
+         # ### Plot the rgb image with annotated key points
+        resolution = (720, 720)
+        rgb = self.render(mode='rgb')
+        rgb = cv2.resize(rgb, resolution)
+        key_positions = self.get_key_positions()
+        key_visible_positions, key_projected_positions = self.get_visibility(
+            key_positions, resolution=resolution)
+        
+        for vis, pos in zip(key_visible_positions, key_projected_positions):
+            if (np.max(np.abs(pos)) < 1.0):
+                pos = (pos + 1.0) * resolution[0] / 2
+                rgb = cv2.circle(rgb, (int(pos[0]), int(pos[1])), 8, (0, 0, 255), 2)
+
+
+        plt.imshow(rgb)
+        plt.show()
+        # ####################################################
 
         ### Set to Flatten
         self._flatten_area = self._set_to_flatten()
@@ -330,10 +349,18 @@ class GarmentEnv(ClothEnv):
 
         particles = self.get_particle_positions()
         particles_2d = particles[:, [0, 2]]
+        visibility, _ = self.get_visibility()
+        
+        ### Get the indices of the particles that are visible
+        visible_particle_indices = np.where(visibility == 1)[0]
+        visible_particles = particles_2d[visible_particle_indices]
 
-        convex_hull_vertices = self._get_convex_hull(particles_2d)
+        convex_hull_vertices = self._get_convex_hull(visible_particles)
 
-        return convex_hull_vertices
+        ### Get the indices of the particles that are in the convex hull
+        convex_hull_particle_indices = visible_particle_indices[convex_hull_vertices]
+
+        return convex_hull_particle_indices
 
 
 
