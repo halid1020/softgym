@@ -24,6 +24,7 @@ class ClothEnv(FlexEnv):
         self.render_mode = render_mode
         self.action_mode = action_mode
         self.pixel_to_world_ratio = 0.4135
+        self.num_picker = num_picker
 
         # Context
         self.recolour_config = kwargs['recolour_config']
@@ -36,26 +37,26 @@ class ClothEnv(FlexEnv):
         assert action_mode in ['velocity_control', 'pickerpickplace', 'pickerpickplace1', 'sawyer', 'franka', 'picker_qpg']
         self.observation_mode = observation_mode
 
-        if action_mode == 'velocity_control':
-            self.action_tool = Picker(num_picker, picker_radius=picker_radius, particle_radius=particle_radius, picker_threshold=picker_threshold,
-                                      picker_low=kwargs['picker_low'], picker_high=kwargs['picker_high'], save_step_info=kwargs['save_step_info'])
-            self.action_space = self.action_tool.action_space
-            self.picker_radius = picker_radius
+        # if action_mode == 'velocity_control':
+        self.action_tool = Picker(num_picker, picker_radius=picker_radius, particle_radius=particle_radius, picker_threshold=picker_threshold,
+                                    picker_low=kwargs['picker_low'], picker_high=kwargs['picker_high'], save_step_info=kwargs['save_step_info'])
+        self.action_space = self.action_tool.action_space
+        self.picker_radius = picker_radius
         
-        elif action_mode == 'pickerpickplace':
-            self.action_tool = PickerPickPlace(
-                num_picker=num_picker, 
-                particle_radius=particle_radius, 
-                env=self, picker_threshold=picker_threshold, 
-                picker_radius=picker_radius,
-                motion_trajectory=motion_trajectory,
-                camera_depth=self.get_current_config()['camera_params']['default_camera']['pos'][1],
-                **kwargs)
-            self.action_step = 0
-            self.action_horizon = kwargs['action_horizon']
+        # elif action_mode == 'pickerpickplace':
+        #     self.action_tool = PickerPickPlace(
+        #         num_picker=num_picker, 
+        #         particle_radius=particle_radius, 
+        #         env=self, picker_threshold=picker_threshold, 
+        #         picker_radius=picker_radius,
+        #         motion_trajectory=motion_trajectory,
+        #         camera_depth=self.get_current_config()['camera_params']['default_camera']['pos'][1],
+        #         **kwargs)
+        #     self.action_step = 0
+        #     self.action_horizon = kwargs['action_horizon']
 
-            self.action_space = self.action_tool.action_space
-            assert self.action_repeat == 1
+        #     self.action_space = self.action_tool.action_space
+        #     assert self.action_repeat == 1
 
 
         if ('state' not in observation_mode.keys()) or (observation_mode['state'] == None):
@@ -86,6 +87,9 @@ class ClothEnv(FlexEnv):
         elif observation_mode['image'] == 'cam_d':
             self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 1),
                                          dtype=np.float32)
+            
+    def get_num_picker(self):
+        return self.num_picker
             
     def get_action_space(self):
         return self.action_space

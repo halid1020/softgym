@@ -108,7 +108,7 @@ class GarmentEnv(ClothEnv):
             #     config['ClothSize'] = [cloth_dimx, cloth_dimy]
             # else:
             self.set_scene(config)
-            self.action_tool.reset([0., -1., 0.])
+            # self.action_tool.reset([0., -1., 0.])
             flatten_area = self._set_to_flatten()
             self._wait_to_stabalise()
              
@@ -191,8 +191,8 @@ class GarmentEnv(ClothEnv):
                 self._wait_to_stabalise()
             
 
-            if self.action_mode == 'sphere' or self.action_mode.startswith('picker'):
-                self.action_tool.reset(np.asarray([0.5, 0.2, 0.5]))
+            # if self.action_mode == 'sphere' or self.action_mode.startswith('picker'):
+            #     self.action_tool.reset(np.asarray([0.5, 0.2, 0.5]))
             
             pyflex.step()
             
@@ -407,6 +407,7 @@ class GarmentEnv(ClothEnv):
             self.step_info = {}
 
         self.control_step +=  self.action_tool.step(action)
+        print('control_step', self.control_step)
         
         if self.save_step_info:
             self.step_info = self.action_tool.get_step_info()
@@ -431,17 +432,17 @@ class GarmentEnv(ClothEnv):
                         self.step_info[k].append(v)
 
 
-        if self.action_mode == 'pickerpickplace':
-            self.action_step += 1
-            self._wait_to_stabalise()
+        # if self.action_mode == 'pickerpickplace':
+        #     self.action_step += 1
+        #     self._wait_to_stabalise()
 
-        else:
-            self.tick_control_step()
+        # else:
+        #     self.tick_control_step()
 
-        if self.save_step_info:
-            self.step_info = {k: np.stack(v) for k, v in self.step_info.items()}
+        # if self.save_step_info:
+        #     self.step_info = {k: np.stack(v) for k, v in self.step_info.items()}
 
-         ### Update parameters for quasi-static pick and place.
-        if self.action_mode == 'pickerpickplace':
-            self._prior_action_coverage = self._current_action_coverage
-            self._current_action_coverage = self.get_coverage(self.get_particle_positions())
+        #  ### Update parameters for quasi-static pick and place.
+        # if self.action_mode == 'pickerpickplace':
+        #     self._prior_action_coverage = self._current_action_coverage
+        #     self._current_action_coverage = self.get_coverage(self.get_particle_positions())

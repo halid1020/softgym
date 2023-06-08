@@ -51,6 +51,7 @@ class FlexEnv(gym.Env):
         self.sampling_random_state = np.random.RandomState(kwargs['random_seed'])
         print('Random seed for sampling initial states: ', kwargs['random_seed'])
         self.control_horizon = control_horizon
+        print('Control horizon: ', self.control_horizon)
         self.control_step = 0
         self._render = render
 
@@ -229,8 +230,8 @@ class FlexEnv(gym.Env):
         if (self.control_horizon is not None) and (self.control_step >= self.control_horizon):
             done = True
         
-        if self.action_mode != 'velocity_control' and (self.action_horizon is not None) and self.action_step >= self.action_horizon:
-            done = True
+        # if self.action_mode != 'velocity' and (self.action_horizon is not None) and self.action_step >= self.action_horizon:
+        #     done = True
 
         # if record_continuous_video:
         #     info['flex_env_recorded_frames'] = frames
