@@ -243,6 +243,10 @@ class ClothEnv(FlexEnv):
 
     def get_picker_pos(self):
         return self.action_tool.get_picker_pos()
+    
+    def get_picker_position(self):
+        pos = self.get_picker_pos()
+        return pos[:, :3].copy()
 
     def get_corner_positions(self, particle_positions=None):
         if particle_positions is None:

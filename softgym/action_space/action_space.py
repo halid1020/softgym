@@ -204,7 +204,6 @@ class Picker(ActionToolBase):
         2. Update picker pos
         3. Update picked particle pos
         """
-        print('action_step')
         
         action = np.reshape(action, (-1, 4))
 

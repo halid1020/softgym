@@ -407,7 +407,6 @@ class GarmentEnv(ClothEnv):
             self.step_info = {}
 
         self.control_step +=  self.action_tool.step(action)
-        print('control_step', self.control_step)
         
         if self.save_step_info:
             self.step_info = self.action_tool.get_step_info()
