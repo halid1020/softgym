@@ -42,7 +42,7 @@ class ClothFlattenEnv(ClothEnv):
         self._set_to_flatten()
         self.set_scene(self.cached_configs[self.current_config_id], self.cached_init_states[self.current_config_id])
         
-        self._flatten_particel_positions = self.get_flatten_positions()
+        self._flatten_particel_positions = self.get_flattened_positions()
         self._flatten_coverage =  self.get_coverage(self._flatten_particel_positions)
         
         self._initial_particel_positions = self.get_particle_positions()

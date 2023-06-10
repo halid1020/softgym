@@ -208,7 +208,7 @@ class Picker(ActionToolBase):
         action = np.reshape(action, (-1, 4))
 
         grip_flag = (action[:, 3] < 0)
-        realse_flag = (0 <= action[:, 3]) & (action[:, 3] < 1)
+        realse_flag = (0 <= action[:, 3]) & (action[:, 3] <= 1)
         
         picker_pos, particle_pos = self._get_pos()
         new_picker_pos, new_particle_pos = picker_pos.copy(), particle_pos.copy()
@@ -216,8 +216,7 @@ class Picker(ActionToolBase):
         # Un-pick the particles
         # print('check pick id:', self.picked_particles, new_particle_pos.shape, self.particle_inv_mass.shape)
         for i in range(self.num_picker):
-            if (realse_flag[i] or grip_flag[i]) and self.picked_particles[i] is not None:
-                #print('release ...')
+            if (realse_flag[i]) and (self.picked_particles[i] is not None):
                 new_particle_pos[self.picked_particles[i], 3] = self.particle_inv_mass[self.picked_particles[i]]  # Revert the mass
                 self.picked_particles[i] = None
         
@@ -226,11 +225,8 @@ class Picker(ActionToolBase):
         # Pick new particles and update the mass and the positions
         for i in range(self.num_picker):
             new_picker_pos[i, :] = self._apply_picker_boundary(picker_pos[i, :] + action[i, :3])
-            if realse_flag[i]:
-                continue
 
-            if grip_flag[i]:  # No particle is currently picked and thus need to select a particle to pick
-                #print('Intent to pick .....')
+            if grip_flag[i] and (self.picked_particles[i] is None):  # No particle is currently picked and thus need to select a particle to pick
                 dists = scipy.spatial.distance.cdist(picker_pos[i].reshape((-1, 3)), particle_pos[:, :3].reshape((-1, 3)))
                 idx_dists = np.hstack([np.arange(particle_pos.shape[0]).reshape((-1, 1)), dists.reshape((-1, 1))])
                 
@@ -256,33 +252,32 @@ class Picker(ActionToolBase):
                         self.picked_particles[i] = int(pick_id)
 
             if self.picked_particles[i] is not None:
-                #print('holding....')
                 # TODO The position of the particle needs to be updated such that it is close to the picker particle
-                new_particle_pos[self.picked_particles[i], :3] = particle_pos[self.picked_particles[i], :3] + new_picker_pos[i, :] - picker_pos[i,
-                                                                                                                                        :]
+                new_particle_pos[self.picked_particles[i], :3] = \
+                    particle_pos[self.picked_particles[i], :3] + new_picker_pos[i, :] - picker_pos[i, :]
                 new_particle_pos[self.picked_particles[i], 3] = 0  # Set the mass to infinity
 
-        # check for e.g., rope, the picker is not dragging the particles too far away that violates the actual physicals constraints.
-        if self.init_particle_pos is not None:
-            picked_particle_idices = []
-            active_picker_indices = []
-            for i in range(self.num_picker):
-                if self.picked_particles[i] is not None:
-                    picked_particle_idices.append(self.picked_particles[i])
-                    active_picker_indices.append(i)
+        # # check for e.g., rope, the picker is not dragging the particles too far away that violates the actual physicals constraints.
+        # if self.init_particle_pos is not None:
+        #     picked_particle_idices = []
+        #     active_picker_indices = []
+        #     for i in range(self.num_picker):
+        #         if self.picked_particles[i] is not None:
+        #             picked_particle_idices.append(self.picked_particles[i])
+        #             active_picker_indices.append(i)
 
-            l = len(picked_particle_idices)
-            for i in range(l):
-                for j in range(i + 1, l):
-                    init_distance = np.linalg.norm(self.init_particle_pos[picked_particle_idices[i], :3] -
-                                                   self.init_particle_pos[picked_particle_idices[j], :3])
-                    now_distance = np.linalg.norm(new_particle_pos[picked_particle_idices[i], :3] -
-                                                  new_particle_pos[picked_particle_idices[j], :3])
-                    if now_distance >= init_distance * self.spring_coef:  # if dragged too long, make the action has no effect; revert it
-                        new_picker_pos[active_picker_indices[i], :] = picker_pos[active_picker_indices[i], :].copy()
-                        new_picker_pos[active_picker_indices[j], :] = picker_pos[active_picker_indices[j], :].copy()
-                        new_particle_pos[picked_particle_idices[i], :3] = particle_pos[picked_particle_idices[i], :3].copy()
-                        new_particle_pos[picked_particle_idices[j], :3] = particle_pos[picked_particle_idices[j], :3].copy()
+        #     l = len(picked_particle_idices)
+        #     for i in range(l):
+        #         for j in range(i + 1, l):
+        #             init_distance = np.linalg.norm(self.init_particle_pos[picked_particle_idices[i], :3] -
+        #                                            self.init_particle_pos[picked_particle_idices[j], :3])
+        #             now_distance = np.linalg.norm(new_particle_pos[picked_particle_idices[i], :3] -
+        #                                           new_particle_pos[picked_particle_idices[j], :3])
+        #             if now_distance >= init_distance * self.spring_coef:  # if dragged too long, make the action has no effect; revert it
+        #                 new_picker_pos[active_picker_indices[i], :] = picker_pos[active_picker_indices[i], :].copy()
+        #                 new_picker_pos[active_picker_indices[j], :] = picker_pos[active_picker_indices[j], :].copy()
+        #                 new_particle_pos[picked_particle_idices[i], :3] = particle_pos[picked_particle_idices[i], :3].copy()
+        #                 new_particle_pos[picked_particle_idices[j], :3] = particle_pos[picked_particle_idices[j], :3].copy()
 
         self._set_pos(new_picker_pos, new_particle_pos)
         

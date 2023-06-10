@@ -42,7 +42,7 @@ class ClothFoldEnv(ClothEnv):
                 self._rotate_particles(angle)
 
 
-        self._flatten_particel_positions = self.get_flatten_positions()
+        self._flatten_particel_positions = self.get_flattened_positions()
         self._flatten_coverage =  self.get_coverage(self._flatten_particel_positions)
         
         self._initial_particel_positions = self.get_particle_positions()

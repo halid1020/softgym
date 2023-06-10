@@ -256,11 +256,17 @@ class ClothEnv(FlexEnv):
     def get_flatten_corner_positions(self):
         return self._flatten_corner_positions
 
+    def get_initial_coverage(self):
+        return self._initial_coverage
+    
+    def get_canonical_mask(self, resolution=(64, 64)):
+        ret_mask = cv2.resize(self._canonical_mask.astype(np.float), resolution, interpolation=cv2.INTER_LINEAR)
+        return ret_mask.astype(np.bool)
 
-    def get_cloth_mask(self, pixel_size=(64, 64)):
+    def get_cloth_mask(self, resolution=(64, 64)):
         depth_images = self.render(mode='rgbd')[:, :, 3]
-        if pixel_size != (720,720):
-            depth_images = cv2.resize(depth_images, pixel_size, interpolation=cv2.INTER_LINEAR)
+        if resolution != (720,720):
+            depth_images = cv2.resize(depth_images, resolution, interpolation=cv2.INTER_LINEAR)
         mask = (1.35 < depth_images) & (depth_images < 1.499)
         return mask
 
@@ -287,6 +293,7 @@ class ClothEnv(FlexEnv):
         curr_pos[:, :3] = flat_pos
         pyflex.set_positions(curr_pos.flatten())
         pyflex.step()
+        self._canonical_mask = self.get_cloth_mask()
     
     def _flatten_pos(self):
         cloth_dimx, cloth_dimz = self.get_current_config()['ClothSize']
@@ -313,12 +320,12 @@ class ClothEnv(FlexEnv):
 
         return new_pos.copy()
     
-    def get_flatten_positions(self):
+    def get_flattened_positions(self):
         pos = self._flatten_pos()
         return pos.reshape(-1, 4)[:, :3].copy()
     
-    def get_flatten_coverage(self):
-        return self.get_coverage(self.get_flatten_positions())
+    def get_flattened_coverage(self):
+        return self.get_coverage(self.get_flattened_positions())
 
    
     def _set_to_flatten(self):
@@ -450,25 +457,28 @@ class ClothEnv(FlexEnv):
         if particle_positions is None:
             particle_positions = self.get_particle_positions()
         coverage_area = self.get_coverage(particle_positions) 
-        return coverage_area/self.get_coverage(self.get_flatten_positions())
+        return coverage_area/self.get_coverage(self.get_flattened_positions())
     
     def get_cloth_size(self):
         W, H =  self.get_current_config()['ClothSize']
         return H, W
     
-    def get_coverage(self, pos):
+    def get_coverage(self, positions=None):
         """
         Calculate the covered area by taking max x,y cood and min x,y coord, create a discritized grid between the points
         :param pos: Current positions of the particle states
         """
         #pos = np.reshape(pos, [-1, 4])
-        min_x = np.min(pos[:, 0])
-        min_y = np.min(pos[:, 2])
-        max_x = np.max(pos[:, 0])
-        max_y = np.max(pos[:, 2])
+        if positions is None:
+            positions = self.get_particle_positions()
+
+        min_x = np.min(positions[:, 0])
+        min_y = np.min(positions[:, 2])
+        max_x = np.max(positions[:, 0])
+        max_y = np.max(positions[:, 2])
         init = np.array([min_x, min_y])
         span = np.array([max_x - min_x, max_y - min_y]) / 100.
-        pos2d = pos[:, [0, 2]]
+        pos2d = positions[:, [0, 2]]
 
         offset = pos2d - init
         slotted_x_low = np.maximum(np.round((offset[:, 0] - self.cloth_particle_radius) / span[0]).astype(int), 0)
@@ -623,6 +633,8 @@ class ClothEnv(FlexEnv):
         if state is not None:
             self.set_state(state)
         self.current_config = deepcopy(config)
+
+        self._initial_coverage = self.get_coverage()
     
     def tick_control_step(self):
         super().tick_control_step()
@@ -646,6 +658,20 @@ class ClothEnv(FlexEnv):
         edge_ids.extend([(i+1)*cloth_dimx-1 for i in range(1, cloth_dimy)])
         edge_ids.extend([(cloth_dimy-1)*cloth_dimx + i for i in range(1, cloth_dimx-1)])
         return edge_ids
+    
+    def wait_until_stable(self, max_wait_step=300, stable_vel_threshold=0.0006):
+        self._wait_to_stabalise(max_wait_step=max_wait_step, stable_vel_threshold=stable_vel_threshold)
+
+        obs = self._get_obs()
+        reward = self.compute_reward()
+        #info = self._get_info()
+
+
+        done = False
+        if (self.control_horizon is not None) and (self.control_step >= self.control_horizon):
+            done = True
+
+        return obs, reward, done
     
     def _wait_to_stabalise(self, max_wait_step=300, stable_vel_threshold=0.0006,
             target_point=None, target_pos=None):

@@ -209,7 +209,11 @@ class GarmentEnv(ClothEnv):
     def _set_to_flatten(self):
         pyflex.set_positions(self.canonical_pos)
         self._wait_to_stabalise()
+        self._canonical_mask = self.get_cloth_mask()
         return self.get_coverage(self.get_particle_positions())
+    
+    def get_flattened_coverage(self):
+        return self._flattened_coverage
     
     def get_normalised_coverage(self, particle_positions=None):
         if particle_positions is None:
@@ -283,18 +287,19 @@ class GarmentEnv(ClothEnv):
                 rgb = cv2.circle(rgb, (int(pos[0]), int(pos[1])), 8, (0, 0, 255), 2)
 
 
-        plt.imshow(rgb)
-        plt.show()
+        # plt.imshow(rgb)
+        # plt.show()
         # ####################################################
 
         ### Set to Flatten
-        self._flatten_area = self._set_to_flatten()
+        self._flattened_coverage = self._set_to_flatten()
         self.flatten_pos = pyflex.get_positions().copy()
 
         ### Set the state
         if state is not None:
             self.set_state(state)
         self.initial_state_pos = pyflex.get_positions()
+        self._initial_coverage = self.get_coverage()
     
     def get_key_ids(self):
         return self.key_ids
