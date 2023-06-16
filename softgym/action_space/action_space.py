@@ -104,6 +104,8 @@ class Picker(ActionToolBase):
         if self.save_step_info:
             self.clean_step_info()
 
+        print('picker high', self.picker_high.shape)
+
         for i in (0, 2):
             offset = center[i] - (self.picker_high[:, i] + self.picker_low[:, i]) / 2.
             self.picker_low[:, i] += offset

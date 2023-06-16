@@ -206,12 +206,15 @@ class FlexEnv(gym.Env):
         self.prev_reward = 0.
         self.control_step = 0
 
-        obs, reward = self._reset()
+        obs = self._reset()
 
         if self.recording:
             self.video_frames.append(self.render(mode='rgb'))
 
-        return obs, reward
+        return {
+            'observation': obs,
+            'done': False
+        }
 
     def step(self, action, img_size=None):
         """ If record_continuous_video is set to True, will record an image for each sub-step"""
@@ -222,7 +225,7 @@ class FlexEnv(gym.Env):
 
             self._step(action)
         obs = self._get_obs()
-        reward = self.compute_reward()
+        #reward = self.compute_reward()
         #info = self._get_info()
 
 
@@ -236,7 +239,11 @@ class FlexEnv(gym.Env):
         # if record_continuous_video:
         #     info['flex_env_recorded_frames'] = frames
 
-        return obs, reward, done
+        return {
+            'observation': obs,
+            'done': done
+        }
+    
 
     def initialize_camera(self):
         """

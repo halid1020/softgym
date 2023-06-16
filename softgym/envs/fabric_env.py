@@ -40,10 +40,12 @@ class FabricEnv(ClothEnv):
     def _reset(self):
         """ Right now only use one initial state"""
         self._set_to_flatten()
+        self._canonical_mask = self.get_cloth_mask()
         self.set_scene(self.cached_configs[self.current_config_id], self.cached_init_states[self.current_config_id])
         
         self._flatten_particel_positions = self.get_flattened_positions()
         self._flatten_coverage =  self.get_coverage(self._flatten_particel_positions)
+        
         
         self._initial_particel_positions = self.get_particle_positions()
         self._initial_coverage = self.get_coverage(self._initial_particel_positions)
@@ -53,8 +55,8 @@ class FabricEnv(ClothEnv):
         #     self.action_step = 0
         #     self._current_action_coverage = self._prior_action_coverage = self._initial_coverage
 
-        # if hasattr(self, 'action_tool'):
-        #     self.action_tool.reset(np.asarray([0.2, 0.2, 0.2]))
+        if hasattr(self, 'action_tool'):
+            self.action_tool.reset(np.asarray([0.2, 0.2, 0.2]))
 
 
         # if hasattr(self, 'action_tool'):
@@ -71,7 +73,7 @@ class FabricEnv(ClothEnv):
             
         pyflex.step()
         self.init_covered_area = None
-        return self._get_obs(), None
+        return self._get_obs()
 
     def _step(self, action):
 
@@ -103,20 +105,20 @@ class FabricEnv(ClothEnv):
                         self.step_info[k].append(v)
 
 
-        if self.action_mode == 'pickerpickplace':
-            self.action_step += 1
-            self._wait_to_stabalise()
+        # if self.action_mode == 'pickerpickplace':
+        #     self.action_step += 1
+        #     self._wait_to_stabalise()
 
-        else:
-            self.tick_control_step()
+        # else:
+        # self.tick_control_step()
 
-        if self.save_step_info:
-            self.step_info = {k: np.stack(v) for k, v in self.step_info.items()}
+        # if self.save_step_info:
+        #     self.step_info = {k: np.stack(v) for k, v in self.step_info.items()}
 
-         ### Update parameters for quasi-static pick and place.
-        if self.action_mode == 'pickerpickplace':
-            self._prior_action_coverage = self._current_action_coverage
-            self._current_action_coverage = self.get_coverage(self.get_particle_positions())
+        #  ### Update parameters for quasi-static pick and place.
+        # if self.action_mode == 'pickerpickplace':
+        #     self._prior_action_coverage = self._current_action_coverage
+        #     self._current_action_coverage = self.get_coverage(self.get_particle_positions())
 
 
     # def compute_reward(self, action=None, obs=None, set_prev_reward=False):
