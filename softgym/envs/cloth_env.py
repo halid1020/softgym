@@ -663,7 +663,7 @@ class ClothEnv(FlexEnv):
         self._wait_to_stabalise(max_wait_step=max_wait_step, stable_vel_threshold=stable_vel_threshold)
 
         obs = self._get_obs()
-        reward = self.compute_reward()
+        #reward = self.compute_reward()
         #info = self._get_info()
 
 
@@ -671,7 +671,11 @@ class ClothEnv(FlexEnv):
         if (self.control_horizon is not None) and (self.control_step >= self.control_horizon):
             done = True
 
-        return obs, reward, done
+
+        return {
+            'observation': obs,
+            'done': done
+        }
     
     def _wait_to_stabalise(self, max_wait_step=300, stable_vel_threshold=0.0006,
             target_point=None, target_pos=None):
