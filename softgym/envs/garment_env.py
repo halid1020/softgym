@@ -35,7 +35,7 @@ class GarmentEnv(ClothEnv):
             'scale': 0.3,
             'rot': 0.0,
             'vel': [0., 0., 0.],
-            'stiff': [0.8, 1, 0.9],
+            'stiff': [0.85, 1, 0.9],
             'mass': 0.005,
             'garment_type': 'Tshirt',
             'shape_id': 0,

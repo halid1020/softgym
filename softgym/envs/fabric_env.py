@@ -14,7 +14,7 @@ from softgym.utils.pyflex_utils import random_pick_and_place
 
 from time import sleep
 
-class ClothFlattenEnv(ClothEnv):
+class FabricEnv(ClothEnv):
     def __init__(self, cached_states_path='mono_square_fabric.pkl', **kwargs):
         """
         :param cached_states_path:
@@ -49,9 +49,12 @@ class ClothFlattenEnv(ClothEnv):
         self._initial_coverage = self.get_coverage(self._initial_particel_positions)
     
 
-        if self.action_mode == 'pickerpickplace':
-            self.action_step = 0
-            self._current_action_coverage = self._prior_action_coverage = self._initial_coverage
+        # if self.action_mode == 'pickerpickplace':
+        #     self.action_step = 0
+        #     self._current_action_coverage = self._prior_action_coverage = self._initial_coverage
+
+        # if hasattr(self, 'action_tool'):
+        #     self.action_tool.reset(np.asarray([0.2, 0.2, 0.2]))
 
 
         # if hasattr(self, 'action_tool'):
@@ -59,12 +62,12 @@ class ClothFlattenEnv(ClothEnv):
         #     #cx, cy = self._get_center_point(curr_pos)
         #     self.action_tool.reset(np.asarray([[0.2, 0.2, 0.2]]))
 
-        if hasattr(self, 'action_tool'):
-            particle_pos = pyflex.get_positions().reshape(-1, 4)
-            p1, p2, p3, p4 = self._get_key_point_idx()
-            key_point_pos = particle_pos[(p1, p2), :3]
-            middle_point = np.mean(key_point_pos, axis=0)
-            self.action_tool.reset([middle_point[0], 0.1, middle_point[2]])
+        # if hasattr(self, 'action_tool'):
+        #     particle_pos = pyflex.get_positions().reshape(-1, 4)
+        #     p1, p2, p3, p4 = self._get_key_point_idx()
+        #     key_point_pos = particle_pos[(p1, p2), :3]
+        #     middle_point = np.mean(key_point_pos, axis=0)
+        #     self.action_tool.reset([middle_point[0], 0.1, middle_point[2]])
             
         pyflex.step()
         self.init_covered_area = None
@@ -116,34 +119,34 @@ class ClothFlattenEnv(ClothEnv):
             self._current_action_coverage = self.get_coverage(self.get_particle_positions())
 
 
-    def compute_reward(self, action=None, obs=None, set_prev_reward=False):
-        if self._reward_mode == "distance_reward":
-            return self._distance_reward(self.get_particle_positions())
-        if self._reward_mode == "pixel_rmse":
-            return self._pixel_reward(self.render())
-        if self._reward_mode == "depth_ratio":
-            return self._depth_reward(self.get_particle_positions())
-        if self._reward_mode == "corner_and_depth_ratio":
-            return self._corner_and_depth_reward(self.get_particle_positions())
-        if self._reward_mode == "hoque_ddpg":
-            return self._hoque_ddpg_reward()
-        if self._reward_mode == 'normalised_coverage':
-            return self._normalised_coverage()
-        raise NotImplementedError
+    # def compute_reward(self, action=None, obs=None, set_prev_reward=False):
+    #     if self._reward_mode == "distance_reward":
+    #         return self._distance_reward(self.get_particle_positions())
+    #     if self._reward_mode == "pixel_rmse":
+    #         return self._pixel_reward(self.render())
+    #     if self._reward_mode == "depth_ratio":
+    #         return self._depth_reward(self.get_particle_positions())
+    #     if self._reward_mode == "corner_and_depth_ratio":
+    #         return self._corner_and_depth_reward(self.get_particle_positions())
+    #     if self._reward_mode == "hoque_ddpg":
+    #         return self._hoque_ddpg_reward()
+    #     if self._reward_mode == 'normalised_coverage':
+    #         return self._normalised_coverage()
+    #     raise NotImplementedError
 
-    def evaluate(self, particles=None):
-        if particles is None:
-            particles = self.get_particle_positions()
+    # def evaluate(self, particles=None):
+    #     if particles is None:
+    #         particles = self.get_particle_positions()
 
-        target_coverage = self._flatten_coverage
-        initial_coverage = self._initial_coverage
-        current_coverage = self.get_coverage(particles)
+    #     target_coverage = self._flatten_coverage
+    #     initial_coverage = self._initial_coverage
+    #     current_coverage = self.get_coverage(particles)
 
-        return {
-            'normalised_improvement': (current_coverage - initial_coverage)/(target_coverage - initial_coverage),
-            'normalised_coverage': (current_coverage/target_coverage),
-            'wrinkle_pixel_ratio': self._get_wrinkle_pixel_ratio(particles)
-        }
+    #     return {
+    #         'normalised_improvement': (current_coverage - initial_coverage)/(target_coverage - initial_coverage),
+    #         'normalised_coverage': (current_coverage/target_coverage),
+    #         'wrinkle_pixel_ratio': self._get_wrinkle_pixel_ratio(particles)
+    #     }
     
     
         
@@ -168,46 +171,46 @@ class ClothFlattenEnv(ClothEnv):
         self._current_coverage = self.get_covered_area(self.get_particle_positions())
         
     
-    def _distance_reward(self, particle_pos):
-        min_distance = self.get_performance_value(particle_pos)
-        return math.exp(-min_distance/10)
+    # def _distance_reward(self, particle_pos):
+    #     min_distance = self.get_performance_value(particle_pos)
+    #     return math.exp(-min_distance/10)
 
-    def _pixel_reward(self, img):
-        return ((1 - math.sqrt(np.mean((img/255.0-self._target_img/255.0)**2))) -0.5) * 2
+    # def _pixel_reward(self, img):
+    #     return ((1 - math.sqrt(np.mean((img/255.0-self._target_img/255.0)**2))) -0.5) * 2
 
-    def _depth_reward(self, particle_pos):
+    # def _depth_reward(self, particle_pos):
 
-        return len(np.where(particle_pos[:, 1] <= 0.008)[0])/len(particle_pos)
+    #     return len(np.where(particle_pos[:, 1] <= 0.008)[0])/len(particle_pos)
 
-    def _corner_and_depth_reward(self, particle_pos):
-        target_corner_positions =  self.get_corner_positions()
-        visibility = self.get_visibility(target_corner_positions)
-        count = np.count_nonzero(visibility)
-        reward = count * 0.1
-        depth_reward = self._depth_reward(particle_pos)
+    # def _corner_and_depth_reward(self, particle_pos):
+    #     target_corner_positions =  self.get_corner_positions()
+    #     visibility = self.get_visibility(target_corner_positions)
+    #     count = np.count_nonzero(visibility)
+    #     reward = count * 0.1
+    #     depth_reward = self._depth_reward(particle_pos)
         
-        if depth_reward >= 0.5:
-            depth_reward = (depth_reward - 0.5) * 2
-            reward += 0.6 * depth_reward
+    #     if depth_reward >= 0.5:
+    #         depth_reward = (depth_reward - 0.5) * 2
+    #         reward += 0.6 * depth_reward
 
-        return reward
+    #     return reward
 
     
 
-    def _hoque_ddpg_reward(self):
+    # def _hoque_ddpg_reward(self):
 
-        reward = (self._current_action_coverage - self._prior_action_coverage)/self._flatten_coverage
+    #     reward = (self._current_action_coverage - self._prior_action_coverage)/self._flatten_coverage
         
-        bonus = 0
-        if abs(self._current_action_coverage - self._prior_action_coverage) <= 1e-4:
-            reward = -0.05
+    #     bonus = 0
+    #     if abs(self._current_action_coverage - self._prior_action_coverage) <= 1e-4:
+    #         reward = -0.05
         
-        if self._current_action_coverage /self._flatten_coverage > 0.92:
-            bonus = 1
+    #     if self._current_action_coverage /self._flatten_coverage > 0.92:
+    #         bonus = 1
 
-        reward += bonus
+    #     reward += bonus
         
 
-        return reward
+    #     return reward
 
     
