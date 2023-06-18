@@ -331,6 +331,8 @@ class ClothEnv(FlexEnv):
     def _set_to_flatten(self):
         new_pos = self._flatten_pos()
         pyflex.set_positions(new_pos.flatten())
+        pyflex.step()
+        self._canonical_mask = self.get_cloth_mask()
         self._target_img = self._get_obs()['image']
         self._flatten_corner_positions = self.get_corner_positions()
         new_pos = self.get_particle_positions()

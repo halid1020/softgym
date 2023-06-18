@@ -398,7 +398,7 @@ class GarmentEnv(ClothEnv):
             
         pyflex.step()
         self.init_covered_area = None
-        return self._get_obs(), None
+        return self._get_obs()
     
     def compute_reward(self, action=None, obs=None, set_prev_reward=False):
         return 1.0

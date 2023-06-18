@@ -40,7 +40,8 @@ class FabricEnv(ClothEnv):
     def _reset(self):
         """ Right now only use one initial state"""
         self._set_to_flatten()
-        self._canonical_mask = self.get_cloth_mask()
+        # self._canonical_mask = self.get_cloth_mask()
+        # self._target_img = self.render(mode='rgb')[:, :, :3]
         self.set_scene(self.cached_configs[self.current_config_id], self.cached_init_states[self.current_config_id])
         
         self._flatten_particel_positions = self.get_flattened_positions()
@@ -82,27 +83,27 @@ class FabricEnv(ClothEnv):
 
         self.control_step +=  self.action_tool.step(action)
         
-        if self.save_step_info:
-            self.step_info = self.action_tool.get_step_info()
+        # if self.save_step_info:
+        #     self.step_info = self.action_tool.get_step_info()
             
-            self.step_info['coverage'] = []
-            self.step_info['reward'] = []
-            steps = len(self.step_info['control_signal'])
+        #     self.step_info['coverage'] = []
+        #     self.step_info['reward'] = []
+        #     steps = len(self.step_info['control_signal'])
 
-            for i in range(steps):
-                particle_positions = self.step_info['particle_pos'][i][:, :3]
+        #     for i in range(steps):
+        #         particle_positions = self.step_info['particle_pos'][i][:, :3]
                 
-                self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], self.save_image_dim)
-                self.step_info['reward'].append(self.compute_reward(particle_positions))
-                self.step_info['coverage'].\
-                    append(self.get_coverage(particle_positions))
+        #         self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], self.save_image_dim)
+        #         self.step_info['reward'].append(self.compute_reward(particle_positions))
+        #         self.step_info['coverage'].\
+        #             append(self.get_coverage(particle_positions))
                 
-                eval_data = self.evaluate(particle_positions)
-                for k, v in eval_data.items():
-                    if k not in self.step_info.keys():
-                        self.step_info[k] = [v]
-                    else:
-                        self.step_info[k].append(v)
+        #         eval_data = self.evaluate(particle_positions)
+        #         for k, v in eval_data.items():
+        #             if k not in self.step_info.keys():
+        #                 self.step_info[k] = [v]
+        #             else:
+        #                 self.step_info[k].append(v)
 
 
         # if self.action_mode == 'pickerpickplace':
