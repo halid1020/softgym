@@ -282,18 +282,18 @@ class Picker(ActionToolBase):
         self._set_pos(new_picker_pos, new_particle_pos)
         
         
-        ## Update environment
-        pyflex.step()
-        if self._render:
-            pyflex.render()
+        # ## Update environment
+        # pyflex.step()
+        # if self._render:
+        #     pyflex.render()
         
         
-        ### Save information
-        if self.save_step_info:
-            self.step_info['control_signal'].append(action)
-            self.step_info['picker_pos'].append(self.get_picker_pos())
-            self.step_info['particle_pos'].append(self.get_particle_pos())
-            self.step_info['rgbd'].append(self.render('rgbd'))
+        # ### Save information
+        # if self.save_step_info:
+        #     self.step_info['control_signal'].append(action)
+        #     self.step_info['picker_pos'].append(self.get_picker_pos())
+        #     self.step_info['particle_pos'].append(self.get_particle_pos())
+        #     self.step_info['rgbd'].append(self.render('rgbd'))
 
         return 1
 

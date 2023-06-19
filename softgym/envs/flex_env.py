@@ -31,7 +31,9 @@ class FlexEnv(gym.Env):
                  observation_mode = 'rgbd',
                  save_step_info=False,
                  save_image_dim=(256, 256),
-                 save_cached_states=True, **kwargs):
+                 save_cached_states=True, 
+                 save_control_step_info=False,
+                 **kwargs):
 
         
         self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
@@ -45,7 +47,7 @@ class FlexEnv(gym.Env):
             device_id = int(os.environ['gpu_id'])
         self.device_id = device_id
 
-        self.save_step_info = save_step_info
+        self.save_control_step_info = save_step_info
         self.save_image_dim = save_image_dim
 
         self.sampling_random_state = np.random.RandomState(kwargs['random_seed'])
@@ -75,9 +77,16 @@ class FlexEnv(gym.Env):
 
         self.version = 1
 
-    def set_save_step_info(self, flag):
-        self.save_step_info = flag
-        self.action_tool.set_save_step_info(flag)
+        self.set_save_control_step_info(save_control_step_info)
+  
+
+    def set_save_control_step_info(self, flag):
+        self.save_control_step_info = flag
+        self.reset_control_step_info()
+
+    def reset_control_step_info(self):
+        if self.save_control_step_info:
+            self.control_step_info = {'picker_pos': [], 'particle_pos': [], 'rgbd': [], 'control_signal': []}
 
     def get_cached_configs_and_states(self, cached_states_path, num_variations):
         """
@@ -111,19 +120,22 @@ class FlexEnv(gym.Env):
 
     def get_current_config(self):
         return self.current_config
+    
+    def get_control_step_info(self):
+        return self.control_step_info
 
     def tick_control_step(self):
         pyflex.step()
         if self._render:
             pyflex.render()
+        
         self.control_step += 1
-
-        if self.save_step_info:
-
+        if self.save_control_step_info:
             #print('tick control action shape', np.zeros(self.step_info['control_signal'][-1].shape).shape)
-            self.step_info['control_signal'].append(np.zeros((1, 4))) ## TODO: magic numbers
-            self.step_info['picker_pos'].append(self.action_tool.get_picker_pos())
-            self.step_info['particle_pos'].append(self.get_particle_pos())
+            self.control_step_info['picker_pos'].append(self.action_tool.get_picker_pos())
+            self.control_step_info['particle_pos'].append(self.get_particle_pos())
+            self.control_step_info['rgbd'].append(
+                self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)) #TODO: magic numbers
 
     def update_camera(self, camera_name, camera_param=None):
         """
@@ -207,6 +219,13 @@ class FlexEnv(gym.Env):
         self.control_step = 0
 
         obs = self._reset()
+        if self.save_control_step_info:
+            self.control_step_info = {
+                'picker_pos': [self.action_tool.get_picker_pos()], 
+                'particle_pos': [self.get_particle_pos()], 
+                'rgbd': [self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)],
+                'control_signal': []
+                }
 
         if self.recording:
             self.video_frames.append(self.render(mode='rgb'))
@@ -219,10 +238,6 @@ class FlexEnv(gym.Env):
     def step(self, action, img_size=None):
         """ If record_continuous_video is set to True, will record an image for each sub-step"""
         for i in range(self.action_repeat):
-            if self.save_step_info: 
-                self.step_info = {}
-                self.action_tool.clean_step_info()
-
             self._step(action)
         obs = self._get_obs()
         #reward = self.compute_reward()
@@ -308,9 +323,6 @@ class FlexEnv(gym.Env):
         """
         raise NotImplementedError
 
-    def compute_reward(self, action=None, obs=None, set_prev_reward=False):
-        """ set_prev_reward is used for calculate delta rewards"""
-        raise NotImplementedError
 
     def _get_obs(self):
         raise NotImplementedError

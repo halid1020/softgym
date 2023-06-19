@@ -39,7 +39,7 @@ class ClothEnv(FlexEnv):
 
         # if action_mode == 'velocity_control':
         self.action_tool = Picker(num_picker, picker_radius=picker_radius, particle_radius=particle_radius, picker_threshold=picker_threshold,
-                                    picker_low=kwargs['picker_low'], picker_high=kwargs['picker_high'], save_step_info=kwargs['save_step_info'])
+                                    picker_low=kwargs['picker_low'], picker_high=kwargs['picker_high'])
         self.action_space = self.action_tool.action_space
         self.picker_radius = picker_radius
         
@@ -537,8 +537,8 @@ class ClothEnv(FlexEnv):
         return config
 
     def get_step_info(self):
-        if self.save_step_info:
-            return self.step_info.copy()
+        if self.save_control_step_info:
+            return self.control_step_info.copy()
         else:
             raise NotImplementedError
 
@@ -640,17 +640,9 @@ class ClothEnv(FlexEnv):
     
     def tick_control_step(self):
         super().tick_control_step()
-        if self.save_step_info:
-            self.step_info['rgbd'].append(self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)) #TODO: magic numbers
-            self.step_info['coverage'].append(self.get_coverage(self.get_particle_positions()))
-            self.step_info['reward'].append(self.compute_reward(self.get_particle_positions()))
-            
-            eval_data = self.evaluate()
-            for k, v in eval_data.items():
-                if k not in self.step_info.keys():
-                    self.step_info[k] = [v]
-                else:
-                    self.step_info[k].append(v)
+        
+        # if self.save_control_step_info:
+        #     self.control_step_info['coverage'].append(self.get_coverage(self.get_particle_positions()))
 
     def get_edge_ids(self):
         config = self.get_current_config()
@@ -662,7 +654,7 @@ class ClothEnv(FlexEnv):
         return edge_ids
     
     def wait_until_stable(self, max_wait_step=300, stable_vel_threshold=0.0006):
-        self._wait_to_stabalise(max_wait_step=max_wait_step, stable_vel_threshold=stable_vel_threshold)
+        wait_steps = self._wait_to_stabalise(max_wait_step=max_wait_step, stable_vel_threshold=stable_vel_threshold)
 
         obs = self._get_obs()
         #reward = self.compute_reward()
@@ -676,7 +668,8 @@ class ClothEnv(FlexEnv):
 
         return {
             'observation': obs,
-            'done': done
+            'done': done,
+            'wait_steps': wait_steps
         }
     
     def _wait_to_stabalise(self, max_wait_step=300, stable_vel_threshold=0.0006,
@@ -713,6 +706,9 @@ class ClothEnv(FlexEnv):
             #     pyflex.set_velocities(curr_vel)
 
             self.tick_control_step()
+            if self.save_control_step_info:
+                self.control_step_info['control_signal'].append(np.zeros((self.num_picker, 4)))
+
             if stable_step > 10:
                 break
             if np.max(curr_vel) < stable_vel_threshold:

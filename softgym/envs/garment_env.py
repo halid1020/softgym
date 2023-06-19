@@ -408,12 +408,12 @@ class GarmentEnv(ClothEnv):
     
     def _step(self, action):
 
-        if self.save_step_info:
+        if self.save_control_step_info:
             self.step_info = {}
 
         self.control_step +=  self.action_tool.step(action)
         
-        if self.save_step_info:
+        if self.save_control_step_info:
             self.step_info = self.action_tool.get_step_info()
             
             self.step_info['coverage'] = []

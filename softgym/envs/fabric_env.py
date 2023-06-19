@@ -23,10 +23,6 @@ class FabricEnv(ClothEnv):
         """
         super().__init__(**kwargs)
         self._reward_mode = kwargs['reward_mode']
-          
-        
-        if self.save_step_info:
-            self.step_info = {}
         
 
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
@@ -77,81 +73,11 @@ class FabricEnv(ClothEnv):
         return self._get_obs()
 
     def _step(self, action):
-
-        if self.save_step_info:
-            self.step_info = {}
-
         self.control_step +=  self.action_tool.step(action)
+        self.tick_control_step()
+        if self.save_control_step_info:
+            self.control_step_info['control_signal'].append(action)
         
-        # if self.save_step_info:
-        #     self.step_info = self.action_tool.get_step_info()
-            
-        #     self.step_info['coverage'] = []
-        #     self.step_info['reward'] = []
-        #     steps = len(self.step_info['control_signal'])
-
-        #     for i in range(steps):
-        #         particle_positions = self.step_info['particle_pos'][i][:, :3]
-                
-        #         self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], self.save_image_dim)
-        #         self.step_info['reward'].append(self.compute_reward(particle_positions))
-        #         self.step_info['coverage'].\
-        #             append(self.get_coverage(particle_positions))
-                
-        #         eval_data = self.evaluate(particle_positions)
-        #         for k, v in eval_data.items():
-        #             if k not in self.step_info.keys():
-        #                 self.step_info[k] = [v]
-        #             else:
-        #                 self.step_info[k].append(v)
-
-
-        # if self.action_mode == 'pickerpickplace':
-        #     self.action_step += 1
-        #     self._wait_to_stabalise()
-
-        # else:
-        # self.tick_control_step()
-
-        # if self.save_step_info:
-        #     self.step_info = {k: np.stack(v) for k, v in self.step_info.items()}
-
-        #  ### Update parameters for quasi-static pick and place.
-        # if self.action_mode == 'pickerpickplace':
-        #     self._prior_action_coverage = self._current_action_coverage
-        #     self._current_action_coverage = self.get_coverage(self.get_particle_positions())
-
-
-    # def compute_reward(self, action=None, obs=None, set_prev_reward=False):
-    #     if self._reward_mode == "distance_reward":
-    #         return self._distance_reward(self.get_particle_positions())
-    #     if self._reward_mode == "pixel_rmse":
-    #         return self._pixel_reward(self.render())
-    #     if self._reward_mode == "depth_ratio":
-    #         return self._depth_reward(self.get_particle_positions())
-    #     if self._reward_mode == "corner_and_depth_ratio":
-    #         return self._corner_and_depth_reward(self.get_particle_positions())
-    #     if self._reward_mode == "hoque_ddpg":
-    #         return self._hoque_ddpg_reward()
-    #     if self._reward_mode == 'normalised_coverage':
-    #         return self._normalised_coverage()
-    #     raise NotImplementedError
-
-    # def evaluate(self, particles=None):
-    #     if particles is None:
-    #         particles = self.get_particle_positions()
-
-    #     target_coverage = self._flatten_coverage
-    #     initial_coverage = self._initial_coverage
-    #     current_coverage = self.get_coverage(particles)
-
-    #     return {
-    #         'normalised_improvement': (current_coverage - initial_coverage)/(target_coverage - initial_coverage),
-    #         'normalised_coverage': (current_coverage/target_coverage),
-    #         'wrinkle_pixel_ratio': self._get_wrinkle_pixel_ratio(particles)
-    #     }
-    
-    
         
 
     def _get_center_point(self, pos):

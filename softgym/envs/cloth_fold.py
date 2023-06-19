@@ -70,7 +70,7 @@ class ClothFoldEnv(ClothEnv):
 
         self.control_step +=  self.action_tool.step(action)
         
-        if self.save_step_info:
+        if self.save_control_step_info:
             self.step_info = self.action_tool.get_step_info()
             
             self.step_info['coverage'] = []
@@ -91,7 +91,7 @@ class ClothFoldEnv(ClothEnv):
             self._wait_to_stabalise()
         
 
-        if self.save_step_info:
+        if self.save_control_step_info:
             self.step_info = {k: np.stack(v) for k, v in self.step_info.items()}
         
         ### Update parameters for quasi-static pick and place.
