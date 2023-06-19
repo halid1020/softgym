@@ -30,7 +30,7 @@ class FlexEnv(gym.Env):
                  use_cached_states=False,
                  observation_mode = 'rgbd',
                  save_step_info=False,
-                 save_image_dim=(256, 256),
+                 save_image_dim=(128, 128),
                  save_cached_states=True, 
                  save_control_step_info=False,
                  **kwargs):
@@ -86,7 +86,7 @@ class FlexEnv(gym.Env):
 
     def reset_control_step_info(self):
         if self.save_control_step_info:
-            self.control_step_info = {'picker_pos': [], 'particle_pos': [], 'rgbd': [], 'control_signal': []}
+            self.control_step_info = {'picker_pos': [], 'particle_pos': [], 'rgbd': []}
 
     def get_cached_configs_and_states(self, cached_states_path, num_variations):
         """
@@ -223,8 +223,7 @@ class FlexEnv(gym.Env):
             self.control_step_info = {
                 'picker_pos': [self.action_tool.get_picker_pos()], 
                 'particle_pos': [self.get_particle_pos()], 
-                'rgbd': [self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)],
-                'control_signal': []
+                'rgbd': [self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)]
                 }
 
         if self.recording:

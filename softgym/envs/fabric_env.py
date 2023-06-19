@@ -76,6 +76,8 @@ class FabricEnv(ClothEnv):
         self.control_step +=  self.action_tool.step(action)
         self.tick_control_step()
         if self.save_control_step_info:
+            if 'control_signal' not in self.control_step_info:
+                self.control_step_info['control_signal'] = []
             self.control_step_info['control_signal'].append(action)
         
         

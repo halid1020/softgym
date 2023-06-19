@@ -707,6 +707,8 @@ class ClothEnv(FlexEnv):
 
             self.tick_control_step()
             if self.save_control_step_info:
+                if 'control_signal' not in self.control_step_info:
+                    self.control_step_info['control_signal'] = []
                 self.control_step_info['control_signal'].append(np.zeros((self.num_picker, 4)))
 
             if stable_step > 10:
