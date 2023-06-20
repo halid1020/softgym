@@ -36,7 +36,11 @@ class FlexEnv(gym.Env):
                  **kwargs):
 
         
-        self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
+        # self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
+        self.camera_width = camera_width
+        self.camera_height = camera_height
+        self.camera_name = camera_name
+
         pyflex.init(headless, render, camera_width, camera_height)
 
         self.record_video, self.video_path, self.video_name = False, None, None
@@ -134,7 +138,7 @@ class FlexEnv(gym.Env):
             #print('tick control action shape', np.zeros(self.step_info['control_signal'][-1].shape).shape)
             self.control_step_info['picker_pos'].append(self.action_tool.get_picker_pos())
             self.control_step_info['particle_pos'].append(self.get_particle_pos())
-            rgbd = self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)
+            rgbd = self.render(resolution=self.save_image_dim, mode='rgbd')
             self.control_step_info['rgb'].append(rgbd[:, :, :3]) #TODO: magic numbers
             self.control_step_info['depth'].append(rgbd[:, :, 3])
 
@@ -144,10 +148,12 @@ class FlexEnv(gym.Env):
         :param camera_param: None if only switching cameras. Otherwise, should be a dictionary
         :return:
         """
+
         if camera_param is not None:
             self.camera_params[camera_name] = camera_param
-        else:
-            camera_param = self.camera_params[camera_name]
+        
+        camera_param = self.camera_params[camera_name]
+        
         pyflex.set_camera_params(
             np.array([*camera_param['pos'], *camera_param['angle'], camera_param['width'], camera_param['height']]))
 
@@ -156,7 +162,7 @@ class FlexEnv(gym.Env):
         vel = pyflex.get_velocities()
         shape_pos = pyflex.get_shape_states()
         phase = pyflex.get_phases()
-        camera_params = copy.deepcopy(self.camera_params)
+        #camera_params = copy.deepcopy(self.camera_params)
         return {'particle_pos': pos, 'particle_vel': vel, 'shape_pos': shape_pos, 'phase': phase, 'camera_params': camera_params,
                 'config_id': self.current_config_id}
 
@@ -165,7 +171,7 @@ class FlexEnv(gym.Env):
         pyflex.set_velocities(state_dict['particle_vel'])
         pyflex.set_shape_states(state_dict['shape_pos'])
         pyflex.set_phases(state_dict['phase'])
-        self.camera_params = copy.deepcopy(state_dict['camera_params'])
+        #self.camera_params = copy.deepcopy(state_dict['camera_params'])
         self.update_camera(self.camera_name)
 
     def close(self):
@@ -283,32 +289,39 @@ class FlexEnv(gym.Env):
     def get_action_space(self):
         raise NotImplementedError
 
-    def render(self, mode='rgb'):
+    def render(self, mode='rgb', camera_name='default_camera', resolution=(720, 720)):
         #pyflex.step()
+        self.update_camera(camera_name)
         img, depth_img = pyflex.render()
+        self.update_camera('default_camera')
         
-        width, height = self.camera_params['default_camera']['width'], self.camera_params['default_camera']['height']
+        width, height = self.camera_params[camera_name]['width'], self.camera_params[camera_name]['height']
         img = img.reshape(height, width, 4)[::-1, :, :3]  # Need to reverse the height dimension
         depth_img = depth_img.reshape(height, width, 1)[::-1, :, :1]
 
         #print('depth_img', depth_img[0][0])
 
         if mode == 'rgbd':
-            return np.concatenate((img, depth_img), axis=2)
+            img =  np.concatenate((img, depth_img), axis=2)
         elif mode == 'rgb':
-            return img
+            pass
         elif mode == 'd':
-            return depth_img
+            img = depth_img
         else:
             raise NotImplementedError
-
-    def get_image(self, width=720, height=720, depth=False):
-        """ use pyflex.render to get a rendered image. """
-        img = self.render(mode='rgb' + ("d" if depth else ""))
-        #img = img.astype(np.uint8)
-        if width != img.shape[0] or height != img.shape[1]:
+        
+        if width != resolution[0] or height != resolution[1]:
             img = cv2.resize(img, (width, height))
+
         return img
+
+    # def get_image(self, width=720, height=720, depth=False, camera_name='default_camera'):
+    #     """ use pyflex.render to get a rendered image. """
+    #     img = self.render(mode='rgb' + ("d" if depth else ""), camera_name=camera_name)
+    #     #img = img.astype(np.uint8)
+    #     if width != img.shape[0] or height != img.shape[1]:
+    #         img = cv2.resize(img, (width, height))
+    #     return img
 
     def set_scene(self, config, state=None):
         """ Set up the flex scene """

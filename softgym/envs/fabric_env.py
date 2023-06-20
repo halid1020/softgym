@@ -28,16 +28,7 @@ class FabricEnv(ClothEnv):
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
 
     
-    def get_goal_observation(self):
-        return self._target_img
-    
-    def get_corner_positions(self, particle_positions=None):
-        if particle_positions is None:
-            particle_positions = self.get_particle_positions()
-        return particle_positions[self._corner_ids]
-    
-    def get_corner_ids(self):
-        return self._corner_ids
+
 
     
 
@@ -87,69 +78,4 @@ class FabricEnv(ClothEnv):
             if 'control_signal' not in self.control_step_info:
                 self.control_step_info['control_signal'] = []
             self.control_step_info['control_signal'].append(action)
-        
-        
-
-    def _get_center_point(self, pos):
-        pos = np.reshape(pos, [-1, 4])
-        min_x = np.min(pos[:, 0])
-        min_y = np.min(pos[:, 2])
-        max_x = np.max(pos[:, 0])
-        max_y = np.max(pos[:, 2])
-        return 0.5 * (min_x + max_x), 0.5 * (min_y + max_y)
-    
-  
-
-    def _get_particle_positions(self):
-        return pyflex.get_positions()
-
-    def _set_particle_positions(self, pos):
-        pyflex.set_positions(pos.flatten())
-        pyflex.set_velocities(np.zeros_like(pos))
-        pyflex.step()
-        self._current_coverage = self.get_covered_area(self.get_particle_positions())
-        
-    
-    # def _distance_reward(self, particle_pos):
-    #     min_distance = self.get_performance_value(particle_pos)
-    #     return math.exp(-min_distance/10)
-
-    # def _pixel_reward(self, img):
-    #     return ((1 - math.sqrt(np.mean((img/255.0-self._target_img/255.0)**2))) -0.5) * 2
-
-    # def _depth_reward(self, particle_pos):
-
-    #     return len(np.where(particle_pos[:, 1] <= 0.008)[0])/len(particle_pos)
-
-    # def _corner_and_depth_reward(self, particle_pos):
-    #     target_corner_positions =  self.get_corner_positions()
-    #     visibility = self.get_visibility(target_corner_positions)
-    #     count = np.count_nonzero(visibility)
-    #     reward = count * 0.1
-    #     depth_reward = self._depth_reward(particle_pos)
-        
-    #     if depth_reward >= 0.5:
-    #         depth_reward = (depth_reward - 0.5) * 2
-    #         reward += 0.6 * depth_reward
-
-    #     return reward
-
-    
-
-    # def _hoque_ddpg_reward(self):
-
-    #     reward = (self._current_action_coverage - self._prior_action_coverage)/self._flatten_coverage
-        
-    #     bonus = 0
-    #     if abs(self._current_action_coverage - self._prior_action_coverage) <= 1e-4:
-    #         reward = -0.05
-        
-    #     if self._current_action_coverage /self._flatten_coverage > 0.92:
-    #         bonus = 1
-
-    #     reward += bonus
-        
-
-    #     return reward
-
     

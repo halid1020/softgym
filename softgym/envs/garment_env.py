@@ -400,12 +400,6 @@ class GarmentEnv(ClothEnv):
         self.init_covered_area = None
         return self._get_obs()
     
-    def compute_reward(self, action=None, obs=None, set_prev_reward=False):
-        return 1.0
-    
-    def evaluate(self):
-        return {}
-    
     def _step(self, action):
 
         if self.save_control_step_info:
@@ -434,19 +428,3 @@ class GarmentEnv(ClothEnv):
                         self.step_info[k] = [v]
                     else:
                         self.step_info[k].append(v)
-
-
-        # if self.action_mode == 'pickerpickplace':
-        #     self.action_step += 1
-        #     self._wait_to_stabalise()
-
-        # else:
-        #     self.tick_control_step()
-
-        # if self.save_step_info:
-        #     self.step_info = {k: np.stack(v) for k, v in self.step_info.items()}
-
-        #  ### Update parameters for quasi-static pick and place.
-        # if self.action_mode == 'pickerpickplace':
-        #     self._prior_action_coverage = self._current_action_coverage
-        #     self._current_action_coverage = self.get_coverage(self.get_particle_positions())

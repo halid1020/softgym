@@ -12,6 +12,20 @@ from softgym.utils.pyflex_utils import center_object
 import matplotlib.pyplot as plt
 
 class ClothEnv(FlexEnv):
+
+    camera_params = { 
+        'default_camera':{
+            'pos': np.array([-0.0, 1.5, 0]),
+            'angle': np.array([0, -90 / 180. * np.pi, 0.]),
+            'width': 720,
+            'height': 720},
+        'front_camera': {
+            'pos': np.array([0, 0.2, 1.0]),
+            'angle': np.array([0, 0 / 180. * np.pi, 0]),
+            'width': 720,
+            'height': 720}
+        }
+
     def __init__(self, observation_mode, action_mode, num_picker=2, render_mode='particle', 
         picker_radius=0.02, picker_threshold=0.002, particle_radius=0.00625, 
         motion_trajectory='normal',
@@ -43,21 +57,6 @@ class ClothEnv(FlexEnv):
         self.action_space = self.action_tool.action_space
         self.picker_radius = picker_radius
         
-        # elif action_mode == 'pickerpickplace':
-        #     self.action_tool = PickerPickPlace(
-        #         num_picker=num_picker, 
-        #         particle_radius=particle_radius, 
-        #         env=self, picker_threshold=picker_threshold, 
-        #         picker_radius=picker_radius,
-        #         motion_trajectory=motion_trajectory,
-        #         camera_depth=self.get_current_config()['camera_params']['default_camera']['pos'][1],
-        #         **kwargs)
-        #     self.action_step = 0
-        #     self.action_horizon = kwargs['action_horizon']
-
-        #     self.action_space = self.action_tool.action_space
-        #     assert self.action_repeat == 1
-
 
         if ('state' not in observation_mode.keys()) or (observation_mode['state'] == None):
             pass
@@ -93,6 +92,36 @@ class ClothEnv(FlexEnv):
             
     def get_action_space(self):
         return self.action_space
+    
+    def get_goal_observation(self):
+        return self._target_img
+    
+    def get_corner_positions(self, particle_positions=None):
+        if particle_positions is None:
+            particle_positions = self.get_particle_positions()
+        return particle_positions[self._corner_ids]
+    
+    def get_corner_ids(self):
+        return self._corner_ids
+    
+    def _get_center_point(self, pos):
+        pos = np.reshape(pos, [-1, 4])
+        min_x = np.min(pos[:, 0])
+        min_y = np.min(pos[:, 2])
+        max_x = np.max(pos[:, 0])
+        max_y = np.max(pos[:, 2])
+        return 0.5 * (min_x + max_x), 0.5 * (min_y + max_y)
+    
+  
+
+    def _get_particle_positions(self):
+        return pyflex.get_positions()
+
+    def _set_particle_positions(self, pos):
+        pyflex.set_positions(pos.flatten())
+        pyflex.set_velocities(np.zeros_like(pos))
+        pyflex.step()
+        self._current_coverage = self.get_covered_area(self.get_particle_positions())
             
     def generate_env_variation(self, num_variations=1): #, vary_cloth_size=False)
         """ Generate initial states. Note: This will also change the current states! """
@@ -248,13 +277,7 @@ class ClothEnv(FlexEnv):
         pos = self.get_picker_pos()
         return pos[:, :3].copy()
 
-    def get_corner_positions(self, particle_positions=None):
-        if particle_positions is None:
-            particle_positions = self.get_particle_positions()
-        return particle_positions[self._corner_ids]
     
-    def get_corner_ids(self):
-        return self._corner_ids
 
     def get_flatten_corner_positions(self):
         return self._flatten_corner_positions
@@ -380,47 +403,6 @@ class ClothEnv(FlexEnv):
     # def get_normalised_coverage(self):
     #     return self._normalised_coverage()
     
-    def get_wrinkle_ratio(self):
-        return self._get_wrinkle_pixel_ratio()
-    
-    def _get_wrinkle_pixel_ratio(self, particles=None):
-        if particles is not None:
-            old_particles = pyflex.get_positions()
-            to_set_particles = old_particles.copy().reshape(-1, 4)
-            to_set_particles[:, :3] = particles
-            pyflex.set_positions(to_set_particles.flatten())
-            #pyflex.step()
-
-        rgb = self.render(mode='rgb')
-        rgb = cv2.resize(rgb, (128, 128))
-        mask = self.get_cloth_mask(pixel_size=(128, 128))
-
-        if mask.dtype != np.uint8:  # Ensure mask has a valid data type (uint8)
-            mask = mask.astype(np.uint8)
-
-        # plt.imshow(mask)
-        # plt.show()
-
-
-
-        if particles is not None:
-            pyflex.set_positions(old_particles)
-            #pyflex.step()
-
-        # Use cv2 edge detection to get the wrinkle ratio.
-        gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
-        edges = cv2.Canny(gray, 50, 150, apertureSize=3)
-        # plt.imshow(edges)
-        # plt.show()
-
-        masked_edges = cv2.bitwise_and(edges, mask)
-        # plt.imshow(masked_edges)
-        # plt.show()
-
-        wrinkle_ratio = np.sum(masked_edges) / np.sum(mask)
-
-        return wrinkle_ratio
-    
 
     def get_corner_positions(self, position=None):
         if position == None:
@@ -520,18 +502,17 @@ class ClothEnv(FlexEnv):
     def get_default_config(self):
         """ Set the default config of the environment and load it to self.config """
 
-        cam_pos, cam_angle = np.array([-0.0, 1.5, 0]), np.array([0, -90 / 180. * np.pi, 0.])
-
         config = {
             'ClothPos': [-1.6, 2.0, -0.8],
             'ClothSize': [int(0.4 / self.cloth_particle_radius), int(0.4 / self.cloth_particle_radius)],
             'ClothStiff': [0.8, 1, 0.9],  # Stretch, Bend and Shear
-            'camera_name': 'default_camera',
+            'camera_name': 'default',
             'camera_params': {'default_camera':
-                                  {'pos': cam_pos,
-                                   'angle': cam_angle,
+                                  {'pos': np.array([-0.0, 1.5, 0]),
+                                   'angle': np.array([0, -90 / 180. * np.pi, 0.]),
                                    'width': self.camera_width,
-                                   'height': self.camera_height}},
+                                   'height': self.camera_height}
+                                },
             'flip_mesh': 0,
             'front_colour':  [0.673, 0.111, 0.0],
             'back_colour': [0.612, 0.194, 0.394]
@@ -548,12 +529,12 @@ class ClothEnv(FlexEnv):
     def _get_obs(self):
         obs = {}
         if self.observation_mode['image'] == 'cam_rgb':
-            obs['image'] = self.get_image(self.camera_height, self.camera_width)
+            obs['image'] = self.render(resolution=(self.camera_height, self.camera_width), mode='rgb')
         
         elif self.observation_mode['image'] == 'cam_rgbd':
-            obs['image'] = self.get_image(self.camera_height, self.camera_width, depth=True)
+            obs['image'] = self.render(resolution=(self.camera_height, self.camera_width), mode='rgbd')
         elif self.observation_mode['image'] == 'cam_d':
-            obs['image'] = self.get_image(self.camera_height, self.camera_width, depth=True)[:, :, 3:4]
+            obs['image'] = self.render(resolution=(self.camera_height, self.camera_width), mode='d')
         else:
             raise NotImplementedError
         
