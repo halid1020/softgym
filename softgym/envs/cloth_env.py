@@ -252,6 +252,9 @@ class ClothEnv(FlexEnv):
         if particle_positions is None:
             particle_positions = self.get_particle_positions()
         return particle_positions[self._corner_ids]
+    
+    def get_corner_ids(self):
+        return self._corner_ids
 
     def get_flatten_corner_positions(self):
         return self._flatten_corner_positions

@@ -3,21 +3,7 @@ from softgym.envs.pour_water_amount import PourWaterAmountPosControlEnv
 from softgym.envs.pass_water import PassWater1DEnv
 from softgym.envs.rope_flatten import RopeFlattenEnv
 from softgym.envs.rope_configuration import RopeConfigurationEnv
-from softgym.envs.cloth_fold import ClothFoldEnv
 from softgym.envs.cloth_drop import ClothDropEnv
-from softgym.envs.cloth_fold_crumpled import ClothFoldCrumpledEnv
-from softgym.envs.cloth_fold_drop import ClothFoldDropEnv
-from softgym.envs.cloth_diagonal_fold import ClothDiagonalFoldEnv
-from softgym.envs.cloth_rectangular_fold import ClothRectangularFoldEnv
-from softgym.envs.cloth_side_fold import ClothSideFoldEnv
-from softgym.envs.cloth_double_side_fold import ClothDoubleSideFoldEnv
-from softgym.envs.cloth_cross_fold import ClothCrossFoldEnv
-from softgym.envs.cloth_double_side_cross_fold import ClothDoubleSideCrossFoldEnv
-from softgym.envs.cloth_double_side_rectangular_fold import ClothDoubleSideRectangularFoldEnv
-from softgym.envs.cloth_all_corner_inward_fold import ClothAllCornerInwardFoldEnv
-from softgym.envs.cloth_double_corner_inward_fold import ClothDoubleCornerInwardFoldEnv
-from softgym.envs.cloth_one_corner_inward_fold import ClothOneCornerInwardFoldEnv
-from softgym.envs.cloth_diagonal_cross_fold import ClothDiagonalCrossFoldEnv
 from softgym.envs.garment_env import GarmentEnv
 from softgym.envs.fabric_env import FabricEnv
 
@@ -211,27 +197,9 @@ SOFTGYM_ENVS = OrderedDict({
     'PassWater': PassWater1DEnv,
 
     'FabricEnv': FabricEnv,
-    'ClothFold': ClothFoldEnv,
-    'ClothRectangularFold': ClothRectangularFoldEnv,
-    'ClothSideFold': ClothSideFoldEnv,
-    'ClothDoubleSideFold': ClothDoubleSideFoldEnv,
-    'ClothCrossFold': ClothCrossFoldEnv,
-    'ClothDoubleSideCrossFold': ClothDoubleSideCrossFoldEnv,
-    'ClothDoubleSideRectangularFold': ClothDoubleSideRectangularFoldEnv,
-
-    'ClothDiagonalFold': ClothDiagonalFoldEnv,
-    'ClothOneCornerInwardFold': ClothOneCornerInwardFoldEnv,
-    'ClothDoubleCornerInwardFold': ClothDoubleCornerInwardFoldEnv,
-    'ClothAllCornerInwardFold': ClothAllCornerInwardFoldEnv,
-    'ClothDiagonalCrossFold': ClothDiagonalCrossFoldEnv,
-
     'Garment': GarmentEnv,
 
     'ClothDrop': ClothDropEnv,
-    'ClothFoldDrop': ClothFoldDropEnv,
-    # 'ClothFlattenPPP': ClothFlattenEnv,
-    'ClothFoldPPP': ClothFoldEnv,
-    'ClothFoldCrumpled': ClothFoldCrumpledEnv,
     'RopeFlatten': RopeFlattenEnv,
     'RopeConfiguration': RopeConfigurationEnv,
 })

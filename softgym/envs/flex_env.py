@@ -86,7 +86,7 @@ class FlexEnv(gym.Env):
 
     def reset_control_step_info(self):
         if self.save_control_step_info:
-            self.control_step_info = {'picker_pos': [], 'particle_pos': [], 'rgbd': []}
+            self.control_step_info = {'picker_pos': [], 'particle_pos': [], 'rgb': [], 'depth': []}
 
     def get_cached_configs_and_states(self, cached_states_path, num_variations):
         """
@@ -134,8 +134,9 @@ class FlexEnv(gym.Env):
             #print('tick control action shape', np.zeros(self.step_info['control_signal'][-1].shape).shape)
             self.control_step_info['picker_pos'].append(self.action_tool.get_picker_pos())
             self.control_step_info['particle_pos'].append(self.get_particle_pos())
-            self.control_step_info['rgbd'].append(
-                self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)) #TODO: magic numbers
+            rgbd = self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)
+            self.control_step_info['rgb'].append(rgbd[:, :, :3]) #TODO: magic numbers
+            self.control_step_info['depth'].append(rgbd[:, :, 3])
 
     def update_camera(self, camera_name, camera_param=None):
         """
@@ -220,10 +221,12 @@ class FlexEnv(gym.Env):
 
         obs = self._reset()
         if self.save_control_step_info:
+            rgbd = self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)
             self.control_step_info = {
                 'picker_pos': [self.action_tool.get_picker_pos()], 
                 'particle_pos': [self.get_particle_pos()], 
-                'rgbd': [self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)]
+                'rgb': [rgbd[:, :, :3]],
+                'depth': [rgbd[:, :, 3]]
                 }
 
         if self.recording:

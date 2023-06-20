@@ -30,6 +30,14 @@ class FabricEnv(ClothEnv):
     
     def get_goal_observation(self):
         return self._target_img
+    
+    def get_corner_positions(self, particle_positions=None):
+        if particle_positions is None:
+            particle_positions = self.get_particle_positions()
+        return particle_positions[self._corner_ids]
+    
+    def get_corner_ids(self):
+        return self._corner_ids
 
     
 
