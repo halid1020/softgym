@@ -8,6 +8,11 @@ from softgym.action_space.robot_env import RobotBase
 from copy import deepcopy
 from softgym.utils.misc import vectorized_range, vectorized_meshgrid
 from softgym.utils.pyflex_utils import center_object
+from softgym.utils.gemo_utils import *
+from skimage.exposure import histogram
+from skimage.feature import canny
+from scipy import ndimage as ndi
+import torchvision
 
 import matplotlib.pyplot as plt
 
@@ -289,11 +294,43 @@ class ClothEnv(FlexEnv):
         ret_mask = cv2.resize(self._canonical_mask.astype(np.float), resolution, interpolation=cv2.INTER_LINEAR)
         return ret_mask.astype(np.bool)
 
-    def get_cloth_mask(self, resolution=(64, 64)):
-        depth_images = self.render(mode='rgbd')[:, :, 3]
-        if resolution != (720,720):
-            depth_images = cv2.resize(depth_images, resolution, interpolation=cv2.INTER_LINEAR)
-        mask = (1.35 < depth_images) & (depth_images < 1.499)
+    def get_cloth_mask(self, camera_name='default_camera', resolution=(64, 64)):
+        
+        ### Render an rgb image, then get the mask by thresholding
+        print('camara name: ', camera_name)
+        rgb_image = self.render(camera_name=camera_name, mode='rgb')
+        rgb_image = cv2.resize(rgb_image, resolution, interpolation=cv2.INTER_LINEAR)
+
+        model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True).eval()
+        image_tensor = torchvision.transforms.functional.to_tensor(rgb_image)
+        output = model([image_tensor])
+        print('mask shape', output[0]['masks'].shape)
+        for i, m in enumerate(output[0]['masks']):
+            print('mask {}'.format(i))
+            mask = m[0].detach().numpy()
+            plt.imshow(mask)
+            plt.show()
+
+        ## Threshold the image to filter out black, white and grey pixels
+        # Apply thresholding to obtain binary mask
+       
+
+        # ### Combine the two masks with boolean
+        # mask = np.logical_or(mask1, mask2)
+        # mask = np.logical_or(mask, mask3)
+
+        # ## Get the reverse mask
+        # mask = np.logical_not(mask)
+
+
+        # ### show the histogram
+        # plt.plot(hist_centers, hist)
+        # plt.show()
+
+        # # Threshold the image to filter out black, white and grey pixels
+        # mask = np.zeros_like(gray)
+
+
         return mask
 
     def _get_flat_pos(self):
