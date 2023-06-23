@@ -27,11 +27,6 @@ class FabricEnv(ClothEnv):
 
         self.get_cached_configs_and_states(cached_states_path, self.num_variations)
 
-    
-
-
-    
-
     def _reset(self):
         """ Right now only use one initial state"""
         self._set_to_flatten()
@@ -70,12 +65,3 @@ class FabricEnv(ClothEnv):
         pyflex.step()
         self.init_covered_area = None
         return self._get_obs()
-
-    def _step(self, action):
-        self.control_step +=  self.action_tool.step(action)
-        self.tick_control_step()
-        if self.save_control_step_info:
-            if 'control_signal' not in self.control_step_info:
-                self.control_step_info['control_signal'] = []
-            self.control_step_info['control_signal'].append(action)
-    

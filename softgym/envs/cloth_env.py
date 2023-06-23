@@ -571,6 +571,11 @@ class ClothEnv(FlexEnv):
             return self.control_step_info.copy()
         else:
             raise NotImplementedError
+    
+    def reset_control_step_info(self):
+        super().reset_control_step_info()
+        if self.save_control_step_info:
+            self.control_step_info['control_normalised_coverage'] = []
 
     def _get_obs(self):
         obs = {}
@@ -670,9 +675,16 @@ class ClothEnv(FlexEnv):
     
     def tick_control_step(self):
         super().tick_control_step()
-        
-        # if self.save_control_step_info:
-        #     self.control_step_info['coverage'].append(self.get_coverage(self.get_particle_positions()))
+        if self.save_control_step_info:
+            self.control_step_info['control_normalised_coverage'].append(self.get_normalised_coverage())
+
+
+    def reset(self, episode_id=None):
+       
+        info = super().reset(episode_id=episode_id)
+        if self.save_control_step_info:
+            self.control_step_info['control_normaliesd_coverage'] = [self.get_normalised_coverage()]
+        return info
 
     def get_edge_ids(self):
         config = self.get_current_config()
@@ -682,6 +694,14 @@ class ClothEnv(FlexEnv):
         edge_ids.extend([(i+1)*cloth_dimx-1 for i in range(1, cloth_dimy)])
         edge_ids.extend([(cloth_dimy-1)*cloth_dimx + i for i in range(1, cloth_dimx-1)])
         return edge_ids
+    
+    def _step(self, action):
+        self.control_step +=  self.action_tool.step(action)
+        self.tick_control_step()
+        if self.save_control_step_info:
+            if 'control_signal' not in self.control_step_info:
+                self.control_step_info['control_signal'] = []
+            self.control_step_info['control_signal'].append(action)
     
     def wait_until_stable(self, max_wait_step=300, stable_vel_threshold=0.0006):
         wait_steps = self._wait_to_stabalise(max_wait_step=max_wait_step, stable_vel_threshold=stable_vel_threshold)
@@ -740,7 +760,7 @@ class ClothEnv(FlexEnv):
                 if 'control_signal' not in self.control_step_info:
                     self.control_step_info['control_signal'] = []
                 self.control_step_info['control_signal'].append(np.zeros((self.num_picker, 4)))
-
+                
             if stable_step > 10:
                 break
             if np.max(curr_vel) < stable_vel_threshold:

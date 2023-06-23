@@ -29,12 +29,14 @@ class FlexEnv(gym.Env):
                  camera_name='default_camera',
                  use_cached_states=False,
                  observation_mode = 'rgbd',
-                 save_step_info=False,
-                 save_image_dim=(128, 128),
-                 save_cached_states=True, 
                  save_control_step_info=False,
+                 save_image_dim=(128, 128),
+                 save_cached_states=True,
                  **kwargs):
-
+        
+        self.save_control_step_info = save_control_step_info
+        self.save_image_dim = save_image_dim
+        self.set_save_control_step_info(save_control_step_info)
         
         # self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
         self.camera_width = camera_width
@@ -51,8 +53,6 @@ class FlexEnv(gym.Env):
             device_id = int(os.environ['gpu_id'])
         self.device_id = device_id
 
-        self.save_control_step_info = save_step_info
-        self.save_image_dim = save_image_dim
 
         self.sampling_random_state = np.random.RandomState(kwargs['random_seed'])
         print('Random seed for sampling initial states: ', kwargs['random_seed'])
@@ -81,7 +81,7 @@ class FlexEnv(gym.Env):
 
         self.version = 1
 
-        self.set_save_control_step_info(save_control_step_info)
+        
   
 
     def set_save_control_step_info(self, flag):
@@ -139,7 +139,7 @@ class FlexEnv(gym.Env):
             self.control_step_info['picker_pos'].append(self.action_tool.get_picker_pos())
             self.control_step_info['particle_pos'].append(self.get_particle_pos())
             rgbd = self.render(resolution=self.save_image_dim, mode='rgbd')
-            self.control_step_info['rgb'].append(rgbd[:, :, :3]) #TODO: magic numbers
+            self.control_step_info['rgb'].append(rgbd[:, :, :3])
             self.control_step_info['depth'].append(rgbd[:, :, 3])
 
     def update_camera(self, camera_name, camera_param=None):
@@ -248,21 +248,11 @@ class FlexEnv(gym.Env):
         for i in range(self.action_repeat):
             self._step(action)
         obs = self._get_obs()
-        #reward = self.compute_reward()
-        #info = self._get_info()
 
 
         done = False
         if self.control_step >= self.control_horizon:
             done = True
-
-        # print('control step', self.control_step, 'done', done)
-        
-        # if self.action_mode != 'velocity' and (self.action_horizon is not None) and self.action_step >= self.action_horizon:
-        #     done = True
-
-        # if record_continuous_video:
-        #     info['flex_env_recorded_frames'] = frames
 
         return {
             'observation': obs,
@@ -291,7 +281,7 @@ class FlexEnv(gym.Env):
     def get_action_space(self):
         raise NotImplementedError
 
-    def render(self, mode='rgb', camera_name='default_camera', resolution=(720, 720)):
+    def render(self, mode='rgb', camera_name='default_camera', resolution=(128, 128)):
         #pyflex.step()
         self.update_camera(camera_name)
         img, depth_img = pyflex.render()
@@ -313,7 +303,7 @@ class FlexEnv(gym.Env):
             raise NotImplementedError
         
         if width != resolution[0] or height != resolution[1]:
-            img = cv2.resize(img, (width, height))
+            img = cv2.resize(img, resolution)
 
         return img
 
