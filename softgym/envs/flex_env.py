@@ -227,7 +227,7 @@ class FlexEnv(gym.Env):
 
         obs = self._reset()
         if self.save_control_step_info:
-            rgbd = self.get_image(height=self.save_image_dim[0], width=self.save_image_dim[1], depth=True)
+            rgbd = self.render(resolution=self.save_image_dim, mode='rgbd')
             self.control_step_info = {
                 'picker_pos': [self.action_tool.get_picker_pos()], 
                 'particle_pos': [self.get_particle_pos()], 
@@ -253,8 +253,10 @@ class FlexEnv(gym.Env):
 
 
         done = False
-        if (self.control_horizon is not None) and (self.control_step >= self.control_horizon):
+        if self.control_step >= self.control_horizon:
             done = True
+
+        # print('control step', self.control_step, 'done', done)
         
         # if self.action_mode != 'velocity' and (self.action_horizon is not None) and self.action_step >= self.action_horizon:
         #     done = True

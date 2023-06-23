@@ -296,20 +296,29 @@ class ClothEnv(FlexEnv):
 
     def get_cloth_mask(self, camera_name='default_camera', resolution=(64, 64)):
         
-        ### Render an rgb image, then get the mask by thresholding
-        print('camara name: ', camera_name)
-        rgb_image = self.render(camera_name=camera_name, mode='rgb')
-        rgb_image = cv2.resize(rgb_image, resolution, interpolation=cv2.INTER_LINEAR)
 
-        model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True).eval()
-        image_tensor = torchvision.transforms.functional.to_tensor(rgb_image)
-        output = model([image_tensor])
-        print('mask shape', output[0]['masks'].shape)
-        for i, m in enumerate(output[0]['masks']):
-            print('mask {}'.format(i))
-            mask = m[0].detach().numpy()
-            plt.imshow(mask)
+        if camera_name == 'default_camera':
+            depth_images = self.render(mode='d')
+            if resolution != (720,720):
+                depth_images = cv2.resize(depth_images, resolution, interpolation=cv2.INTER_LINEAR)
+            mask = (1.35 < depth_images) & (depth_images < 1.499)
+        else:
+            ### Render an rgb image, then get the mask by thresholding
+            rgb_image = self.render(camera_name=camera_name, mode='rgb')
+            rgb_image = cv2.resize(rgb_image, resolution, interpolation=cv2.INTER_LINEAR)
+
+            plt.imshow(rgb_image)
             plt.show()
+
+            model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True).eval()
+            image_tensor = torchvision.transforms.functional.to_tensor(rgb_image)
+            output = model([image_tensor])
+            print('mask shape', output[0]['masks'].shape)
+            for i, m in enumerate(output[0]['masks']):
+                print('mask {}'.format(i))
+                mask = m[0].detach().numpy()
+                plt.imshow(mask)
+                plt.show()
 
         ## Threshold the image to filter out black, white and grey pixels
         # Apply thresholding to obtain binary mask

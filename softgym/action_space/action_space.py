@@ -57,7 +57,7 @@ class Picker(ActionToolBase):
         self.init_particle_pos = init_particle_pos
         self.spring_coef = spring_coef  # Prevent picker to drag two particles too far away
 
-        space_low = np.array([-0.1, -0.1, -0.1, 0] * self.num_picker) * 0.1  # [dx, dy, dz, [0, 1]]
+        space_low = np.array([-0.1, -0.1, -0.1, -10] * self.num_picker) * 0.1  # [dx, dy, dz, [-1, 1]]
         space_high = np.array([0.1, 0.1, 0.1, 10] * self.num_picker) * 0.1
         self.action_space = Box(space_low, space_high, dtype=np.float32)
     
@@ -83,10 +83,11 @@ class Picker(ActionToolBase):
     def _apply_picker_boundary(self, picker_pos):
         #print('picker_low', self.picker_low)
         clipped_picker_pos = picker_pos.copy()
-        for i in range(3):
-            if i == 1:
-                #print('low z, high z, picker radius, input_pos', self.picker_low[i], self.picker_high[i], self.picker_radius, picker_pos[i])
-                clipped_picker_pos[i] = np.clip(picker_pos[i], self.picker_low[:, i], self.picker_high[:, i])
+        clipped_picker_pos = np.clip(clipped_picker_pos, self.picker_low, self.picker_high)
+        # for i in range(3):
+        #     if i == 1:
+        #         print('low z, high z, picker radius, input_pos', self.picker_low[i], self.picker_high[i], self.picker_radius, picker_pos[i])
+        #         clipped_picker_pos[i] = np.clip(picker_pos[i], self.picker_low[:, i], self.picker_high[:, i])
         return clipped_picker_pos
 
     def _get_centered_picker_pos(self, center):
