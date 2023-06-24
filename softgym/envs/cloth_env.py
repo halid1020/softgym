@@ -683,7 +683,7 @@ class ClothEnv(FlexEnv):
        
         info = super().reset(episode_id=episode_id)
         if self.save_control_step_info:
-            self.control_step_info['control_normaliesd_coverage'] = [self.get_normalised_coverage()]
+            self.control_step_info['control_normalised_coverage'] = [self.get_normalised_coverage()]
         return info
 
     def get_edge_ids(self):
