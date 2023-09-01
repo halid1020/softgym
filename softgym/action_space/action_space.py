@@ -52,6 +52,9 @@ class Picker(ActionToolBase):
         self.num_picker = num_picker
         self.picked_particles = [None] * self.num_picker
         self.picker_low, self.picker_high = np.array(list(picker_low)).astype(np.float32), np.array(list(picker_high)).astype(np.float32)
+        
+        print('picker boundary', self.picker_low, self.picker_high)
+        
         self.init_pos = init_pos
         self.particle_radius = particle_radius
         self.init_particle_pos = init_particle_pos
