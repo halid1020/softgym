@@ -3,22 +3,9 @@ from softgym.envs.pour_water_amount import PourWaterAmountPosControlEnv
 from softgym.envs.pass_water import PassWater1DEnv
 from softgym.envs.rope_flatten import RopeFlattenEnv
 from softgym.envs.rope_configuration import RopeConfigurationEnv
-from softgym.envs.cloth_flatten import ClothFlattenEnv
-from softgym.envs.cloth_fold import ClothFoldEnv
 from softgym.envs.cloth_drop import ClothDropEnv
-from softgym.envs.cloth_fold_crumpled import ClothFoldCrumpledEnv
-from softgym.envs.cloth_fold_drop import ClothFoldDropEnv
-from softgym.envs.cloth_diagonal_fold import ClothDiagonalFoldEnv
-from softgym.envs.cloth_rectangular_fold import ClothRectangularFoldEnv
-from softgym.envs.cloth_side_fold import ClothSideFoldEnv
-from softgym.envs.cloth_double_side_fold import ClothDoubleSideFoldEnv
-from softgym.envs.cloth_cross_fold import ClothCrossFoldEnv
-from softgym.envs.cloth_double_side_cross_fold import ClothDoubleSideCrossFoldEnv
-from softgym.envs.cloth_double_side_rectangular_fold import ClothDoubleSideRectangularFoldEnv
-from softgym.envs.cloth_all_corner_inward_fold import ClothAllCornerInwardFoldEnv
-from softgym.envs.cloth_double_corner_inward_fold import ClothDoubleCornerInwardFoldEnv
-from softgym.envs.cloth_one_corner_inward_fold import ClothOneCornerInwardFoldEnv
-from softgym.envs.cloth_diagonal_cross_fold import ClothDiagonalCrossFoldEnv
+from softgym.envs.garment_env import GarmentEnv
+from softgym.envs.fabric_env import FabricEnv
 
 from collections import OrderedDict
 
@@ -69,6 +56,19 @@ env_arg_dict = {
                           'num_variations': 1000,
                           'use_cached_states': True,
                           'deterministic': False},
+
+    'Cloth': {'observation_mode': 'cam_rgb',
+        'action_mode': 'picker',
+        'num_picker': 1,
+        'render': True,
+        'headless': True,
+        'horizon': 100,
+        'action_repeat': 8,
+        'render_mode': 'cloth',
+        'num_variations': 1000,
+        'use_cached_states': True,
+        'deterministic': False},
+
     'ClothFlatten': {'observation_mode': 'cam_rgb',
                      'action_mode': 'picker',
                      'num_picker': 2,
@@ -80,17 +80,17 @@ env_arg_dict = {
                      'num_variations': 1000,
                      'use_cached_states': True,
                      'deterministic': False},
-    'ClothFlattenPPP': {'observation_mode': 'cam_rgb',
-                        'action_mode': 'pickerpickplace',
-                        'num_picker': 2,
-                        'render': True,
-                        'headless': True,
-                        'horizon': 20,
-                        'action_repeat': 1,
-                        'render_mode': 'cloth',
-                        'num_variations': 1000,
-                        'use_cached_states': True,
-                        'deterministic': False},
+    # 'ClothFlattenPPP': {'observation_mode': 'cam_rgb',
+    #                     'action_mode': 'pickerpickplace',
+    #                     'num_picker': 2,
+    #                     'render': True,
+    #                     'headless': True,
+    #                     'horizon': 20,
+    #                     'action_repeat': 1,
+    #                     'render_mode': 'cloth',
+    #                     'num_variations': 1000,
+    #                     'use_cached_states': True,
+    #                     'deterministic': False},
     'ClothFoldPPP': {'observation_mode': 'cam_rgb',
                      'action_mode': 'pickerpickplace',
                      'num_picker': 2,
@@ -195,27 +195,11 @@ SOFTGYM_ENVS = OrderedDict({
     'PourWater': PourWaterPosControlEnv,
     'PourWaterAmount': PourWaterAmountPosControlEnv,
     'PassWater': PassWater1DEnv,
-    'ClothFlatten': ClothFlattenEnv,
-    
-    'ClothFold': ClothFoldEnv,
-    'ClothRectangularFold': ClothRectangularFoldEnv,
-    'ClothSideFold': ClothSideFoldEnv,
-    'ClothDoubleSideFold': ClothDoubleSideFoldEnv,
-    'ClothCrossFold': ClothCrossFoldEnv,
-    'ClothDoubleSideCrossFold': ClothDoubleSideCrossFoldEnv,
-    'ClothDoubleSideRectangularFold': ClothDoubleSideRectangularFoldEnv,
 
-    'ClothDiagonalFold': ClothDiagonalFoldEnv,
-    'ClothOneCornerInwardFold': ClothOneCornerInwardFoldEnv,
-    'ClothDoubleCornerInwardFold': ClothDoubleCornerInwardFoldEnv,
-    'ClothAllCornerInwardFold': ClothAllCornerInwardFoldEnv,
-    'ClothDiagonalCrossFold': ClothDiagonalCrossFoldEnv,
+    'FabricEnv': FabricEnv,
+    'Garment': GarmentEnv,
 
     'ClothDrop': ClothDropEnv,
-    'ClothFoldDrop': ClothFoldDropEnv,
-    'ClothFlattenPPP': ClothFlattenEnv,
-    'ClothFoldPPP': ClothFoldEnv,
-    'ClothFoldCrumpled': ClothFoldCrumpledEnv,
     'RopeFlatten': RopeFlattenEnv,
     'RopeConfiguration': RopeConfigurationEnv,
 })

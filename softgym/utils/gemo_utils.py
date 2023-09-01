@@ -32,6 +32,38 @@ def intrinsic_from_fov(height, width, fov=90):
                      [0, 0, 1., 0.],
                      [0., 0., 0., 1.]])
 
+def transformation_from_pos_and_angle(pos, angle):
+	# Extract individual components
+	tx, ty, tz = pos
+	rx, ry, rz = angle
+
+	# Translation vector
+	t = np.array([tx, ty, tz])
+
+	# Rotation matrices
+	Rx = np.array([[1, 0, 0],
+				[0, np.cos(rx), -np.sin(rx)],
+				[0, np.sin(rx), np.cos(rx)]])
+
+	Ry = np.array([[np.cos(ry), 0, np.sin(ry)],
+				[0, 1, 0],
+				[-np.sin(ry), 0, np.cos(ry)]])
+
+	Rz = np.array([[np.cos(rz), -np.sin(rz), 0],
+				[np.sin(rz), np.cos(rz), 0],
+				[0, 0, 1]])
+
+	# Combine rotation matrices
+	R = Rz @ Ry @ Rx
+
+	# Homogeneous transformation matrix
+	T = np.eye(4)
+	T[:3, :3] = R
+	T[:3, 3] = t
+
+	return T
+
+
 def get_rotation_matrix(angle, axis):
 	axis = axis / np.linalg.norm(axis)
 	s = np.sin(angle)

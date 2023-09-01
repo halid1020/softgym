@@ -52,12 +52,15 @@ class Picker(ActionToolBase):
         self.num_picker = num_picker
         self.picked_particles = [None] * self.num_picker
         self.picker_low, self.picker_high = np.array(list(picker_low)).astype(np.float32), np.array(list(picker_high)).astype(np.float32)
+        
+        print('picker boundary', self.picker_low, self.picker_high)
+        
         self.init_pos = init_pos
         self.particle_radius = particle_radius
         self.init_particle_pos = init_particle_pos
         self.spring_coef = spring_coef  # Prevent picker to drag two particles too far away
 
-        space_low = np.array([-0.1, -0.1, -0.1, 0] * self.num_picker) * 0.1  # [dx, dy, dz, [0, 1]]
+        space_low = np.array([-0.1, -0.1, -0.1, -10] * self.num_picker) * 0.1  # [dx, dy, dz, [-1, 1]]
         space_high = np.array([0.1, 0.1, 0.1, 10] * self.num_picker) * 0.1
         self.action_space = Box(space_low, space_high, dtype=np.float32)
     
@@ -83,10 +86,11 @@ class Picker(ActionToolBase):
     def _apply_picker_boundary(self, picker_pos):
         #print('picker_low', self.picker_low)
         clipped_picker_pos = picker_pos.copy()
-        for i in range(3):
-            if i == 1:
-                #print('low z, high z, picker radius, input_pos', self.picker_low[i], self.picker_high[i], self.picker_radius, picker_pos[i])
-                clipped_picker_pos[i] = np.clip(picker_pos[i], self.picker_low[:, i], self.picker_high[:, i])
+        clipped_picker_pos = np.clip(clipped_picker_pos, self.picker_low, self.picker_high)
+        # for i in range(3):
+        #     if i == 1:
+        #         print('low z, high z, picker radius, input_pos', self.picker_low[i], self.picker_high[i], self.picker_radius, picker_pos[i])
+        #         clipped_picker_pos[i] = np.clip(picker_pos[i], self.picker_low[:, i], self.picker_high[:, i])
         return clipped_picker_pos
 
     def _get_centered_picker_pos(self, center):
@@ -208,7 +212,7 @@ class Picker(ActionToolBase):
         action = np.reshape(action, (-1, 4))
 
         grip_flag = (action[:, 3] < 0)
-        realse_flag = (0 <= action[:, 3] < 1)
+        realse_flag = (0 <= action[:, 3]) & (action[:, 3] <= 1)
         
         picker_pos, particle_pos = self._get_pos()
         new_picker_pos, new_particle_pos = picker_pos.copy(), particle_pos.copy()
@@ -216,8 +220,7 @@ class Picker(ActionToolBase):
         # Un-pick the particles
         # print('check pick id:', self.picked_particles, new_particle_pos.shape, self.particle_inv_mass.shape)
         for i in range(self.num_picker):
-            if (realse_flag[i] or grip_flag[i]) and self.picked_particles[i] is not None:
-                #print('release ...')
+            if (realse_flag[i]) and (self.picked_particles[i] is not None):
                 new_particle_pos[self.picked_particles[i], 3] = self.particle_inv_mass[self.picked_particles[i]]  # Revert the mass
                 self.picked_particles[i] = None
         
@@ -226,11 +229,8 @@ class Picker(ActionToolBase):
         # Pick new particles and update the mass and the positions
         for i in range(self.num_picker):
             new_picker_pos[i, :] = self._apply_picker_boundary(picker_pos[i, :] + action[i, :3])
-            if realse_flag[i]:
-                continue
 
-            if grip_flag[i]:  # No particle is currently picked and thus need to select a particle to pick
-                #print('Intent to pick .....')
+            if grip_flag[i] and (self.picked_particles[i] is None):  # No particle is currently picked and thus need to select a particle to pick
                 dists = scipy.spatial.distance.cdist(picker_pos[i].reshape((-1, 3)), particle_pos[:, :3].reshape((-1, 3)))
                 idx_dists = np.hstack([np.arange(particle_pos.shape[0]).reshape((-1, 1)), dists.reshape((-1, 1))])
                 
@@ -256,49 +256,48 @@ class Picker(ActionToolBase):
                         self.picked_particles[i] = int(pick_id)
 
             if self.picked_particles[i] is not None:
-                #print('holding....')
                 # TODO The position of the particle needs to be updated such that it is close to the picker particle
-                new_particle_pos[self.picked_particles[i], :3] = particle_pos[self.picked_particles[i], :3] + new_picker_pos[i, :] - picker_pos[i,
-                                                                                                                                        :]
+                new_particle_pos[self.picked_particles[i], :3] = \
+                    particle_pos[self.picked_particles[i], :3] + new_picker_pos[i, :] - picker_pos[i, :]
                 new_particle_pos[self.picked_particles[i], 3] = 0  # Set the mass to infinity
 
-        # check for e.g., rope, the picker is not dragging the particles too far away that violates the actual physicals constraints.
-        if self.init_particle_pos is not None:
-            picked_particle_idices = []
-            active_picker_indices = []
-            for i in range(self.num_picker):
-                if self.picked_particles[i] is not None:
-                    picked_particle_idices.append(self.picked_particles[i])
-                    active_picker_indices.append(i)
+        # # check for e.g., rope, the picker is not dragging the particles too far away that violates the actual physicals constraints.
+        # if self.init_particle_pos is not None:
+        #     picked_particle_idices = []
+        #     active_picker_indices = []
+        #     for i in range(self.num_picker):
+        #         if self.picked_particles[i] is not None:
+        #             picked_particle_idices.append(self.picked_particles[i])
+        #             active_picker_indices.append(i)
 
-            l = len(picked_particle_idices)
-            for i in range(l):
-                for j in range(i + 1, l):
-                    init_distance = np.linalg.norm(self.init_particle_pos[picked_particle_idices[i], :3] -
-                                                   self.init_particle_pos[picked_particle_idices[j], :3])
-                    now_distance = np.linalg.norm(new_particle_pos[picked_particle_idices[i], :3] -
-                                                  new_particle_pos[picked_particle_idices[j], :3])
-                    if now_distance >= init_distance * self.spring_coef:  # if dragged too long, make the action has no effect; revert it
-                        new_picker_pos[active_picker_indices[i], :] = picker_pos[active_picker_indices[i], :].copy()
-                        new_picker_pos[active_picker_indices[j], :] = picker_pos[active_picker_indices[j], :].copy()
-                        new_particle_pos[picked_particle_idices[i], :3] = particle_pos[picked_particle_idices[i], :3].copy()
-                        new_particle_pos[picked_particle_idices[j], :3] = particle_pos[picked_particle_idices[j], :3].copy()
+        #     l = len(picked_particle_idices)
+        #     for i in range(l):
+        #         for j in range(i + 1, l):
+        #             init_distance = np.linalg.norm(self.init_particle_pos[picked_particle_idices[i], :3] -
+        #                                            self.init_particle_pos[picked_particle_idices[j], :3])
+        #             now_distance = np.linalg.norm(new_particle_pos[picked_particle_idices[i], :3] -
+        #                                           new_particle_pos[picked_particle_idices[j], :3])
+        #             if now_distance >= init_distance * self.spring_coef:  # if dragged too long, make the action has no effect; revert it
+        #                 new_picker_pos[active_picker_indices[i], :] = picker_pos[active_picker_indices[i], :].copy()
+        #                 new_picker_pos[active_picker_indices[j], :] = picker_pos[active_picker_indices[j], :].copy()
+        #                 new_particle_pos[picked_particle_idices[i], :3] = particle_pos[picked_particle_idices[i], :3].copy()
+        #                 new_particle_pos[picked_particle_idices[j], :3] = particle_pos[picked_particle_idices[j], :3].copy()
 
         self._set_pos(new_picker_pos, new_particle_pos)
         
         
-        ## Update environment
-        pyflex.step()
-        if self._render:
-            pyflex.render()
+        # ## Update environment
+        # pyflex.step()
+        # if self._render:
+        #     pyflex.render()
         
         
-        ### Save information
-        if self.save_step_info:
-            self.step_info['control_signal'].append(action)
-            self.step_info['picker_pos'].append(self.get_picker_pos())
-            self.step_info['particle_pos'].append(self.get_particle_pos())
-            self.step_info['rgbd'].append(self.render('rgbd'))
+        # ### Save information
+        # if self.save_step_info:
+        #     self.step_info['control_signal'].append(action)
+        #     self.step_info['picker_pos'].append(self.get_picker_pos())
+        #     self.step_info['particle_pos'].append(self.get_particle_pos())
+        #     self.step_info['rgbd'].append(self.render('rgbd'))
 
         return 1
 
@@ -366,11 +365,12 @@ class PickerPickPlace(Picker):
             raise NotImplementedError
 
         self._motion_trajectory = motion_trajectory
+        self._intermidiate_height = kwargs['intermidiate_height']
+        self._release_height = kwargs['release_height']
         if motion_trajectory == 'triangle':
-            self._intermidiate_height = kwargs['intermidiate_height']
+            pass
         elif motion_trajectory == 'triangle_with_height_ratio':
             self._intermidiate_height_ratio = kwargs['intermidiate_height_ratio']
-            self._release_height = kwargs['release_height']
             self._minimum_intermidiate_height = kwargs['minimum_intermidiate_height']
             self._maximum_intermidiate_height = kwargs['maximum_intermidiate_height']
 
@@ -426,7 +426,7 @@ class PickerPickPlace(Picker):
 
             # Raise to certain height, while releasing
             curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
-            curr_pos[:, 1] = place_height
+            curr_pos[:, 1] = self._release_height
 
             raise_action = \
                 np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
@@ -435,7 +435,7 @@ class PickerPickPlace(Picker):
 
             # Go to pick position while releasing without changing the height
             go_to_pick_pos_action = action[:, 0, :].copy()
-            go_to_pick_pos_action[:, 1] = place_height
+            go_to_pick_pos_action[:, 1] = self._release_height
             go_to_pick_pos_action = \
                 np.concatenate([go_to_pick_pos_action, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
             total_steps += self._world_pick_or_place(go_to_pick_pos_action, render)
@@ -453,7 +453,7 @@ class PickerPickPlace(Picker):
 
             # Raise the height
             curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3]
-            curr_pos[:, 1] = place_height
+            curr_pos[:, 1] = self._intermidiate_height
             raise_action = \
                 np.concatenate([curr_pos, np.full((self.num_picker, 1), grip_signal)], axis=1).flatten()
             total_steps += self._world_pick_or_place(raise_action, render)
@@ -466,6 +466,12 @@ class PickerPickPlace(Picker):
             
             total_steps += self._world_pick_or_place(go_to_place_pos_action, render)
 
+            # Lower the height
+            curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
+            curr_pos[:, 1] = place_height
+            lower_action = np.concatenate([curr_pos, np.full((self.num_picker, 1), grip_signal)], axis=1).flatten()
+            total_steps += self._world_pick_or_place(lower_action, render)
+
             # place
             super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), release_signal)]))
             total_steps += 1
@@ -473,9 +479,9 @@ class PickerPickPlace(Picker):
             # Move a bit
             if self._end_trajectory_move:
                 curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
-                displacement = 0.05*np.sign(action[:, 1, :].copy() - action[:, 0, :].copy())
+                displacement = 0.04*np.sign(action[:, 1, :].copy() - action[:, 0, :].copy())
                 curr_pos = curr_pos + displacement
-                curr_pos[:, 1] = place_height
+                curr_pos[:, 1] = self._release_height
                 move_action = \
                     np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
                 total_steps += self._world_pick_or_place(move_action, render)
@@ -527,12 +533,12 @@ class PickerPickPlace(Picker):
             super().step(np.hstack([np.zeros((1, 3)), np.full((1,1), release_signal)]))
             total_steps += 1
 
-             # Move a bit
+            # Move a bit
             if self._end_trajectory_move:
                 curr_pos = np.array(pyflex.get_shape_states()).reshape(-1, 14)[:, :3].copy()
-                displacement = 0.05*np.sign(action[:, 1, :].copy() - action[:, 0, :].copy())
+                displacement = 0.04*np.sign(action[:, 1, :].copy() - action[:, 0, :].copy())
                 curr_pos = curr_pos + displacement
-                curr_pos[:, 1] = 0.2 ## Magic Number
+                curr_pos[:, 1] = self._release_height
                 move_action = \
                     np.concatenate([curr_pos, np.full((self.num_picker, 1), release_signal)], axis=1).flatten()
                 total_steps += self._world_pick_or_place(move_action, render)

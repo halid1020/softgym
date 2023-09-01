@@ -1384,11 +1384,11 @@ void RenderScene() {
 
 
     SetView(lightView, lightPerspective);
-    SetCullMode(false);
+    SetCullMode(true);
 
     // give scene a chance to do custom drawing
     g_scenes[g_scene]->Draw(1);
-
+    g_drawMesh = false;
     if (g_drawMesh && !g_clothOnly)
         DrawMesh(g_mesh, g_meshColor);
 
@@ -1396,7 +1396,7 @@ void RenderScene() {
     if (!g_clothOnly)
         DrawShapes();
     // printf("pass DrawShapes\n");
-
+    g_drawCloth = true;
     if (g_drawCloth && g_buffers->triangles.size()) {
         DrawCloth(&g_buffers->positions[0], &g_buffers->normals[0], g_buffers->uvs.size() ? &g_buffers->uvs[0].x : NULL,
                   &g_buffers->triangles[0], g_buffers->triangles.size() / 3, g_buffers->positions.size(), 3,
@@ -1408,7 +1408,6 @@ void RenderScene() {
             DrawRope(&g_buffers->positions[0], &g_ropes[i].mIndices[0], g_ropes[i].mIndices.size(),
                      radius * g_ropeScale, i);
     }
-    // printf("pass DrawRope\n");
 
     int shadowParticles = numParticles;
     int shadowParticlesOffset = 0;

@@ -44,7 +44,7 @@ def center_object(sampler, position):
     Center the object to be at the origin
     NOTE: call a pyflex.set_positions and then pyflex.step
     """
-    pos = pyflex.get_positions().reshape(-1, 4)
+    pos = pyflex.get_positions().reshape(-1, 4).copy()
     pos[:, [0, 2]] -= np.mean(pos[:, [0, 2]], axis=0, keepdims=True) 
     
     

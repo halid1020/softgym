@@ -1145,8 +1145,26 @@ void DrawMesh(const Mesh* m, Vec3 color)
 {
 	if (m)
 	{
+
+
+#if 1
+	GLint program;
+	glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+
+	if (program == GLint(s_diffuseProgram))
+	{
+		GLint uBias = glGetUniformLocation(s_diffuseProgram, "bias");
+		glUniform1f(uBias, 0.0f);
+
+		GLint uExpand = glGetUniformLocation(s_diffuseProgram, "expand");
+		glUniform1f(uExpand, 0.0f);
+	}
+#endif	
+		glDisable(GL_CULL_FACE);
 		glVerify(glColor3fv(color));
 		glVerify(glSecondaryColor3fv(color));
+
+		
 
 		glVerify(glBindBuffer(GL_ARRAY_BUFFER, 0));
 		glVerify(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
@@ -1154,8 +1172,9 @@ void DrawMesh(const Mesh* m, Vec3 color)
 		glVerify(glEnableClientState(GL_NORMAL_ARRAY));
 		glVerify(glEnableClientState(GL_VERTEX_ARRAY));
 
-		glVerify(glNormalPointer(GL_FLOAT, sizeof(float) * 3, &m->m_normals[0]));
 		glVerify(glVertexPointer(3, GL_FLOAT, sizeof(float) * 3, &m->m_positions[0]));
+		glVerify(glNormalPointer(GL_FLOAT, sizeof(float) * 3, &m->m_normals[0]));
+		
 
 		if (m->m_colours.size())
 		{
@@ -1167,13 +1186,17 @@ void DrawMesh(const Mesh* m, Vec3 color)
 
 		glVerify(glDisableClientState(GL_VERTEX_ARRAY));
 		glVerify(glDisableClientState(GL_NORMAL_ARRAY));
+		glEnable(GL_CULL_FACE);
 
 		if (m->m_colours.size())
 			glVerify(glDisableClientState(GL_COLOR_ARRAY));
 	}
 }
 
-void DrawCloth(const Vec4* positions, const Vec4* normals, const float* uvs, const int* indices, int numTris, int numPositions, int colorIndex, float expand, bool twosided, bool smooth)
+
+void DrawCloth(const Vec4* positions, const Vec4* normals, const float* uvs, 
+	const int* indices, int numTris, int numPositions, 
+	int colorIndex, float expand, bool twosided, bool smooth)
 {
 	if (!numTris)
 		return;
@@ -1191,6 +1214,7 @@ void DrawCloth(const Vec4* positions, const Vec4* normals, const float* uvs, con
 		glUniform1f(uBias, 0.0f);
 
 		GLint uExpand = glGetUniformLocation(s_diffuseProgram, "expand");
+		//std::cout << "expand: " << expand << std::endl;
 		glUniform1f(uExpand, expand);
 	}
 #endif
@@ -1207,6 +1231,12 @@ void DrawCloth(const Vec4* positions, const Vec4* normals, const float* uvs, con
 	glVerify(glVertexPointer(3, GL_FLOAT, sizeof(float)*4, positions));
 	glVerify(glNormalPointer(GL_FLOAT, sizeof(float)*4, normals));
 
+	if (uvs)
+	{
+		glVerify(glEnableClientState(GL_COLOR_ARRAY));
+		glVerify(glColorPointer(3, GL_FLOAT, 0, uvs));
+	}
+
 	glVerify(glDrawElements(GL_TRIANGLES, numTris*3, GL_UNSIGNED_INT, indices));
 
 	glVerify(glDisableClientState(GL_VERTEX_ARRAY));
@@ -1214,6 +1244,11 @@ void DrawCloth(const Vec4* positions, const Vec4* normals, const float* uvs, con
 
 	if (twosided)
 		glEnable(GL_CULL_FACE);
+	
+	if (uvs)
+	{
+		glVerify(glDisableClientState(GL_COLOR_ARRAY));
+	}
 
 #if 1
 	if (program == GLint(s_diffuseProgram))
