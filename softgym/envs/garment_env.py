@@ -32,24 +32,24 @@ class GarmentEnv(ClothEnv):
         cam_pos, cam_angle = np.array([-0.0, 1.5, 0]), np.array([0, -90 / 180. * np.pi, 0.])
         config = {
             'pos': [0, 0, 0],
-            'scale': 0.3,
+            'scale': 0.5,
             'rot': 0.0,
             'vel': [0., 0., 0.],
-            'stiff': [0.85, 1, 0.9],
-            'mass': 0.005,
+            'stiff': [1.2, 0.6, 1], #[0.8, 1, 0.9], #[0.85, 1, 0.9],
+            'mass': 0.0003, # 0.005,
             'garment_type': 'Tshirt',
             'shape_id': 0,
-            'radius': self.cloth_particle_radius,
+            'radius': 0.005, #self.cloth_particle_radius,
             'camera_name': 'default_camera',
             'camera_params': {'default_camera':
-                                  {'pos': cam_pos,
+                                  {'pos': [0, 0.65, 0],#cam_pos,
                                    'angle': cam_angle,
                                    'width': self.camera_width,
                                    'height': self.camera_height}},
             'drop_height': 0.0,
-            'front_colour':  [0.673, 0.111, 0.0],
-            'back_colour': [0.612, 0.194, 0.394],
-            'inside_colour': [0.673, 0.111, 0.0],
+            'front_colour':  [0.0, 0.0, 1.0],
+            'back_colour': [0.0, 0.0, 1.0],
+            'inside_colour':  [1,0, 1.0, 0.0] ,
         }
 
         return config
@@ -136,7 +136,8 @@ class GarmentEnv(ClothEnv):
 
             # Pick up the cloth and wait to stablize
             if self.context['state']:
-                visible_particle, _ = self.get_visibility() ## This returns a list of bools indicating whether the particle is visible
+                visible_particle, _ = self.get_visibility(
+            camera_height=self.current_config['camera_params']['default_camera']['pos'][1]) ## This returns a list of bools indicating whether the particle is visible
                 ### Choose the pickpoint that is visible
                 visible_pickpoints = np.where(visible_particle)[0]
                 pickpoint = self.context_random_state.choice(visible_pickpoints)
@@ -159,7 +160,8 @@ class GarmentEnv(ClothEnv):
 
                 # Drag the cloth and wait to stablise
                 if self.context_random_state.random() < 0.7:
-                    visible_particle, _ = self.get_visibility() ## This returns a list of bools indicating whether the particle is visible
+                    visible_particle, _ = self.get_visibility(
+                        camera_height=self.current_config['camera_params']['default_camera']['pos'][1]) ## This returns a list of bools indicating whether the particle is visible
                     ### Choose the pickpoint that is visible
                     visible_pickpoints = np.where(visible_particle)[0]
                     pickpoint = self.context_random_state.choice(visible_pickpoints)
@@ -248,7 +250,26 @@ class GarmentEnv(ClothEnv):
         env_idx = 5
 
         #print(config)
-        
+
+        if self.recolour_config:
+            front_colour = self.context_random_state.uniform(
+                np.array(self.context['colour']['front_colour']['lower_bound']), 
+                np.array(self.context['colour']['front_colour']['upper_bound']))
+            back_colour = self.context_random_state.uniform(
+                np.array(self.context['colour']['back_colour']['lower_bound']),
+                np.array(self.context['colour']['back_colour']['upper_bound']))
+            
+            inside_colour = self.context_random_state.uniform(
+                np.array(self.context['colour']['inside_colour']['lower_bound']),
+                np.array(self.context['colour']['inside_colour']['upper_bound']))
+
+        else:
+            front_colour = [0,0, 1.0, 1.0] if 'front_colour' not in config else config['front_colour']
+            back_colour =   [0,0, 1.0, 1.0] if 'back_colour' not in config else config['back_colour']
+            inside_colour =   [1.0, 0.0, 0.0] if 'inside_colour' not in config else config['inside_colour']
+
+        print('config', config)
+        self.current_config = config
         scene_params = np.concatenate([
             config['pos'][:], 
             [config['scale'], config['rot']], 
@@ -259,9 +280,9 @@ class GarmentEnv(ClothEnv):
             camera_params['angle'][:], 
             [camera_params['width'], camera_params['height']], 
             [render_mode],
-            config['front_colour'][:],
-            config['back_colour'][:],
-            config['inside_colour'][:],
+            front_colour,
+            back_colour ,
+            inside_colour,
             [garment_type_to_id[config['garment_type']], config['shape_id']]
         ])
         self.camera_params['default_camera'] = camera_params
@@ -279,7 +300,9 @@ class GarmentEnv(ClothEnv):
         rgb = cv2.resize(rgb, resolution)
         key_positions = self.get_key_positions()
         key_visible_positions, key_projected_positions = self.get_visibility(
-            key_positions, resolution=resolution)
+            key_positions, resolution=resolution,
+            camera_height=self.current_config['camera_params']['default_camera']['pos'][1])
+
         
         for vis, pos in zip(key_visible_positions, key_projected_positions):
             if (np.max(np.abs(pos)) < 1.0):
@@ -354,8 +377,9 @@ class GarmentEnv(ClothEnv):
 
         particles = self.get_particle_positions()
         particles_2d = particles[:, [0, 2]]
-        visibility, _ = self.get_visibility()
-        
+        visibility, _ = self.get_visibility(
+            camera_height=self.current_config['camera_params']['default_camera']['pos'][1])
+                                     
         ### Get the indices of the particles that are visible
         visible_particle_indices = np.where(visibility == 1)[0]
         visible_particles = particles_2d[visible_particle_indices]
@@ -400,31 +424,31 @@ class GarmentEnv(ClothEnv):
         self.init_covered_area = None
         return self._get_obs()
     
-    def _step(self, action):
+    # def _step(self, action):
 
-        if self.save_control_step_info:
-            self.step_info = {}
+    #     if self.save_control_step_info:
+    #         self.step_info = {}
 
-        self.control_step +=  self.action_tool.step(action)
+    #     self.control_step +=  self.action_tool.step(action)
         
-        if self.save_control_step_info:
-            self.step_info = self.action_tool.get_step_info()
+    #     if self.save_control_step_info:
+    #         self.step_info = self.action_tool.get_step_info()
             
-            self.step_info['coverage'] = []
-            self.step_info['reward'] = []
-            steps = len(self.step_info['control_signal'])
+    #         self.step_info['coverage'] = []
+    #         self.step_info['reward'] = []
+    #         steps = len(self.step_info['control_signal'])
 
-            for i in range(steps):
-                particle_positions = self.step_info['particle_pos'][i][:, :3]
+    #         for i in range(steps):
+    #             particle_positions = self.step_info['particle_pos'][i][:, :3]
                 
-                self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], self.save_image_dim)
-                self.step_info['reward'].append(self.compute_reward(particle_positions))
-                self.step_info['coverage'].\
-                    append(self.get_coverage(particle_positions))
+    #             self.step_info['rgbd'][i] = cv2.resize(self.step_info['rgbd'][i], self.save_image_dim)
+    #             self.step_info['reward'].append(self.compute_reward(particle_positions))
+    #             self.step_info['coverage'].\
+    #                 append(self.get_coverage(particle_positions))
                 
-                eval_data = self.evaluate(particle_positions)
-                for k, v in eval_data.items():
-                    if k not in self.step_info.keys():
-                        self.step_info[k] = [v]
-                    else:
-                        self.step_info[k].append(v)
+    #             eval_data = self.evaluate(particle_positions)
+    #             for k, v in eval_data.items():
+    #                 if k not in self.step_info.keys():
+    #                     self.step_info[k] = [v]
+    #                 else:
+    #                     self.step_info[k].append(v)
