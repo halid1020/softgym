@@ -47,8 +47,7 @@ class ClothEnv(FlexEnv):
 
         # Context
         self.recolour_config = kwargs['recolour_config']
-        if self.use_cached_states == False:
-            self.context = kwargs['context']
+        self.context = kwargs['context']
         self.context_random_state = np.random.RandomState(kwargs['random_seed'])
         
 
@@ -320,25 +319,6 @@ class ClothEnv(FlexEnv):
                 plt.imshow(mask)
                 plt.show()
 
-        ## Threshold the image to filter out black, white and grey pixels
-        # Apply thresholding to obtain binary mask
-       
-
-        # ### Combine the two masks with boolean
-        # mask = np.logical_or(mask1, mask2)
-        # mask = np.logical_or(mask, mask3)
-
-        # ## Get the reverse mask
-        # mask = np.logical_not(mask)
-
-
-        # ### show the histogram
-        # plt.plot(hist_centers, hist)
-        # plt.show()
-
-        # # Threshold the image to filter out black, white and grey pixels
-        # mask = np.zeros_like(gray)
-
 
         return mask
 
@@ -411,7 +391,7 @@ class ClothEnv(FlexEnv):
         return self.get_coverage(new_pos)
 
 
-    def get_visibility(self, positions=None, resolution=(64, 64)):
+    def get_visibility(self, positions=None, resolution=(64, 64), camera_height=None):
         # TODO: need to refactor this, so bad.
         # This has to be online.
 
@@ -422,8 +402,8 @@ class ClothEnv(FlexEnv):
         
         visibility = [False for _ in range(N)]
 
-        camera_hight = 1.5 # TODO: magic number
-        depths = camera_hight - positions[:, 1] #x, z, y
+        # camera_hight = 1.5 # TODO: magic number
+        depths = camera_height - positions[:, 1] #x, z, y
         pixel_to_world_ratio = self.pixel_to_world_ratio # TODO: magic number
         projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1
         projected_pixel_positions_y = positions[:, 2]/pixel_to_world_ratio/depths #-1, 1

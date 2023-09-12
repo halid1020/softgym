@@ -350,8 +350,8 @@ public:
 
 
         int phase = NvFlexMakePhase(0, eNvFlexPhaseSelfCollide | eNvFlexPhaseSelfCollideFilter);
-        float static_friction = 0.5;
-        float dynamic_friction = 1.0;
+        // float static_friction = 0.5;
+        // float dynamic_friction = 1.0;
 
 
         // create path for the garment from the garment id and shape id, /data/TriGarments/{garment name}/{garment name}_{shape id}.obj
@@ -371,7 +371,7 @@ public:
 
         g_numSubsteps = 4;
         g_params.numIterations = 30;
-        g_params.dynamicFriction = 0.75f;
+        g_params.dynamicFriction = 1.2f; //0.75f;
         g_params.particleFriction = 1.0f;
         g_params.damping = 1.0f;
         g_params.sleepThreshold = 0.02f;
@@ -380,7 +380,7 @@ public:
         g_sceneLower = Vec3(-1.0f);
         g_sceneUpper = Vec3(1.0f);
 
-        g_params.radius = radius*1.8f*(scale/0.4);
+        g_params.radius = radius*1.8f;
         g_params.collisionDistance =  0.005f;
 
         g_drawPoints = (render_type & 2) >>1; 
