@@ -19,3 +19,4 @@ PyFlex/bindings/examples/*/
 PyFlex/bindings/examples/*.gif
 
 build/
+*.zip
