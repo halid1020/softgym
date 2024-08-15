@@ -8,6 +8,7 @@ from softgym.utils.visualization import save_numpy_as_gif
 import cv2
 import os.path as osp
 import pickle
+import logging
 
 try:
     import pyflex
@@ -17,16 +18,29 @@ except ImportError as e:
 from matplotlib import pyplot as plt
 
 class FlexEnv(gym.Env):
+
+    resevered_camera_params = {
+        'default_camera':{
+            'pos': np.array([-0.0, 1.5, 0]),
+            'angle': np.array([0, -90 / 180. * np.pi, 0.]),
+            'width': 720,
+            'height': 720},
+        'front_camera': {
+            'pos': np.array([0, 0.2, 1.0]),
+            'angle': np.array([0, 0 / 180. * np.pi, 0]),
+            'width': 720,
+            'height': 720}
+        }
+    
     def __init__(self,
                  device_id=-1,
                  headless=False,
-                 render=True,
+                 render=False,
                  control_horizon=100,
-                 camera_width=720,
-                 camera_height=720,
                  num_variations=1,
                  action_repeat=8,
-                 camera_name='default_camera',
+                 current_camera = 'default_camera',
+                 camera_params=resevered_camera_params.copy(),
                  use_cached_states=False,
                  observation_mode = 'rgbd',
                  save_control_step_info=False,
@@ -38,12 +52,14 @@ class FlexEnv(gym.Env):
         self.save_image_dim = save_image_dim
         self.set_save_control_step_info(save_control_step_info)
         
-        # self.camera_params, self.camera_width, self.camera_height, self.camera_name = {}, camera_width, camera_height, camera_name
-        self.camera_width = camera_width
-        self.camera_height = camera_height
-        self.camera_name = camera_name
+        # update camera
+        self.current_camera = current_camera
+        self.camera_params = camera_params
+        #print('camera_params', self.camera_params)
 
-        pyflex.init(headless, render, camera_width, camera_height)
+        pyflex.init(headless, True, 
+                    self.camera_params[self.current_camera]['width'], 
+                    self.camera_params[self.current_camera]['height'])
 
         self.record_video, self.video_path, self.video_name = False, None, None
 
@@ -55,22 +71,23 @@ class FlexEnv(gym.Env):
 
 
         self.sampling_random_state = np.random.RandomState(kwargs['random_seed'])
-        print('Random seed for sampling initial states: ', kwargs['random_seed'])
+        logging.info('[softgym, flex_env] random seed for sampling initial states: {}'.format(kwargs['random_seed']))
         self.control_horizon = control_horizon
-        print('Control horizon: ', self.control_horizon)
+        logging.info('[softgym, flex_env] control horizon: {}'.format(self.control_horizon))
         self.control_step = 0
         self._render = render
-
 
         self.action_repeat = action_repeat
         self.recording = False
         self.prev_reward = None
         self.use_cached_states = use_cached_states
+        logging.info('[softgym, flex_env] use cached states: {}'.format(self.use_cached_states))
         self.save_cached_states = save_cached_states
         self.current_config = self.get_default_config()
         self.current_config_id = None
         self.cached_configs, self.cached_init_states = None, None
         self.num_variations = num_variations
+        logging.info('[softgym, flex_env] number of variations: {}'.format(self.num_variations))
 
         self.dim_position = 4
         self.dim_velocity = 3
@@ -90,7 +107,8 @@ class FlexEnv(gym.Env):
 
     def reset_control_step_info(self):
         if self.save_control_step_info:
-            self.control_step_info = {'picker_pos': [], 'particle_pos': [], 'rgb': [], 'depth': []}
+            self.control_step_info = {'rgb':[]}
+            #{'picker_pos': [], 'particle_pos': [], 'rgb': [], 'depth': []}
 
     def get_cached_configs_and_states(self, cached_states_path, num_variations):
         """
@@ -103,15 +121,15 @@ class FlexEnv(gym.Env):
         if not cached_states_path.startswith('/'):
             cur_dir = osp.dirname(osp.abspath(__file__))
             cached_states_path = osp.join(cur_dir, '../cached_initial_states', cached_states_path)
-            print(cached_states_path)
+            #print(cached_states_path)
 
-        print(cached_states_path, osp.exists(cached_states_path))
+        #print(cached_states_path, osp.exists(cached_states_path))
         
         if self.use_cached_states and osp.exists(cached_states_path):
             # Load from cached file
             with open(cached_states_path, "rb") as handle:
                 self.cached_configs, self.cached_init_states = pickle.load(handle)
-            print('{} config and state pairs loaded from {}'.format(len(self.cached_init_states), cached_states_path))
+            logging.info('[softgym, flex-env] {} config and state pairs loaded from {}'.format(len(self.cached_init_states), cached_states_path))
             if len(self.cached_configs) >= num_variations:
                 return self.cached_configs, self.cached_init_states
 
@@ -119,7 +137,7 @@ class FlexEnv(gym.Env):
         if self.save_cached_states:
             with open(cached_states_path, 'wb') as handle:
                 pickle.dump((self.cached_configs, self.cached_init_states), handle, protocol=pickle.HIGHEST_PROTOCOL)
-            print('{} config and state pairs generated and saved to {}'.format(len(self.cached_init_states), cached_states_path))
+            logging.info('[softgym, flex-env]  config and state pairs generated and saved to {}'.format(len(self.cached_init_states), cached_states_path))
 
         return self.cached_configs, self.cached_init_states
 
@@ -132,16 +150,18 @@ class FlexEnv(gym.Env):
     def tick_control_step(self):
         pyflex.step()
         if self._render:
+            #print('here')
             pyflex.render()
         
         self.control_step += 1
         if self.save_control_step_info:
+            #print('here')
             #print('tick control action shape', np.zeros(self.step_info['control_signal'][-1].shape).shape)
-            self.control_step_info['picker_pos'].append(self.action_tool.get_picker_pos())
-            self.control_step_info['particle_pos'].append(self.get_particle_pos())
-            rgbd = self.render(resolution=self.save_image_dim, mode='rgbd')
-            self.control_step_info['rgb'].append(rgbd[:, :, :3])
-            self.control_step_info['depth'].append(rgbd[:, :, 3])
+            # self.control_step_info['picker_pos'].append(self.action_tool.get_picker_pos())
+            # self.control_step_info['particle_pos'].append(self.get_particle_pos())
+            rgb = self.render(mode='rgb')
+            self.control_step_info['rgb'].append(rgb)
+            #self.control_step_info['depth'].append(rgbd[:, :, 3])
 
     def update_camera(self, camera_name, camera_param=None):
         """
@@ -151,9 +171,9 @@ class FlexEnv(gym.Env):
         """
 
         if camera_param is not None:
-            self.camera_params[camera_name] = camera_param
+            self.resevered_camera_params[camera_name] = camera_param
         
-        camera_param = self.camera_params[camera_name]
+        camera_param = self.resevered_camera_params[camera_name]
         
         pyflex.set_camera_params(
             np.array([*camera_param['pos'], *camera_param['angle'], camera_param['width'], camera_param['height']]))
@@ -163,8 +183,8 @@ class FlexEnv(gym.Env):
         vel = pyflex.get_velocities()
         shape_pos = pyflex.get_shape_states()
         phase = pyflex.get_phases()
-        #camera_params = copy.deepcopy(self.camera_params)
-        return {'particle_pos': pos, 'particle_vel': vel, 'shape_pos': shape_pos, 'phase': phase,
+        return {'particle_pos': pos, 'particle_vel': vel, 
+                'shape_pos': shape_pos, 'phase': phase,
                 'config_id': self.current_config_id}
 
     def set_state(self, state_dict):
@@ -172,8 +192,7 @@ class FlexEnv(gym.Env):
         pyflex.set_velocities(state_dict['particle_vel'])
         pyflex.set_shape_states(state_dict['shape_pos'])
         pyflex.set_phases(state_dict['phase'])
-        #self.camera_params = copy.deepcopy(state_dict['camera_params'])
-        self.update_camera(self.camera_name)
+    
 
     def close(self):
         pyflex.clean()
@@ -206,34 +225,41 @@ class FlexEnv(gym.Env):
         config_id = episode_id
         if episode_id is None: ## if episode id is not given, we need to randomly start and episode.
             if self.eval_flag:
-                eval_beg = int(0.1 * len(self.cached_configs))
-                config_id = self.sampling_random_state.randint(low=0,  high=eval_beg)
+                eval_high = int(0.1 * self.num_variations)
+                config_id = self.sampling_random_state.randint(low=0,  high=eval_high)
+                config_id = max(min(config_id, eval_high - 1), 0)
+                episode_id = config_id
             else:
-                train_low = int(0.1 * len(self.cached_configs))
-                config_id =  self.sampling_random_state.randint(low=train_low, high=len(self.cached_configs))
-        elif not self.eval_flag:  ## if episode id is given, we need to find the config id
-            config_id = episode_id + int(0.1 * len(self.cached_configs))
+                train_low = int(0.1 * self.num_variations)
+                config_id =  self.sampling_random_state.randint(low=train_low, high=self.num_variations)
+                config_id = max(min(config_id, self.num_variations - 1), train_low)
+                episode_id = config_id - train_low
 
-        print('start {} episode {}, config id {}'.\
+        elif not self.eval_flag:  ## if episode id is given, we need to find the config id
+            config_id = episode_id + int(0.1 * self.num_variations)
+
+        logging.info('[softgym, flex_env] start {} episode {}, config id {}'.\
             format(('eval' if self.eval_flag else 'train'), episode_id, config_id))
             
-        self.current_config = self.cached_configs[config_id]
+        #self.current_config = self.cached_configs[config_id]
         self.current_config_id = config_id
-        self.set_scene(self.cached_configs[config_id], self.cached_init_states[config_id])
+        self.episode_id = episode_id
+        #self.set_scene(self.cached_configs[config_id], self.cached_init_states[config_id])
          
         
-        self.particle_num = pyflex.get_n_particles()
+        
         self.prev_reward = 0.
         self.control_step = 0
 
         obs = self._reset()
+        #self.particle_num = pyflex.get_n_particles()
         if self.save_control_step_info:
-            rgbd = self.render(resolution=self.save_image_dim, mode='rgbd')
+            rgb = self.render(mode='rgb')
             self.control_step_info = {
-                'picker_pos': [self.action_tool.get_picker_pos()], 
-                'particle_pos': [self.get_particle_pos()], 
-                'rgb': [rgbd[:, :, :3]],
-                'depth': [rgbd[:, :, 3]]
+                # 'picker_pos': [self.action_tool.get_picker_pos()], 
+                # 'particle_pos': [self.get_particle_pos()], 
+                'rgb': [rgb[:, :, :3]],
+                # 'depth': [rgbd[:, :, 3]]
                 }
 
         if self.recording:
@@ -261,36 +287,43 @@ class FlexEnv(gym.Env):
         }
     
 
-    def initialize_camera(self):
-        """
-        This function sets the postion and orientation of the camera
-        camera_pos: np.ndarray (3x1). (x,y,z) coordinate of the camera
-        camera_angle: np.ndarray (3x1). (x,y,z) angle of the camera (in degree).
+    # def initialize_camera(self):
+    #     """
+    #     This function sets the postion and orientation of the camera
+    #     camera_pos: np.ndarray (3x1). (x,y,z) coordinate of the camera
+    #     camera_angle: np.ndarray (3x1). (x,y,z) angle of the camera (in degree).
 
-        Note: to set camera, you need
-        1) implement this function in your environement, set value of self.camera_pos and self.camera_angle.
-        2) add the self.camera_pos and self.camera_angle to your scene parameters,
-            and pass it when initializing your scene.
-        3) implement the CenterCamera function in your scene.h file.
-        Pls see a sample usage in pour_water.py and softgym_PourWater.h
+    #     Note: to set camera, you need
+    #     1) implement this function in your environement, set value of self.camera_pos and self.camera_angle.
+    #     2) add the self.camera_pos and self.camera_angle to your scene parameters,
+    #         and pass it when initializing your scene.
+    #     3) implement the CenterCamera function in your scene.h file.
+    #     Pls see a sample usage in pour_water.py and softgym_PourWater.h
 
-        if you do not want to set the camera, you can just not implement CenterCamera in your scene.h file,
-        and pass no camera params to your scene.
-        """
-        raise NotImplementedError
+    #     if you do not want to set the camera, you can just not implement CenterCamera in your scene.h file,
+    #     and pass no camera params to your scene.
+    #     """
+    #     raise NotImplementedError
 
     def get_action_space(self):
         raise NotImplementedError
 
-    def render(self, mode='rgb', camera_name='default_camera', resolution=(128, 128)):
+    def render(self, mode='rgb', camera_name='default_camera', resolution=(720, 720)):
         #pyflex.step()
         self.update_camera(camera_name)
+        pyflex.step()
         img, depth_img = pyflex.render()
-        self.update_camera('default_camera')
+        #self.update_camera(camera_name)
         
-        width, height = self.camera_params[camera_name]['width'], self.camera_params[camera_name]['height']
+        width, height = self.resevered_camera_params[camera_name]['width'], self.camera_params[camera_name]['height']
+        
+        
         img = img.reshape(height, width, 4)[::-1, :, :3]  # Need to reverse the height dimension
         depth_img = depth_img.reshape(height, width, 1)[::-1, :, :1]
+
+        #print('img resolution', img.shape)
+
+        #print('img resolution', img.shape)
 
         #print('depth_img', depth_img[0][0])
 
@@ -304,6 +337,7 @@ class FlexEnv(gym.Env):
             raise NotImplementedError
         
         if width != resolution[0] or height != resolution[1]:
+            #print('resizing asked resolution', resolution)
             img = cv2.resize(img, resolution)
 
         return img

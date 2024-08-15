@@ -39,7 +39,7 @@ class PourWaterPosControlEnv(FluidEnv):
                 self.particle_obs_dim = obs_dim
             # z and theta of the second cup (poured_glass) does not change and thus are omitted.
             # add: frac of water in control cup, frac of water in target cup
-            self.observation_space = Box(low=np.array([-np.inf] * obs_dim), high=np.array([np.inf] * obs_dim), dtype=np.float32)
+            self.observation_space = Box(low=np.array([-np.inf] * obs_dim), high=np.array([np.inf] * obs_dim), dtype=np.float64)
         elif observation_mode == 'cam_rgb':
             self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 3),
                                          dtype=np.float32)
@@ -51,7 +51,7 @@ class PourWaterPosControlEnv(FluidEnv):
             # control the (x, y) corrdinate of the floor center, and theta its rotation angle.
             action_low = np.array([-0.01, -0.01, -0.015])
             action_high = np.array([0.01, 0.01, 0.015])
-            self.action_space = Box(action_low, action_high, dtype=np.float32)
+            self.action_space = Box(action_low, action_high, dtype=np.float64)
         else:
             raise NotImplementedError
 

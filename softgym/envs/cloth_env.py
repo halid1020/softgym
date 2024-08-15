@@ -1,5 +1,7 @@
 import numpy as np
 import cv2
+import logging
+
 from gym.spaces import Box
 import pyflex
 from softgym.envs.flex_env import FlexEnv
@@ -15,40 +17,45 @@ from scipy import ndimage as ndi
 import torchvision
 
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 class ClothEnv(FlexEnv):
 
-    camera_params = { 
-        'default_camera':{
-            'pos': np.array([-0.0, 1.5, 0]),
-            'angle': np.array([0, -90 / 180. * np.pi, 0.]),
-            'width': 720,
-            'height': 720},
-        'front_camera': {
-            'pos': np.array([0, 0.2, 1.0]),
-            'angle': np.array([0, 0 / 180. * np.pi, 0]),
-            'width': 720,
-            'height': 720}
-        }
+    reserved_cloth_param = {
+        'pos': [-1.6, 2.0, -0.8],
+        'size': [0.4, 0.4],
+        'stiff': [0.8, 1, 0.9],  # Stretch, Bend and Shear
+    }
 
     def __init__(self, observation_mode, action_mode, num_picker=2, render_mode='particle', 
-        picker_radius=0.02, picker_threshold=0.002, particle_radius=0.00625, 
+        picker_radius=0.02, picker_threshold=0.007, particle_radius=0.00625, mass=0.5,
+        cloth_param=reserved_cloth_param,
         motion_trajectory='normal',
          **kwargs):
+        #print('kwargs', kwargs)
         
         self.cloth_particle_radius = particle_radius
+        self.cloth_param = cloth_param
+        self.mass = mass
         
         super().__init__(**kwargs)
+        
 
         self.render_mode = render_mode
         self.action_mode = action_mode
-        self.pixel_to_world_ratio = 0.4135
+        self.pixel_to_world_ratio = 0.427 #0.4135 #0.4135
+       
+        camera_param = self.camera_params[self.current_camera]
+        self.camera_height = camera_param['pos'][1]
+        self.update_camera(self.current_camera, camera_param)
+        #print('camera height', self.camera_height)
+        
         self.num_picker = num_picker
 
         # Context
         self.recolour_config = kwargs['recolour_config']
         self.context = kwargs['context']
-        self.context_random_state = np.random.RandomState(kwargs['random_seed'])
+        self.random_state = np.random.RandomState(kwargs['random_seed'])
         
 
         #assert observation_mode in ['key_point', 'point_cloud', 'cam_rgb', 'cam_rgbd']
@@ -56,10 +63,16 @@ class ClothEnv(FlexEnv):
         self.observation_mode = observation_mode
 
         # if action_mode == 'velocity_control':
-        self.action_tool = Picker(num_picker, picker_radius=picker_radius, particle_radius=particle_radius, picker_threshold=picker_threshold,
-                                    picker_low=kwargs['picker_low'], picker_high=kwargs['picker_high'])
+        self.action_tool = Picker(
+            num_picker, picker_radius=picker_radius, 
+            particle_radius=particle_radius, picker_threshold=picker_threshold,
+            picker_low=kwargs['picker_low'], picker_high=kwargs['picker_high'],
+            grasp_mode=(kwargs['grasp_mode'] if 'grasp_mode' in kwargs.keys() else {'closest': 1.0}),
+        )
         self.action_space = self.action_tool.action_space
         self.picker_radius = picker_radius
+        self.picker_initial_pos = kwargs['picker_initial_pos']
+        logging.info('[sofgym, cloth_env] picker_initial_pos: {}'.format(self.picker_initial_pos))
         
 
         if ('state' not in observation_mode.keys()) or (observation_mode['state'] == None):
@@ -77,19 +90,19 @@ class ClothEnv(FlexEnv):
             raise NotImplementedError
         
         if ('state' in observation_mode.keys()) and (observation_mode['state'] != None):
-            self.state_space = Box(np.array([-np.inf] * sts_dim), np.array([np.inf] * sts_dim), dtype=np.float32)
+            self.state_space = Box(np.array([-np.inf] * sts_dim), np.array([np.inf] * sts_dim), dtype=np.float64)
 
-        if observation_mode['image'] == 'cam_rgb':
-            self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 3),
-                                         dtype=np.float32)
+        # if observation_mode['image'] == 'cam_rgb':
+        #     self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 3),
+        #                                  dtype=np.float32)
                                     
-        elif observation_mode['image'] == 'cam_rgbd':
-            self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 4),
-                                         dtype=np.float32)
+        # elif observation_mode['image'] == 'cam_rgbd':
+        #     self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 4),
+        #                                  dtype=np.float32)
 
-        elif observation_mode['image'] == 'cam_d':
-            self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 1),
-                                         dtype=np.float32)
+        # elif observation_mode['image'] == 'cam_d':
+        #     self.observation_space = Box(low=-np.inf, high=np.inf, shape=(self.camera_height, self.camera_width, 1),
+        #                                  dtype=np.float32)
             
     def get_num_picker(self):
         return self.num_picker
@@ -97,13 +110,16 @@ class ClothEnv(FlexEnv):
     def get_action_space(self):
         return self.action_space
     
-    def get_goal_observation(self):
-        return self._target_img
+    def get_flatten_observation(self):
+        return self.flatten_obs
     
-    def get_corner_positions(self, particle_positions=None):
+    def get_keypoint_positions(self, particle_positions=None):
+        raise NotImplementedError
+    
+    def get_edge_positions(self, particle_positions=None):
         if particle_positions is None:
             particle_positions = self.get_particle_positions()
-        return particle_positions[self._corner_ids]
+        return particle_positions[self.get_edge_ids()]
     
     def get_corner_ids(self):
         return self._corner_ids
@@ -129,126 +145,23 @@ class ClothEnv(FlexEnv):
             
     def generate_env_variation(self, num_variations=1): #, vary_cloth_size=False)
         """ Generate initial states. Note: This will also change the current states! """
-        max_wait_step = 300  # Maximum number of steps waiting for the cloth to stablize
-        stable_vel_threshold = 0.02  # Cloth stable when all particles' vel are smaller than this
+        
         generated_configs, generated_states = [], []
-        default_config = self.get_default_config().copy()
+        
 
-       
+        for i in tqdm(range(num_variations), desc='Generating env variations'):
 
-        for i in range(num_variations):
-            config = deepcopy(default_config)
-            if 'size' in self.context:
-                width = self.context_random_state.uniform(
-                    self.context['size']['width']['lower_bound'], 
-                    self.context['size']['length']['upper_bound'])
-                length = self.context_random_state.uniform(
-                    self.context['size']['length']['lower_bound'],
-                    self.context['size']['length']['upper_bound'])
-                
-                config['ClothSize'] = [
-                    int(width / self.cloth_particle_radius), 
-                    int(length / self.cloth_particle_radius)]
-            
-            if 'colour' in self.context:
-                config['front_colour'] = self.context_random_state.uniform(
-                    np.array(self.context['colour']['front_colour']['lower_bound']), 
-                    np.array(self.context['colour']['front_colour']['upper_bound']))
-                config['back_colour'] = self.context_random_state.uniform(
-                    np.array(self.context['colour']['back_colour']['lower_bound']),
-                    np.array(self.context['colour']['back_colour']['upper_bound']))
-            
-                
-            self.update_camera(config['camera_name'], config['camera_params'][config['camera_name']])
-            # if vary_cloth_size:
-            #     cloth_dimx, cloth_dimy = self._sample_cloth_size()
-            #     config['ClothSize'] = [cloth_dimx, cloth_dimy]
-            # else:
-            cloth_dimx, cloth_dimy = config['ClothSize']
-            self.set_scene(config)
-            self.action_tool.reset([0., -1., 0.])
-            self._set_to_flatten()
-
-           
-
-
-            pos = pyflex.get_positions().reshape(-1, 4)
-            pos[:, :3] -= np.mean(pos, axis=0)[:3]
-            if self.action_mode in ['sawyer', 'franka']:  # Take care of the table in robot case
-                pos[:, 1] = 0.57
-            else:
-                pos[:, 1] = 0.005
-            pos[:, 3] = 1
-            pyflex.set_positions(pos.flatten())
-            pyflex.set_velocities(np.zeros_like(pos))
-            pyflex.step()
-
-            num_particle = cloth_dimx * cloth_dimy
-
-            # Pick up the cloth and wait to stablize
-            if self.context['state']:
-                pickpoint = self.context_random_state.randint(0, num_particle - 1)
-                curr_pos = pyflex.get_positions()
-                original_inv_mass = curr_pos[pickpoint * 4 + 3]
-                curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth
-                pickpoint_pos = curr_pos[pickpoint * 4: pickpoint * 4 + 3].copy()  # Pos of the pickup point is fixed to this point
-                pickpoint_pos[1] += self.context_random_state.random()*0.4
-                pyflex.set_positions(curr_pos.flatten())
-                self._wait_to_stabalise() #max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
-                
-
-                # Drop the cloth and wait to stablize
-                curr_pos = pyflex.get_positions()
-                curr_pos[pickpoint * 4 + 3] = original_inv_mass
-                pyflex.set_positions(curr_pos.flatten())          
-                self._wait_to_stabalise() #max_wait_step, stable_vel_threshold, None, None)
-
-                center_object(self.context_random_state, self.context['position'])
-
-                # Drag the cloth and wait to stablise
-                if self.context_random_state.random() < 0.7:
-                    pickpoint = self.context_random_state.randint(0, num_particle - 1)
-                    curr_pos = pyflex.get_positions()
-                    original_inv_mass = curr_pos[pickpoint * 4 + 3]
-                    curr_pos[pickpoint * 4 + 3] = 0  # Set the mass of the pickup point to infinity so that it generates enough force to the rest of the cloth
-                    pickpoint_pos = curr_pos[pickpoint * 4: pickpoint * 4 + 3].copy()  # Pos of the pickup point is fixed to this point
-                    pickpoint_pos[0] += (np.random.random(1)*2 - 1)*0.3
-                    pickpoint_pos[2] += (np.random.random(1)*2 - 1)*0.3
-                    pickpoint_pos[1] = 0.1
-                    pyflex.set_positions(curr_pos.flatten())
-                    self._wait_to_stabalise() #max_wait_step, stable_vel_threshold, pickpoint, pickpoint_pos)
-
-
-                    # Drop the cloth and wait to stablize
-                    curr_pos = pyflex.get_positions()
-                    curr_pos[pickpoint * 4 + 3] = original_inv_mass
-                    pyflex.set_positions(curr_pos.flatten())          
-                    self._wait_to_stabalise() #max_wait_step, stable_vel_threshold, None, None)
-
-                    center_object(self.context_random_state, self.context['position'])
-
-            center_object(self.context_random_state, self.context['position'])
-            if self.context['rotation']:
-                angle = self.context_random_state.rand(1) * np.pi * 2
-                self._rotate_particles(angle)
-
-            
-            
-
-            if self.action_mode == 'sphere' or self.action_mode.startswith('picker'):
-                self.action_tool.reset(np.asarray([0.5, 0.2, 0.5]))
-            
-            pyflex.step()
-            
-                
+            config, state = self._generate_env_config(i)
             generated_configs.append(deepcopy(config))
-            generated_states.append(deepcopy(self.get_state()))
+            generated_states.append(deepcopy(state))
             self.current_config = config  # Needed in _set_to_flatten function
             generated_configs[-1]['flatten_area'] = self._set_to_flatten()  # Record the maximum flatten area
 
-            print('config {}: camera params {}, flatten area: {}'.format(i, config['camera_params'], generated_configs[-1]['flatten_area']))
+            #print('config {}: camera params {}, flatten area: {}'.format(i, config['camera_params'], generated_configs[-1]['flatten_area']))
 
         return generated_configs, generated_states
+    
+    
     
     def _rotate_particles(self, angle):
         pos = pyflex.get_positions().reshape(-1, 4).copy()
@@ -271,8 +184,7 @@ class ClothEnv(FlexEnv):
         if self._render:
             pyflex.render()
 
-    def get_particle_positions(self):
-        return self.get_particle_pos()[:, :3].copy()
+   
 
     def get_picker_pos(self):
         return self.action_tool.get_picker_pos()
@@ -285,40 +197,26 @@ class ClothEnv(FlexEnv):
 
     def get_flatten_corner_positions(self):
         return self._flatten_corner_positions
+    
+    def get_flatten_edge_positions(self):
+        return self._flatten_edge_positions
 
     def get_initial_coverage(self):
         return self._initial_coverage
     
     def get_canonical_mask(self, resolution=(64, 64)):
-        ret_mask = cv2.resize(self._canonical_mask.astype(np.float), resolution, interpolation=cv2.INTER_LINEAR)
-        return ret_mask.astype(np.bool)
+        #ret_mask = cv2.resize(self._canonical_mask.astype(np.float), resolution, interpolation=cv2.INTER_LINEAR)
+        return self._canonical_mask
 
-    def get_cloth_mask(self, camera_name='default_camera', resolution=(64, 64)):
+    def get_cloth_mask(self, camera_name='default_camera', resolution=(128, 128)):
         
+        # This only works for top-down camera
 
-        if camera_name == 'default_camera':
-            depth_images = self.render(mode='d')
-            if resolution != (720,720):
-                depth_images = cv2.resize(depth_images, resolution, interpolation=cv2.INTER_LINEAR)
-            mask = (1.35 < depth_images) & (depth_images < 1.499)
-        else:
-            ### Render an rgb image, then get the mask by thresholding
-            rgb_image = self.render(camera_name=camera_name, mode='rgb')
-            rgb_image = cv2.resize(rgb_image, resolution, interpolation=cv2.INTER_LINEAR)
+        depth_images = self.render(camera_name=camera_name, mode='d')
+        depth_images = cv2.resize(depth_images, resolution, interpolation=cv2.INTER_LINEAR)
 
-            plt.imshow(rgb_image)
-            plt.show()
-
-            model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True).eval()
-            image_tensor = torchvision.transforms.functional.to_tensor(rgb_image)
-            output = model([image_tensor])
-            print('mask shape', output[0]['masks'].shape)
-            for i, m in enumerate(output[0]['masks']):
-                print('mask {}'.format(i))
-                mask = m[0].detach().numpy()
-                plt.imshow(mask)
-                plt.show()
-
+        # TODO: make this better.
+        mask = (self.camera_height - 0.15 < depth_images) & (depth_images < self.camera_height-0.001)
 
         return mask
 
@@ -345,7 +243,7 @@ class ClothEnv(FlexEnv):
         curr_pos[:, :3] = flat_pos
         pyflex.set_positions(curr_pos.flatten())
         pyflex.step()
-        self._canonical_mask = self.get_cloth_mask()
+        self._canonical_mask = self.get_cloth_mask(camera_name=self.current_camera)
     
     def _flatten_pos(self):
         cloth_dimx, cloth_dimz = self.get_current_config()['ClothSize']
@@ -363,32 +261,33 @@ class ClothEnv(FlexEnv):
         #print('_corner_ids', self._corner_ids)
         #print('corner ids', self._corner_ids)
         new_pos = np.empty(shape=(N, 4), dtype=float)
-        new_pos[:, 0] = xx.flatten()
+        new_pos[:, 0] = xx.flatten() * 0.95 #TODO
         new_pos[:, 1] = self.cloth_particle_radius
-        new_pos[:, 2] = yy.flatten()
+        new_pos[:, 2] = yy.flatten() * 0.95 #TODO
         new_pos[:, 3] = 1.
         new_pos[:, :3] -= np.mean(new_pos[:, :3], axis=0)
         self._target_pos = new_pos.copy()
 
         return new_pos.copy()
     
-    def get_flattened_positions(self):
+    def get_flatten_positions(self):
         pos = self._flatten_pos()
         return pos.reshape(-1, 4)[:, :3].copy()
     
+    def get_flattened_pos(self):
+        return self._flatten_pos()
+    
+    
     def get_flattened_coverage(self):
-        return self.get_coverage(self.get_flattened_positions())
-
-   
-    def _set_to_flatten(self):
-        new_pos = self._flatten_pos()
-        pyflex.set_positions(new_pos.flatten())
-        pyflex.step()
-        self._canonical_mask = self.get_cloth_mask()
-        self._target_img = self._get_obs()['image']
-        self._flatten_corner_positions = self.get_corner_positions()
-        new_pos = self.get_particle_positions()
-        return self.get_coverage(new_pos)
+        return self._flatten_coverage
+    
+    def set_to_flatten(self):
+        self._set_to_flatten()
+        obs =  self._get_obs()
+        return {
+            'observation': obs,
+            'done': False
+        }
 
 
     def get_visibility(self, positions=None, resolution=(64, 64), camera_height=None):
@@ -404,7 +303,7 @@ class ClothEnv(FlexEnv):
 
         # camera_hight = 1.5 # TODO: magic number
         depths = camera_height - positions[:, 1] #x, z, y
-        pixel_to_world_ratio = self.pixel_to_world_ratio # TODO: magic number
+        pixel_to_world_ratio = self.pixel_to_world_ratio 
         projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1
         projected_pixel_positions_y = positions[:, 2]/pixel_to_world_ratio/depths #-1, 1
         projected_pixel_positions = np.concatenate(
@@ -430,47 +329,25 @@ class ClothEnv(FlexEnv):
     #     return self._normalised_coverage()
     
 
-    def get_corner_positions(self, position=None):
-        if position == None:
-            positions = pyflex.get_positions().reshape(-1, 4)[:, :3]
-        return positions[self._corner_ids]
+    
+    
     
     def _normalised_coverage(self):
         return self._current_coverage_area/self._target_covered_area
     
+    # def get_particle_positions(self):
+    #     pos = pyflex.get_positions()
+    #     pos = pos.reshape(-1, 4)[:, :3].copy()
+    #     return pos
+
     def get_particle_positions(self):
-        pos = pyflex.get_positions()
-        pos = pos.reshape(-1, 4)[:, :3].copy()
-        return pos
+        return self.get_particle_pos()[:, :3].copy()
 
-    def _flatten_pos(self):
-        cloth_dimx, cloth_dimz = self.get_current_config()['ClothSize']
-        
-        N = cloth_dimx * cloth_dimz
-        px = np.linspace(0, cloth_dimx * self.cloth_particle_radius, cloth_dimx)
-        px -= cloth_dimx * self.cloth_particle_radius/2 
-        py = np.linspace(0, cloth_dimz * self.cloth_particle_radius, cloth_dimz)
-        py -= cloth_dimz * self.cloth_particle_radius/2
-
-        xx, yy = np.meshgrid(px, py)
-        L = len(xx)
-        W = len(xx[0])
-        self._corner_ids = [0, W-1, (L-1)*W, L*W-1]
-        new_pos = np.empty(shape=(N, 4), dtype=float)
-        new_pos[:, 0] = xx.flatten()
-        new_pos[:, 1] = self.cloth_particle_radius
-        new_pos[:, 2] = yy.flatten()
-        new_pos[:, 3] = 1.
-        new_pos[:, :3] -= np.mean(new_pos[:, :3], axis=0)
-        self._target_pos = new_pos.copy()
-
-        return new_pos.copy()
     
     def get_normalised_coverage(self, particle_positions=None):
-        if particle_positions is None:
-            particle_positions = self.get_particle_positions()
-        coverage_area = self.get_coverage(particle_positions) 
-        return coverage_area/self.get_coverage(self.get_flattened_positions())
+        coverage_area = self.get_coverage(particle_positions)
+        #print('coverage area', coverage_area)
+        return coverage_area/self._flatten_coverage
     
     def get_cloth_size(self):
         W, H =  self.get_current_config()['ClothSize']
@@ -520,28 +397,26 @@ class ClothEnv(FlexEnv):
 
     def get_camera_params(self):
         config = self.get_current_config()
-        camera_name = config['camera_name']
-        cam_pos = config['camera_params'][camera_name]['pos']
-        cam_angle = config['camera_params'][camera_name]['angle']
+        cam_pos = config['camera_param']['pos']
+        cam_angle = config['camera_params']['angle']
         return cam_pos, cam_angle
 
     def get_default_config(self):
         """ Set the default config of the environment and load it to self.config """
 
         config = {
-            'ClothPos': [-1.6, 2.0, -0.8],
-            'ClothSize': [int(0.4 / self.cloth_particle_radius), int(0.4 / self.cloth_particle_radius)],
-            'ClothStiff': [0.8, 1, 0.9],  # Stretch, Bend and Shear
-            'camera_name': 'default',
-            'camera_params': {'default_camera':
-                                  {'pos': np.array([-0.0, 1.5, 0]),
-                                   'angle': np.array([0, -90 / 180. * np.pi, 0.]),
-                                   'width': self.camera_width,
-                                   'height': self.camera_height}
-                                },
+            'ClothPos': self.cloth_param['pos'],
+            'ClothSize': [int(self.cloth_param['size'][0]/ self.cloth_particle_radius), 
+                          int(self.cloth_param['size'][1] / self.cloth_particle_radius)],
+
+            'ClothStiff': self.cloth_param['stiff'],  # Stretch, Bend and Shear
+            'camera_name': self.current_camera,
+            'current_camera': self.current_camera,
+            'camera_params': self.camera_params,
             'flip_mesh': 0,
             'front_colour':  [0.673, 0.111, 0.0],
-            'back_colour': [0.612, 0.194, 0.394]
+            'back_colour': [0.612, 0.194, 0.394],
+            'mass': self.mass
         }
 
         return config
@@ -554,21 +429,16 @@ class ClothEnv(FlexEnv):
     
     def reset_control_step_info(self):
         super().reset_control_step_info()
-        if self.save_control_step_info:
-            self.control_step_info['control_normalised_coverage'] = []
+        # if self.save_control_step_info:
+        #     self.control_step_info['control_normalised_coverage'] = []
 
     def _get_obs(self):
         obs = {}
-        if self.observation_mode['image'] == 'cam_rgb':
-            obs['image'] = self.render(resolution=(self.camera_height, self.camera_width), mode='rgb')
+        obs['rgb'] = self.render(mode='rgb')
         
-        elif self.observation_mode['image'] == 'cam_rgbd':
-            obs['image'] = self.render(resolution=(self.camera_height, self.camera_width), mode='rgbd')
-        elif self.observation_mode['image'] == 'cam_d':
-            obs['image'] = self.render(resolution=(self.camera_height, self.camera_width), mode='d')
-        else:
-            raise NotImplementedError
+        obs['depth'] = self.render(mode='d')
         
+
         if 'state' not in self.observation_mode.keys():
             pass
         elif self.observation_mode['state'] == 'point_cloud':
@@ -587,8 +457,8 @@ class ClothEnv(FlexEnv):
         elif self.observation_mode['state'] == 'corner_pixel':
             positions =  self.get_corner_positions()
             N = positions.shape[0]
-            camera_hight = 1.5 # TODO: magic number
-            depths = camera_hight - positions[:, 1] #x, z, y
+           
+            depths = self.camera_height - positions[:, 1] #x, z, y
              # TODO: magic number
 
             projected_pixel_positions_x = positions[:, 0]/self.pixel_to_world_ratio/depths #-1, 1
@@ -622,26 +492,23 @@ class ClothEnv(FlexEnv):
             render_mode = 2
         elif self.render_mode == 'both':
             render_mode = 3
-        camera_params = config['camera_params'][config['camera_name']]
+        #print('config keys', config.keys())
+
+        # This is temperorality like this
+        camera_param = config['camera_params'][config['camera_name']]
+
+
         env_idx = 0 if 'env_idx' not in config else config['env_idx']
         mass = config['mass'] if 'mass' in config else 0.5
+        #print('config', config)
         
-
-        if self.recolour_config:
-            front_colour = self.context_random_state.uniform(
-                np.array(self.context['colour']['front_colour']['lower_bound']), 
-                np.array(self.context['colour']['front_colour']['upper_bound']))
-            back_colour = self.context_random_state.uniform(
-                np.array(self.context['colour']['back_colour']['lower_bound']),
-                np.array(self.context['colour']['back_colour']['upper_bound']))
-
-        else:
-            front_colour = [0.673, 0.111, 0.0] if 'front_colour' not in config else config['front_colour']
-            back_colour = [0.612, 0.194, 0.394] if 'back_colour' not in config else config['back_colour']
+        front_colour = [0.673, 0.111, 0.0] if 'front_colour' not in config else config['front_colour']
+        back_colour = [0.612, 0.194, 0.394] if 'back_colour' not in config else config['back_colour']
 
 
         scene_params = np.array([*config['ClothPos'], *config['ClothSize'], *config['ClothStiff'], render_mode,
-                                 *camera_params['pos'][:], *camera_params['angle'][:], camera_params['width'], camera_params['height'], mass,
+                                 *camera_param['pos'][:], *camera_param['angle'][:], camera_param['width'], 
+                                 camera_param['height'], mass,
                                  config['flip_mesh'], *front_colour, *back_colour])
         
         
@@ -655,41 +522,32 @@ class ClothEnv(FlexEnv):
     
     def tick_control_step(self):
         super().tick_control_step()
-        if self.save_control_step_info:
-            self.control_step_info['control_normalised_coverage'].append(self.get_normalised_coverage())
+        # if self.save_control_step_info:
+        #     self.control_step_info['control_normalised_coverage'].append(self.get_normalised_coverage())
 
 
     def reset(self, episode_id=None):
        
         info = super().reset(episode_id=episode_id)
-        if self.save_control_step_info:
-            self.control_step_info['control_normalised_coverage'] = [self.get_normalised_coverage()]
+        # if self.save_control_step_info:
+        #     self.control_step_info['control_normalised_coverage'] = [self.get_normalised_coverage()]
         return info
 
-    def get_edge_ids(self):
-        config = self.get_current_config()
-        cloth_dimx,  cloth_dimy = config['ClothSize']
-        edge_ids = [i for i in range(cloth_dimx)]
-        edge_ids.extend([i*cloth_dimx for i in range(1, cloth_dimy)])
-        edge_ids.extend([(i+1)*cloth_dimx-1 for i in range(1, cloth_dimy)])
-        edge_ids.extend([(cloth_dimy-1)*cloth_dimx + i for i in range(1, cloth_dimx-1)])
-        return edge_ids
+    
     
     def _step(self, action):
+        #logging.debug(['[softgym, cloth_env] action', action])
         self.control_step +=  self.action_tool.step(action)
         self.tick_control_step()
-        if self.save_control_step_info:
-            if 'control_signal' not in self.control_step_info:
-                self.control_step_info['control_signal'] = []
-            self.control_step_info['control_signal'].append(action)
+        # if self.save_control_step_info:
+        #     if 'control_signal' not in self.control_step_info:
+        #         self.control_step_info['control_signal'] = []
+        #     self.control_step_info['control_signal'].append(action)
     
-    def wait_until_stable(self, max_wait_step=300, stable_vel_threshold=0.0006):
+    def wait_until_stable(self, max_wait_step=200, stable_vel_threshold=0.0006):
         wait_steps = self._wait_to_stabalise(max_wait_step=max_wait_step, stable_vel_threshold=stable_vel_threshold)
-
+        # print('wait steps', wait_steps)
         obs = self._get_obs()
-        #reward = self.compute_reward()
-        #info = self._get_info()
-
 
         done = False
         if (self.control_horizon is not None) and (self.control_step >= self.control_horizon):
@@ -724,22 +582,11 @@ class ClothEnv(FlexEnv):
                 pyflex.set_velocities(curr_vell)
                 curr_vel = curr_vell
 
-
-            # curr_vel = pyflex.get_velocities()
-            #curr_vel = pyflex.get_accelerations()
-            #print('cur vel shape', curr_vel.shape)
-            # if target_point != None:
-            #     curr_pos = pyflex.get_positions()
-            #     curr_pos[target_point * 4: target_point * 4 + 3] = target_pos
-            #     curr_vel[target_point * 3: target_point * 3 + 3] = [0, 0, 0]
-            #     pyflex.set_positions(curr_pos)
-            #     pyflex.set_velocities(curr_vel)
-
             self.tick_control_step()
-            if self.save_control_step_info:
-                if 'control_signal' not in self.control_step_info:
-                    self.control_step_info['control_signal'] = []
-                self.control_step_info['control_signal'].append(np.zeros((self.num_picker, 4)))
+            # if self.save_control_step_info:
+            #     if 'control_signal' not in self.control_step_info:
+            #         self.control_step_info['control_signal'] = []
+            #     self.control_step_info['control_signal'].append(np.zeros((self.num_picker, 4)))
                 
             if stable_step > 10:
                 break

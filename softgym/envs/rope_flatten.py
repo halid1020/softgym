@@ -141,18 +141,18 @@ class RopeFlattenEnv(RopeNewEnv):
         #print('num particles', len(all_particle_positions))
         return all_particle_positions[self._corner_ids]
     
-    # TODO: refactor this function
-    def _world_to_pixel(self, positions):
-        camera_hight = 1.5 # TODO: magic number
-        depths = camera_hight - positions[:, 1] #x, z, y
-        pixel_to_world_ratio = 0.4135 # TODO: magic number
+    # # TODO: refactor this function
+    # def _world_to_pixel(self, positions):
+    #     camera_hight = #1.5 # TODO: magic number
+    #     depths = camera_hight - positions[:, 1] #x, z, y
+    #     pixel_to_world_ratio = #0.4135 # TODO: magic number
 
-        N = positions.shape[0]
-        projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1
-        projected_pixel_positions_y = positions[:, 2]/pixel_to_world_ratio/depths #-1, 1
-        return  np.concatenate(
-            [projected_pixel_positions_x.reshape(N, 1), projected_pixel_positions_y.reshape(N, 1)],
-            axis=1)
+    #     N = positions.shape[0]
+    #     projected_pixel_positions_x = positions[:, 0]/pixel_to_world_ratio/depths #-1, 1
+    #     projected_pixel_positions_y = positions[:, 2]/pixel_to_world_ratio/depths #-1, 1
+    #     return  np.concatenate(
+    #         [projected_pixel_positions_x.reshape(N, 1), projected_pixel_positions_y.reshape(N, 1)],
+    #         axis=1)
 
     
     def get_corners_pixel_positions(self):

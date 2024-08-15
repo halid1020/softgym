@@ -46,9 +46,15 @@ public:
         garment_id2name[4] = "Jumpsuit";
     }
 
-    char* make_path(char* full_path, std::string path) {
-        strcpy(full_path, getenv("PYFLEXROOT"));
-        strcat(full_path, path.c_str());
+    std::string make_path(const std::string& path) {
+        const char* pyflexroot = std::getenv("PYFLEXROOT");
+        if (!pyflexroot) {
+            throw std::runtime_error("PYFLEXROOT environment variable not set");
+        }
+
+        std::string full_path = pyflexroot;
+        full_path += path;
+
         return full_path;
     }
 
@@ -102,12 +108,16 @@ public:
     }
 
 
-    void createTshirt(const char* filename, Vec3 lower, float scale, float rotation, 
+    void createTshirt(std::string filename, Vec3 lower, float scale, float rotation, 
         Vec3 velocity, int phase, float invMass, float stiffness, 
         Colour front_colour, Colour back_colour, Colour inside_colour)
     {
         // import the mesh
-        Mesh* m = ImportMesh(filename);
+        //cout << filename << endl;
+        // convert filename to char*
+        const char* filename_c = filename.c_str();
+        Mesh* m = ImportMesh(filename_c);
+        //cout << "imported mesh" << endl;
         if (!m)
             return;
 
@@ -312,6 +322,7 @@ public:
     // render_type, cam_X, cam_y, cam_z, angle_x, angle_y, angle_z, width, height
     void Initialize(py::array_t<float> scene_params, int thread_idx=0)
     {
+        cout << "initialize garment" << endl;
         auto ptr = (float *) scene_params.request().ptr;
         
         float initX = ptr[0];
@@ -347,6 +358,8 @@ public:
         std::string garment_type = garment_id2name[ptr[31]];
         int shape_id = uint(ptr[32]);
 
+        //cout << "finish laoding all params" << endl;
+
 
 
         int phase = NvFlexMakePhase(0, eNvFlexPhaseSelfCollide | eNvFlexPhaseSelfCollideFilter);
@@ -360,13 +373,20 @@ public:
         shape_id_padded = std::string(4 - shape_id_padded.length(), '0') + shape_id_padded;
         std::string garment_path = "/data/TriGarments/" + garment_type + "/" + garment_type + "_" + shape_id_padded + ".obj";
         
+        // cout << "before create Tshirt" << endl;
+        // cout << "tshirt path: " << tshirt_path << endl;
+        // cout << "garment path: " << garment_path << endl;
+        std::string path = make_path(garment_path);
+        // cout << "load garment path: " << path << endl;
 
         createTshirt(
-            make_path(tshirt_path, garment_path), 
+            path, 
             Vec3(initX, initY, initZ), 
             scale, rot, Vec3(velX, velY, velZ), phase, 1/mass, 
             stretchStiffness,
             front_colour, back_colour, inside_colour);
+
+        // cout << "created Tshirt" << endl;
 
 
         g_numSubsteps = 4;
