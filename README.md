@@ -1,24 +1,23 @@
 <h1>  SoftGym (fit Agent-Arena): Extension on SoftGym for Agent-Arena </h1>
 
-Authored by Halid Abdulrahim Kadi and supervised by Kasim Terzic; Ryan Haward also made contribution to this README file.
+Authored by Halid Abdulrahim Kadi and supervised by Kasim Terzic; Ryan Haward also contributed to this `README` file.
 
-This fork of the `SoftGym` extended on the orignal `SoftGym` (TODO link) with modification mainly on the cloth environments (Note that the other environments do not work properly in this version).
+This fork is extended on the original [`SoftGym`](https://github.com/Xingyu-Lin/softgym) with modification mainly on the cloth environments (Note that the other environments do not work properly in this version).
 
 
 ## I. Install and Setup the Simulator
 
 1. Install relevant packages before compiling the simulation.
 
-If you want to run the simulation with its display mode, please ensure to install OpenGL related packages into your machine, e.g.,
+If you want to run with display mode, please ensure to install OpenGL-related packages into your machine, e.g.,
 ```
 apt-get install build-essential libgl1-mesa-dev freeglut3-dev libglfw3 libgles2-mesa-dev
 ```
 
-2. Ensure you have downloaded and installed `anaconda3` right under your home directory regarding your operating system version by following the [tutorial](https://docs.anaconda.com/free/anaconda/install/linux/). 
+2. Ensure you have downloaded and installed `anaconda3` right under your home directory regarding your operating system version; you can do so by following the [tutorial](https://docs.anaconda.com/free/anaconda/install/linux/). 
 
 
-3. Then, create conda environment for compiling and running the simulation by running the follow command under the root directory of the repository:
-
+3. Then, create conda environment for compiling and running the simulation by following the bellow commands under the root directory of the `softgym` (after `git clone` it to your machine):
 
 ```
 conda env create -f environment.yml
@@ -30,7 +29,7 @@ Note that if you want to remove the environment
 conda remove -n softgym --all  
 ```
 
-4. Download and install the initial-state data files.
+4. Download and install the `cloth_initial_states.zip`.
 ```
 wget TODO
 
@@ -66,7 +65,7 @@ Note that the <absolute_path_to_home_dir> should be the $HOME from OUTSIDE the d
 
 # II. Test Softgym
 
-1. Ensure `agent-arena` is installed; please follow this link TODO for installation.
+1. Ensure [`agent-arena`](https://github.com/halid1020/agent-arena) is installed.
 
 2. Go to the directory of `softgym` and run `. ./setup.sh`.
 
