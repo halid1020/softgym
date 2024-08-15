@@ -29,9 +29,12 @@ Note that if you want to remove the environment
 conda remove -n softgym --all  
 ```
 
-4. Download and install the `cloth_initial_states.zip`.
+4. Download and install the [`cloth_initial_states.zip`](https://drive.google.com/file/d/1yPsEX1WikWO9RlWhkap7II9Xs0HIPj88/view?usp=sharing).
 ```
-wget TODO
+
+# Do not forget to install `gdown` using `pip install gdown`.
+
+gdown https://drive.google.com/uc?id=1yPsEX1WikWO9RlWhkap7II9Xs0HIPj88 
 
 mv cloth_initial_states.zip <path_to_softgym>/softgym/cached_initial_states
 
