@@ -1,3 +1,4 @@
+. activate softgym
 cd PyFlex/bindings
 rm -rf build
 mkdir build
@@ -8,3 +9,4 @@ if [[ $(hostname) = *"compute-0"* ]] || [[ $(hostname) = *"autobot-"* ]] || [[ $
 fi
 cmake -DPYBIND11_PYTHON_VERSION=3.7 ..
 make -j
+cd ../../../

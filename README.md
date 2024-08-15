@@ -41,7 +41,7 @@ TODO: we need to provide a download link and command instructions.
 Download and inititiate the provided image:
 
 ```
-nvidia-docker run -v <path_to_project>/Projects/agent-arena/src/arena/softgym/softgym:/workspace/softgym \
+nvidia-docker run -v <path_to_softgym>/softgym:/workspace/softgym \
 -v $HOME/anaconda3:$HOME/anaconda3 \
 -it xingyu/softgym:latest bash
 
@@ -53,7 +53,7 @@ export PATH="<absolute_path_to_home_dir>/anaconda3/bin:$PATH"
 
 cd softgym
 
-. ./prepare.sh  && . ./compile.sh
+. ./setup.sh  && . ./compile.sh
 ```
 
 Note that the <absolute_path_to_home_dir> should be the $HOME from OUTSIDE the docker, not from inside it ($HOME inside the docker is /root/, which isn't where we've mapped anaconda3.)
