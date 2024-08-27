@@ -171,7 +171,10 @@ class FabricEnv(ClothEnv):
                 # print('max projected_pixel_positions', np.max(projected_pixel_positions))
                 # print('min projected_pixel_positions', np.min(projected_pixel_positions))
 
-                if np.alltrue(np.abs(projected_pixel_positions) < 1):
+                if 'all_visible' in self.context and self.context['all_visible']:
+                    if np.alltrue(np.abs(projected_pixel_positions) < 1):
+                        break
+                else:
                     break
 
             
