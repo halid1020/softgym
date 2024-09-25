@@ -74,7 +74,7 @@ class FabricDomainBuilder():
                 'velocity': 0.05,
                 'action_dim': num_picker
             }
-            if domain in ['real2sim-towels', 'real2sim-square-fabric']:
+            if domain in ['real2sim-towels', 'real2sim-toewls-sq']:
                 #kwargs['pick_height'] = 0.03
                 kwargs['motion_trajectory'] = 'rectangular'
                 kwargs['prepare_height'] = 0.05
@@ -163,74 +163,40 @@ class FabricDomainBuilder():
             from .task_wrappers.towels.diagonal_cross_folding_wrapper \
                 import DiagonalCrossFoldingWrapper
             env = DiagonalCrossFoldingWrapper(env, domain=domain, initial=initial, action=org_action)
-               
-
-        elif task == 'one-corner-inward-folding':
-            from ...softgym.task_wrappers.rect_fabric.one_corner_inward_folding_wrapper \
-                import OneCornerInwardFoldingWrapper
-            env = OneCornerInwardFoldingWrapper(env, domain=domain, initial=initial, action=org_action)
-        elif task == 'canonical-one-corner-inward-folding':
-            from ...softgym.task_wrappers.rect_fabric.one_corner_inward_folding_wrapper \
-                import OneCornerInwardFoldingWrapper
-            env = OneCornerInwardFoldingWrapper(env, canonical=True, domain=domain, initial=initial)
-        
-        elif task == 'double-corner-inward-folding':
-            from ...softgym.task_wrappers.rect_fabric.double_corner_inward_folding_wrapper \
-                import DoubleCornerInwardFoldingWrapper
-            env = DoubleCornerInwardFoldingWrapper(env, domain=domain, initial=initial, action=org_action)
-        elif task == 'canonical-double-corner-inward-folding':
-            from ...softgym.task_wrappers.rect_fabric.double_corner_inward_folding_wrapper \
-                import DoubleCornerInwardFoldingWrapper
-            env = DoubleCornerInwardFoldingWrapper(env, canonical=True, domain=domain, initial=initial)
         
         elif task == 'all-corner-inward-folding':
-            from ...softgym.task_wrappers.rect_fabric.all_corner_inward_folding_wrapper \
+            from .task_wrappers.towels.all_corner_inward_folding_wrapper \
                 import AllCornerInwardFoldingWrapper
             env = AllCornerInwardFoldingWrapper(env, domain=domain, initial=initial, action=org_action)
-        elif task == 'canonical-all-corner-inward-folding':
-            from ...softgym.task_wrappers.rect_fabric.all_corner_inward_folding_wrapper \
-                import AllCornerInwardFoldingWrapper
-            env = AllCornerInwardFoldingWrapper(env, canonical=True, domain=domain, initial=initial)
+
+        elif task == 'one-corner-inward-folding':
+            from .task_wrappers.towels.one_corner_inward_folding_wrapper \
+                import OneCornerInwardFoldingWrapper
+            env = OneCornerInwardFoldingWrapper(env, domain=domain, initial=initial, action=org_action)
+       
+        elif task == 'double-corner-inward-folding':
+            from .task_wrappers.towels.double_corner_inward_folding_wrapper \
+                import DoubleCornerInwardFoldingWrapper
+            env = DoubleCornerInwardFoldingWrapper(env, domain=domain, initial=initial, action=org_action)
         
         
         ## Following tasks are for both square and rectangular fabrics.
         elif task == 'rectangular-folding':
-            from ...softgym.task_wrappers.rect_fabric.rectangular_folding_wrapper \
+            from .task_wrappers.towels.rectangular_folding_wrapper \
                 import RectangularFoldingWrapper
             env = RectangularFoldingWrapper(env, domain=domain, initial=initial, action=org_action)
 
-        elif task == 'canonical-rectangular-folding':
-            from ...softgym.task_wrappers.rect_fabric.rectangular_folding_wrapper \
-                import RectangularFoldingWrapper
-            env = RectangularFoldingWrapper(env, canonical=True, domain=domain, initial=initial)
 
         elif task == 'side-folding':
-            from ...softgym.task_wrappers.rect_fabric.side_folding_wrapper \
+            from .task_wrappers.towels.side_folding_wrapper \
                 import SideFoldingWrapper
             env = SideFoldingWrapper(env, domain=domain, initial=initial, action=org_action)
-        elif task == 'canonical-side-folding':
-            from ...softgym.task_wrappers.rect_fabric.side_folding_wrapper \
-                import SideFoldingWrapper
-            env = SideFoldingWrapper(env, canonical=True, domain=domain, initial=initial)
 
         elif task == 'double-side-folding':
-            from ...softgym.task_wrappers.rect_fabric.double_side_folding_wrapper \
+            from .task_wrappers.towels.double_side_folding_wrapper \
                 import DoubleSideFoldingWrapper
             env = DoubleSideFoldingWrapper(env, domain=domain, initial=initial, action=org_action)
-        elif task == 'canonical-double-side-folding':
-            from ...softgym.task_wrappers.rect_fabric.double_side_folding_wrapper \
-                import DoubleSideFoldingWrapper
-            env = DoubleSideFoldingWrapper(env, canonical=True, domain=domain, initial=initial)
-
-        elif task == 'double-side-folding':
-            from ...softgym.task_wrappers.rect_fabric.double_side_folding_wrapper \
-                import DoubleSideFoldingWrapper
-            env = DoubleSideFoldingWrapper(env, domain=domain, initial=initial)
-        elif task == 'canonical-double-side-folding':
-            from ...softgym.task_wrappers.rect_fabric.double_side_folding_wrapper \
-                import DoubleSideFoldingWrapper
-            env = DoubleSideFoldingWrapper(env, canonical=True, domain=domain, initial=initial)
-       
+        
 
         else:
             logging.error("[softgym builder] task {} is not supported".format(task))
@@ -245,7 +211,7 @@ class FabricDomainBuilder():
 
         if domain == 'mono-square-fabric':
             config['num_variations'] = 1000
-            config['cached_states_path'] = "mono_square_fabric.pkl"
+            config['cached_states_path'] = "mono-square-fabric.pkl"
             config['eval_tiers'] = {
                 4: [0, 10, 15, 20, 22, 25, 26, 27, 30, 31, 34, 35, 38, 39, 41, 42, 53, 56, 59, 60, 72, 75, 81, 87, 88, 90, 94],
                 
@@ -262,9 +228,9 @@ class FabricDomainBuilder():
             config['val_episodes'] = [2, 4, 6]
         
         
-        elif domain == 'rainbow-rect-fabric':
+        elif domain == 'rainbow-rectangular-fabrics':
             config['num_variations'] = 5000
-            config['cached_states_path'] = "rainbow_rect_fabric.pkl"
+            config['cached_states_path'] = "rainbow-rectangular-fabrics.pkl"
             config['eval_tiers'] = {
                 
                 
@@ -289,9 +255,9 @@ class FabricDomainBuilder():
             # first two eps of each tier
             config['video_episodes'] = [8, 206, 37, 55, 177, 216, 6, 109, 1, 22, 0, 136, 21, 68]
         
-        elif domain == 'rainbow-square-fabric':
+        elif domain == 'rainbow-square-fabrics':
             config['num_variations'] = 2000
-            config['cached_states_path'] = "rainbow_square_fabric.pkl"
+            config['cached_states_path'] = "rainbow-square-fabrics.pkl"
             config['eval_tiers'] = {
                 
 
@@ -309,51 +275,15 @@ class FabricDomainBuilder():
             config['val_episodes'] = [i for i in range(3)]
         
         
-        elif domain in ['real2sim-towels', 'real2sim-square-fabric']:
+        elif domain in ['real2sim-towels', 'real2sim-towels-sq']:
             config['num_variations'] = 1000
             config['cached_states_path'] = "{}.pkl".format(domain)
             config['eval_tiers'] = { 0: [i for i in range(30)] }
             config['video_episodes'] = [i for i in range(10)]
             config['val_episodes'] = [i+30 for i in range(3)]
         
-        elif domain == "ffn-rect-fabric":
-            config['num_variations'] = 30
-            config['cached_states_path'] = "vcd_square_fabric.pkl"
-            config['eval_tiers'] = { 0: [i for i in range(30)] }
-            config['video_episodes'] = [i for i in range(10)]
-            config['val_episodes'] = [i for i in range(3)]
-        elif domain == "ffn-square-fabric":
-            config['num_variations'] = 30
+       
 
-            config['eval_tiers'] = { 0: [i for i in range(30)] }
-            config['video_episodes'] = [i for i in range(10)]
-            config['val_episodes'] = [i for i in range(3)]
-        
-        elif domain == "ffnm-rect-fabric":
-            config['num_variations'] = 30
-
-            config['eval_tiers'] = { 0: [i for i in range(30)] }
-            config['video_episodes'] = [i for i in range(10)]
-            config['val_episodes'] = [i for i in range(3)]
-        
-        elif domain == "ffnm-square-fabric":
-            config['num_variations'] = 30
-            config['eval_tiers'] = { 0: [i for i in range(30)] }
-            config['video_episodes'] = [i for i in range(10)]
-            config['val_episodes'] = [i for i in range(3)]
-        
-        elif domain == "ffmr-square-fabric":
-            config['num_variations'] = 40
-            config['eval_tiers'] = { 0: [i for i in range(30)] }
-            config['video_episodes'] = [i for i in range(10)]
-            config['val_episodes'] = [i for i in range(3)]
-        
-        elif domain == "ffmr-rect-fabric":
-            config['num_variations'] = 40
-            config['eval_tiers'] = { 0: [i for i in range(30)] }
-            config['video_episodes'] = [i for i in range(10)]
-            config['val_episodes'] = [i for i in range(3)]
-            
         else:
             print("Target object <{}> not supported".format(domain))
             raise NotImplementedError
@@ -364,7 +294,7 @@ class FabricDomainBuilder():
         
         config = {'initial_state': initial_state, 'context': {}}
 
-        if domain == 'rainbow-rect-fabric':
+        if domain == 'rainbow-rectangular-fabrics':
             config['context']['rectangular'] = True
             config['context']['size'] = {
                 'width': {
@@ -389,7 +319,7 @@ class FabricDomainBuilder():
                 },
             }
         
-        if domain == 'rainbow-square-fabric': 
+        if domain == 'rainbow-square-fabrics': 
             config['context']['rectangular'] = False
             config['context']['size'] = {
                 'width': {
@@ -414,9 +344,9 @@ class FabricDomainBuilder():
                 },
             }
         #print('domain', domain)
-        if domain in ['real2sim-towels', 'real2sim-square-fabric']:
+        if domain in ['real2sim-towels', 'real2sim-towels-sq']:
             #print("HELELLELE")
-            if 'square' in domain:
+            if 'sq' in domain:
                 config['context']['rectangular'] = False
             else:
                 config['context']['rectangular'] = True
@@ -451,7 +381,7 @@ class FabricDomainBuilder():
             #print('here')
 
 
-        if initial_state == 'crumple':
+        if initial_state == 'crumpled':
             config['use_cached_states'] = True
             config['save_cached_states'] = True
             config['context']['position'] = 0.6
@@ -485,7 +415,7 @@ class FabricDomainBuilder():
             
 
 
-        elif initial_state == 'flatten':
+        elif initial_state == 'flattened':
             config['use_cached_states'] = False
             config['num_variations'] = 1000
             config['eval_tiers'] = { 0: [i for i in range(30)] }
@@ -502,7 +432,7 @@ class FabricDomainBuilder():
                 'all_visible': True
             })
         
-        elif initial_state == 'random_flatten':
+        elif initial_state == 'random_flattened':
             config['use_cached_states'] = False
             config['num_variations'] = 1000
             config['eval_tiers'] = { 0: [i for i in range(30)] }
@@ -539,7 +469,7 @@ class FabricDomainBuilder():
             config['use_cached_states'] = False
             config['num_variations'] = 100
         
-        elif initial_state == 'centre-flatten':
+        elif initial_state == 'centre-flattened':
             config['use_cached_states'] = False
             config['num_variations'] = 1000
             config['eval_tiers'] = { 0: [i for i in range(30)] }
@@ -578,7 +508,7 @@ class FabricDomainBuilder():
                     }
                 }
 
-        elif initial_state == 'crumple':
+        elif initial_state == 'crumpled':
             pass
         else:
             raise NotImplementedError
@@ -615,8 +545,8 @@ class FabricDomainBuilder():
             
         elif 'folding' in task:
             #config['reward_mode'] = "normalised_particle_distance"
-            config['action_horizon'] = 10
-            if init == 'crumple':
+            config['action_horizon'] = 20
+            if init == 'crumpled':
                 config['action_horizon'] += 30
             pass
         elif task == 'all':
@@ -628,7 +558,7 @@ class FabricDomainBuilder():
             raise NotImplementedError
         
         
-        if domain in ['real2sim-towels', 'real2sim-square-fabric']:
+        if domain in ['real2sim-towels', 'real2sim-towels-sq']:
             
             config['camera_params'] = {
                 'default_camera':{

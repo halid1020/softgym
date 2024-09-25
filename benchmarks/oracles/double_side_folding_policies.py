@@ -30,7 +30,7 @@ class DoubleSideFolding(OraclTowelFolding):
         # Shorten folding distance if W/(H/2) < 1
         small = min(H, W)
         large = max(H, W)
-        print('value', small/(large/2.0) )
+        #print('value', small/(large/2.0) )
         if small/(large/2.0) < 1.5:
             self.folding_pick_order = [
                 [[0, 0]], [[1, 0]], [[0.4, 0]], [[0, 0]], [[1, 0]], [[0.4, 0]], [[0, 0]], [[1, 0]], 
@@ -55,6 +55,8 @@ class DoubleSideFolding(OraclTowelFolding):
         
         self.folding_pick_order = np.asarray(self.folding_pick_order)
         self.folding_place_order = np.asarray(self.folding_place_order)
+
+        self.next_step_threshold = 0.05
 
     def success(self, info=None):
         if info is None:

@@ -11,8 +11,9 @@ class DoubleCornerInwardFolding(OraclTowelFolding):
             self.action_types.append('noisy-one-corner-inward-folding')
 
         self.folding_pick_order = np.asarray([[[0, 0]], [[1, 1]]]) # step*num_picker*2
-        self.folding_place_order = np.asarray([[[0.48, 0.48]], [[0.52, 0.52]]])
+        self.folding_place_order = np.asarray([[[0.43, 0.43]], [[0.57, 0.57]]])
         self.over_ratios = [0, 0]
+        self.next_step_threshold = 0.2
     
 
     def success(self, info=None):

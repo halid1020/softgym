@@ -2,7 +2,7 @@ import numpy as np
 
 from .folding_wrapper import FoldingWrapper
 from ...constants import ALL_CORNER_INWARD_FOLDING_SUCCESS_THRESHOLD
-from ....oracles.all_corner_inward_folding_policies import AllCornerInwardFoldingExpertPolicy
+from ...oracles.all_corner_inward_folding_policies import AllCornerInwardFolding
 
 class AllCornerInwardFoldingWrapper(FoldingWrapper):
     def __init__(self, env, canonical=False, 
@@ -12,7 +12,7 @@ class AllCornerInwardFoldingWrapper(FoldingWrapper):
         self.domain = domain
         self.initial = initial
         self.task_name = 'all-corner-inward-folding'
-        self.oracle_policy = AllCornerInwardFoldingExpertPolicy()
+        self.oracle_policy = AllCornerInwardFolding()
         self.action = action
 
     def reset(self, episode_config=None):

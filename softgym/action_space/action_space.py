@@ -262,7 +262,7 @@ class Picker(ActionToolBase):
                     else:
                         raise NotImplementedError
                     
-                    print('len picked particles:', len(self.picked_particles[picker_idx]))
+                    #print('len picked particles:', len(self.picked_particles[picker_idx]))
 
                     # 'miss' mode: do nothing
 

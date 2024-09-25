@@ -2,7 +2,7 @@ import numpy as np
 
 from .folding_wrapper import FoldingWrapper
 from ...constants import *
-from ....oracles.side_folding_policies import SideFoldingPolicys
+from ...oracles.side_folding_policies import SideFolding
 
 
 class SideFoldingWrapper(FoldingWrapper):
@@ -19,7 +19,7 @@ class SideFoldingWrapper(FoldingWrapper):
         self.domain = domain
         self.initial = initial
         self.task_name = 'side-folding'
-        self.oracle_policy = SideFoldingPolicys()
+        self.oracle_policy = SideFolding()
         self.action = action
         
     def reset(self, episode_config=None):

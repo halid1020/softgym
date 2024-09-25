@@ -2,7 +2,7 @@ import numpy as np
 
 from .folding_wrapper import FoldingWrapper
 from ...constants import *
-from ....oracles.diagonal_cross_folding_policies import DiagonalCrossFoldingExpertPolicy
+from ...oracles.diagonal_cross_folding_policies import DiagonalCrossFolding
 
 
 class DiagonalCrossFoldingWrapper(FoldingWrapper):
@@ -14,7 +14,7 @@ class DiagonalCrossFoldingWrapper(FoldingWrapper):
         self.domain = domain
         self.initial = initial
         self.task_name = 'diagonal-cross-folding'
-        self.oracle_policy = DiagonalCrossFoldingExpertPolicy()
+        self.oracle_policy = DiagonalCrossFolding()
         self.action = action
 
     def reset(self, episode_config=None):

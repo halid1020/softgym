@@ -11,8 +11,8 @@ class DiagonalFolding(OraclTowelFolding):
             self.action_types.append('noisy-diagonal-folding')
 
         self.folding_pick_order = np.asarray([[[0, 0]]]) # step*num_picker*2
-        self.folding_place_order = np.asarray([[[1, 1]]])
-        self.over_ratios = [0.06]
+        self.folding_place_order = np.asarray([[[0.95, 0.95]]])
+        self.over_ratios = [0.2]
     
 
     def success(self, info=None):

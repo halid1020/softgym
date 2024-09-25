@@ -16,7 +16,7 @@ class OracleTowelSmoothing(RandomPickAndPlacePolicy):
         #print('hello self.action_dim', self.action_dim)
         self.boudary_2 = 0.9
         self.stop_threshold = 0.99
-        self.no_op = np.asarray(kwargs['no_op'])
+        self.no_op = np.ones((1, 4))
         self.canonical = kwargs['canonical'] if 'canonical' in kwargs else False
         #print('canonical', self.canonical)
         if self.canonical:
@@ -34,10 +34,11 @@ class OracleTowelSmoothing(RandomPickAndPlacePolicy):
         self.search_range = 0.5
         self.camera_height = 1.5
         self.action_space = gym.spaces.Box(
-            low=np.asarray(kwargs['action_low']), 
-            high=np.asarray(kwargs['action_high']), 
-            shape=tuple(kwargs['action_dim']), dtype=np.float64)
-
+            low=np.asarray(kwargs['action_low'] if 'action_low' in kwargs else [-1, -1, -1, -1]),
+            high=np.asarray(kwargs['action_high'] if 'action_high' in kwargs else [1, 1, 1, 1]),
+            shape=tuple(kwargs['action_dim'] if 'action_dim' in kwargs else [4])
+                        , dtype=np.float32)
+        
         self.over_ratio = 1.08
         self.search_interval = 0.01
         self.pick_z = kwargs['pick_z'] if 'pick_z' in kwargs else False

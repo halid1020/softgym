@@ -1,8 +1,10 @@
-<h1>  SoftGym (fit Agent-Arena): Extension on SoftGym for Agent-Arena </h1>
+<h1>  SoftGym (fit DeepCloth-ROB2QSP&P): Extension on SoftGym for towel-shaping benchmarks and oracles </h1>
 
-Authored by Halid Abdulrahim Kadi and supervised by Kasim Terzic; Ryan Haward also contributed to this `README` file.
+Authored by Halid Abdulrahim Kadi and supervised by Kasim Terzic; Ryan Haward also contributed to this `README` file; Luis Figueredo and Praminda Caleb-Solly provided insights for `real2sim` benchmark environments.
 
 This fork is extended on the original [`SoftGym`](https://github.com/Xingyu-Lin/softgym) with modification mainly on the cloth environments (Note that the other environments do not work properly in this version).
+
+This fork of SoftGym supports benchmark environment `mono-square-fabric`, `rainbow-square-fabrics`, `rainbow-rectangular-fabrics`, `real2sim-towels` and `real2sim-towels-sq`; These benchmarks used by `PlaNet-ClothPick`, `JA-TN` and `DeepCloth-ROB2QSP&P` projects.
 
 
 ## I. Install and Setup the Simulator
@@ -79,5 +81,33 @@ Note that the <absolute_path_to_home_dir> should be the $HOME from OUTSIDE the d
 cd src/test
 
 python test_arena --arena "softgym|domain:mono-square-fabric,initial:crumple,action:pixel-pick-and-place(1),task:flattening"
+```
+
+
+# III. Run oracle policies
+
+
+
+## A. Flattening oracles
+
+We support two smoothing oracle policies `oracle-towel-smoothing` and `real2sim-smoothing`.
+
+For example, run `real2sim-smoothing` oracle policy in `real2sim-towels`
+```
+python run.py --domain real2sim-towels --initial crumpled --task flattening --policy real2sim-smoothing
+```
+## B. folding oracles
+
+Run the follow command to run and evaluate the folding oracle policies
+```
+python run.py --domain <domain-name> --initial <crumpled/flattened> --task <folding-type> --policy <folding-type> --eid <episode-id>
+```
+
+Supported folding types `one-corner-inward-folding`, `double-corner-inward-folding`, `all-corner-inward-folding`,  `diagonal-folding`, `digonal-cross-folding`, `corners-edge-inward-folding`, `rectangular-folding`, `side-folding` and `double-side-folding`.
+
+
+For example, run `all corner-inward folding` in `real2sim-towels` from `flattened` initial positions.
+```
+python run.py --domain real2sim-towels-sq --initial flattened --task all-corner-inward-folding --policy all-corner-inward-folding --eid 1
 ```
 

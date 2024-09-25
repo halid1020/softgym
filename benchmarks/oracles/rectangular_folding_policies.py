@@ -1,4 +1,5 @@
 import numpy as np
+from math import ceil
 
 from .oracle_towel_folding import OraclTowelFolding
 from ..utils import *
@@ -11,7 +12,7 @@ class RectangularFolding(OraclTowelFolding):
             self.action_types.append('noisy-rectangular-folding')
         
         self.sim2real = False if 'sim2real' not in kwargs else kwargs['sim2real']
-        print('sim2real folding', self.sim2real)
+        #print('sim2real folding', self.sim2real)
     
     def init(self, info):
         # self.action_space = info['action_space']
@@ -34,7 +35,7 @@ class RectangularFolding(OraclTowelFolding):
             
         else:
             self.next_step_threshold = 0.08
-            phase_steps = ciel(length/width * 2)
+            phase_steps = ceil(length/width * 2)
             span_per_phase = 1.0/phase_steps
             self.folding_pick_order = []
             self.folding_place_order = []
@@ -63,6 +64,7 @@ class RectangularFolding(OraclTowelFolding):
             self.folding_pick_order = self.folding_pick_order[:, :, [1, 0]]
             self.folding_place_order = self.folding_place_order[:, :, [1, 0]]
         
+        self.next_step_threshold = 0.05
         
 
     def success(self, info=None):
@@ -72,4 +74,6 @@ class RectangularFolding(OraclTowelFolding):
         flg  = info['largest_particle_distance'] < RECTANGLUAR_FOLDING_SUCCESS_THRESHOLD 
         if self.canonical:
             flg = flg and info['canonical_IoU'] >= FOLDING_IoU_THRESHOLD
+        
+        print('is success (oracle)', flg)
         return flg

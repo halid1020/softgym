@@ -4,8 +4,8 @@ import os
 from scipy.optimize import minimize
 
 
-from task_wrapper import TaskWrapper
-from flattening_wrapper import FlatteningWrapper
+from ..task_wrapper import TaskWrapper
+from .flattening_wrapper import FlatteningWrapper
 from ...utils import *
 
 class FoldingWrapper(TaskWrapper):
@@ -40,7 +40,7 @@ class FoldingWrapper(TaskWrapper):
                 'goal_mean_particle_distance',
                 'largest_edge_distance']
         ):
-        print('evaluate')
+        #print('evaluate')
         ### go over metrics and compute them
         results = {}
         for metric in metrics:
@@ -156,7 +156,7 @@ class FoldingWrapper(TaskWrapper):
             return np.nan
 
         value = np.mean(self._get_goal_particle_distances())
-        print('goal mean', value)
+        #print('goal mean', value)
         return value
     
     def _largest_corner_distance(self, particles=None):
@@ -180,7 +180,7 @@ class FoldingWrapper(TaskWrapper):
         for group_a, group_b in self.fold_groups:
             distances.append(np.mean(self._get_distance(particles, group_a, group_b)))
         value = np.min(distances)
-        print('MPD', value)
+        #print('MPD', value)
         return value
 
 
@@ -218,6 +218,8 @@ class FoldingWrapper(TaskWrapper):
         return self.goals[-1].copy()
     
     def load_goals(self, eid, mode):
+
+        print('Loading goals ...')
         
         if self._goal_cached(eid, mode):
             #logging.info('[softgym, folding_wrapper, load gaols] load goal from cache')
@@ -227,6 +229,7 @@ class FoldingWrapper(TaskWrapper):
         
         self._save_goal()
         
+        print('Goals loaded.')
         return [self.env.get_flatten_observation(), self.goal]
 
     def _save_goal(self):
@@ -259,7 +262,7 @@ class FoldingWrapper(TaskWrapper):
         while os.path.exists(goal_path + f'/step_{step_count}'):
             step_count += 1
         
-        print('step count', step_count)
+        #print('step count', step_count)
         
         for i in range(step_count):
             goal_path = self._get_goal_path(eid, mode) + f'/step_{i}'
@@ -301,9 +304,9 @@ class FoldingWrapper(TaskWrapper):
             goal['action'] = action
 
             goals.append(goal)
-            print('append goals')
+            #print('append goals')
         
-        print('len of goals', len(goals))
+        #print('len of goals', len(goals))
         self.goals = goals
         self.goal = self.goals[-1]
             
@@ -341,6 +344,6 @@ class FoldingWrapper(TaskWrapper):
             for saving the goals.
         """
         
-        return '{}/data/rect_fabric/goals/{}/{}/initial_{}/{}/{}_eid_{}'\
-            .format(os.environ['AGENT_ARENA_PATH'], self.task_name, self.domain, 
+        return '{}/data/towels/goals/{}/{}/initial_{}/{}/{}_eid_{}'\
+            .format(os.environ['SOFTGYM_PATH'], self.task_name, self.domain, 
                     self.initial, self.action, mode, eid)

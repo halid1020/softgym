@@ -190,6 +190,8 @@ def perform(arena, agent, mode='eval', episode_config=None,
         for k, v in evals.items():
             res['evaluation'][k].append(v)
 
+        print('\n\nStep: {}, Eval: {}'.format(len(actions), evals))
+
        
     res['actions'] = actions #np.stack(actions)
     res['action_durations'] = np.asarray(action_time)

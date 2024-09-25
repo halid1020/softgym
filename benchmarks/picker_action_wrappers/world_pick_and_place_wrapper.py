@@ -212,6 +212,7 @@ class WorldPickAndPlaceWrapper():
         
         self.action_step += 1
         done = self.action_step >= self.action_horizon
+        #print('action horizon', self.action_horizon)
 
         info['done'] = done
         return self._process_info(info)

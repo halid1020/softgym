@@ -2,7 +2,7 @@ import numpy as np
 
 from .folding_wrapper import FoldingWrapper
 from ...constants import *
-from ....oracles.rectangular_folding_policies import RectangularFoldingPolicy
+from ...oracles.rectangular_folding_policies import RectangularFolding
 
 class RectangularFoldingWrapper(FoldingWrapper):
     """
@@ -17,7 +17,7 @@ class RectangularFoldingWrapper(FoldingWrapper):
         self.domain = domain
         self.initial = initial
         self.task_name = 'rectangular-folding'
-        self.oracle_policy = RectangularFoldingPolicy()
+        self.oracle_policy = RectangularFolding()
         self.action = action
 
     def reset(self, episode_config=None):
@@ -62,5 +62,7 @@ class RectangularFoldingWrapper(FoldingWrapper):
         is_success = self._largest_particle_distance() < RECTANGLUAR_FOLDING_SUCCESS_THRESHOLD
         if self.canonical:
             is_success = is_success and self._get_canonical_IoU() >= FOLDING_IoU_THRESHOLD
+        
+        print('is_success (task): {}'.format(is_success))
         
         return is_success

@@ -2,7 +2,7 @@ import numpy as np
 
 from .folding_wrapper import FoldingWrapper
 from ...constants import *
-from ....oracles.corners_egde_inward_folding_policies import CornersEdgeFoldingExpertPolicy
+from ...oracles.corners_egde_inward_folding_policies import CornersEdgeInwardFolding
 
 class CornersEdgeInwardFoldingWrapper(FoldingWrapper):
 
@@ -15,7 +15,7 @@ class CornersEdgeInwardFoldingWrapper(FoldingWrapper):
         self.domain = domain
         self.initial = initial
         self.task_name = 'corners-edge-inward-folding'
-        self.oracle_policy = CornersEdgeFoldingExpertPolicy()
+        self.oracle_policy = CornersEdgeInwardFolding()
         self.action = action
         
     def reset(self, episode_config=None):

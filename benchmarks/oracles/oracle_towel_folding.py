@@ -2,6 +2,7 @@ import numpy as np
 import random
 
 from .real2sim_smoothing import Real2SimSmoothing
+from ..task_wrappers.towels.flattening_wrapper import FlatteningWrapper
   
 class OraclTowelFolding(Real2SimSmoothing):
     def __init__(self, **kwargs):
@@ -20,16 +21,16 @@ class OraclTowelFolding(Real2SimSmoothing):
         #self.over_ratio_ = -0.02
 
         self.random_folding_steps = kwargs['random_folding_steps'] if 'random_folding_steps' in kwargs else False
-        print('random_folding_steps', self.random_folding_steps)
+        #print('random_folding_steps', self.random_folding_steps)
         if self.random_folding_steps:
-            print('random_folding_steps', self.random_folding_steps)
+            #print('random_folding_steps', self.random_folding_steps)
             self.action_types.append('random_folding')
             self.pick_corner = kwargs['pick_corner'] if 'pick_corner' in kwargs else False
 
         self.flatten_noise = kwargs['flatten_noise'] if 'flatten_noise' in kwargs else False
         self.folding_noise = kwargs['folding_noise'] if 'folding_noise' in kwargs else False
         self.next_step_threshold = 0.06
-        self._reset()
+        self.reset()
         self.phase = 'folding'
         self.action_type = 'folding'
     
@@ -39,12 +40,12 @@ class OraclTowelFolding(Real2SimSmoothing):
     
     def reset(self):
         super().reset()
-        print('resetting folding policy')
+        #print('resetting folding policy')
         self.fold_steps = -1
         self.current_action_type = ''
         self.is_success = False
         if self.random_folding_steps:
-            print('generate random folding steps !')
+            #print('generate random folding steps !')
             steps = random.randint(*self.random_folding_steps)
             self.folding_pick_order = np.random.rand(steps, 1, 2)
             if self.pick_corner:
@@ -71,8 +72,8 @@ class OraclTowelFolding(Real2SimSmoothing):
         place_pixel_pos = self.folding_place_order[self.fold_steps].copy()
         #print('pick_pixel_pos', pick_pixel_pos)
 
-        print('pick_pixel_pos', pick_pixel_pos)
-        print('place_pixel_pos', place_pixel_pos)
+        # print('pick_pixel_pos', pick_pixel_pos)
+        # print('place_pixel_pos', place_pixel_pos)
         
         pick_pixel_pos[:, 0] *= (cloth_H-1)
         pick_pixel_pos[:, 1] *= (cloth_W-1)
@@ -94,7 +95,9 @@ class OraclTowelFolding(Real2SimSmoothing):
         return pick_particle_ids, place_particle_ids
     
     def terminate(self):
-        return self.fold_steps >= len(self.folding_pick_order)
+        flg = self.fold_steps >= len(self.folding_pick_order)
+        print('terminate (oracle)', flg)
+        return flg
     
     def act(self, info):
         arena = info['arena']
@@ -107,7 +110,7 @@ class OraclTowelFolding(Real2SimSmoothing):
 
         ## No-op
         if self.fold_steps >= len(self.folding_pick_order):
-            print('no-oppping')
+            #print('no-oppping')
             self.is_success = True
            
             self.phase = 'success'

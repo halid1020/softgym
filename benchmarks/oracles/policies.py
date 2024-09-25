@@ -11,6 +11,8 @@ from .side_folding_policies import SideFolding
 from .double_side_folding_policies import DoubleSideFolding
 from .rectangular_folding_policies import RectangularFolding
 from .corners_egde_inward_folding_policies import CornersEdgeInwardFolding
+from .diagonal_folding_policies import DiagonalFolding
+from .diagonal_cross_folding_policies import DiagonalCrossFolding
 
 
 NAME2POLICY = {
@@ -24,5 +26,7 @@ NAME2POLICY = {
     'side-folding': SideFolding,
     'double-side-folding': DoubleSideFolding,
     'rectangular-folding': RectangularFolding,
-    'corners-edge-inward-folding': CornersEdgeInwardFolding
+    'corners-edge-inward-folding': CornersEdgeInwardFolding,
+    'diagonal-folding': DiagonalFolding,
+    'diagonal-cross-folding': DiagonalCrossFolding,
 }

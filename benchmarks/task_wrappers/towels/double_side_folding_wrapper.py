@@ -2,7 +2,7 @@ import numpy as np
 
 from .folding_wrapper import FoldingWrapper
 from ...constants import *
-from ....oracles.double_side_folding_policies import DoubleSideFoldingPolicy
+from ...oracles.double_side_folding_policies import DoubleSideFolding
 
 
 class DoubleSideFoldingWrapper(FoldingWrapper):
@@ -15,7 +15,7 @@ class DoubleSideFoldingWrapper(FoldingWrapper):
         self.domain = domain
         self.initial = initial
         self.task_name = 'double-side-folding'
-        self.oracle_policy = DoubleSideFoldingPolicy()
+        self.oracle_policy = DoubleSideFolding()
         self.action = action
         
     def reset(self, episode_config=None):
@@ -60,7 +60,7 @@ class DoubleSideFoldingWrapper(FoldingWrapper):
                 
             self.fold_groups.append((group_a, group_b))
 
-        if self.initial == 'crumple':
+        if self.initial == 'crumpled':
             pass
         else:
             self.load_goals(self.env.get_episode_id(), self.env.get_mode())

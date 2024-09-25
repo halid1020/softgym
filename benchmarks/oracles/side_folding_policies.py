@@ -9,10 +9,10 @@ class SideFolding(OraclTowelFolding):
         self.action_types.append('side-folding')
         if self.folding_noise:
             self.action_types.append('noisy-side-folding')
-        print('HELLLO!!!!!')
+        #print('HELLLO!!!!!')
     
     def init(self, info):
-        print('HELLLO')
+        #print('HELLLO')
         H, W = info['cloth_size']
         self.folding_pick_order = [
                 [[0, 0]], [[1, 0]], [[0.4, 0]], [[0, 0]], [[1, 0]]
@@ -28,7 +28,7 @@ class SideFolding(OraclTowelFolding):
         # Shorten folding distance if W/(H/2) < 1
         small = min(H, W)
         large = max(H, W)
-        print('value', small/(large/2.0) )
+        #print('value', small/(large/2.0) )
         if small/(large/2.0) < 1.5:
             self.folding_pick_order = [
                 [[0, 0]], [[1, 0]], [[0.4, 0]], [[0, 0]], [[1, 0]], [[0.4, 0]], [[0, 0]], [[1, 0]]
@@ -48,6 +48,9 @@ class SideFolding(OraclTowelFolding):
 
             self.folding_pick_order = self.folding_pick_order[:, :, [1, 0]]
             self.folding_place_order = self.folding_place_order[:, :, [1, 0]]
+
+        self.next_step_threshold = 0.05
+        
     
     def success(self, info=None):
         if info is None:

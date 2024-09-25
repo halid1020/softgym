@@ -2,7 +2,7 @@ import numpy as np
 
 from .folding_wrapper import FoldingWrapper
 from ...constants import *
-from ....oracles.diagonal_folding_policies import DiagonalFoldingExpertPolicy
+from ...oracles.diagonal_folding_policies import DiagonalFolding
 
 class DiagonalFoldingWrapper(FoldingWrapper):
     def __init__(self, env, canonical=False, 
@@ -12,7 +12,7 @@ class DiagonalFoldingWrapper(FoldingWrapper):
         self.domain = domain
         self.initial = initial
         self.task_name = 'diagonal-folding'
-        self.oracle_policy = DiagonalFoldingExpertPolicy()
+        self.oracle_policy = DiagonalFolding()
         self.action = action
     
     def reset(self, episode_config=None):

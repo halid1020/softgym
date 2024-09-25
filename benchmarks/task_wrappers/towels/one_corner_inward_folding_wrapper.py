@@ -2,7 +2,7 @@ import numpy as np
 
 from .folding_wrapper import FoldingWrapper
 from ...constants import *
-from ....oracles.one_corner_inward_folding_policies import OneCornerInwardFoldingPolicy
+from ...oracles.one_corner_inward_folding_policies import OneCornerInwardFolding
 
 
 class OneCornerInwardFoldingWrapper(FoldingWrapper):
@@ -14,7 +14,7 @@ class OneCornerInwardFoldingWrapper(FoldingWrapper):
         self.domain = domain
         self.initial = initial
         self.task_name = 'one-corner-inward-folding'
-        self.oracle_policy = OneCornerInwardFoldingPolicy()
+        self.oracle_policy = OneCornerInwardFolding()
         self.action = action
     
     def reset(self, episode_config=None):
