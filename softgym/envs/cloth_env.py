@@ -1,22 +1,12 @@
 import numpy as np
 import cv2
-import logging
-
 from gym.spaces import Box
 import pyflex
 from softgym.envs.flex_env import FlexEnv
-from softgym.action_space.action_space import  Picker, PickerPickPlace
-from softgym.action_space.robot_env import RobotBase
+from softgym.action_space.action_space import  Picker
 from copy import deepcopy
 from softgym.utils.misc import vectorized_range, vectorized_meshgrid
-from softgym.utils.pyflex_utils import center_object
 from softgym.utils.gemo_utils import *
-from skimage.exposure import histogram
-from skimage.feature import canny
-from scipy import ndimage as ndi
-import torchvision
-
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 class ClothEnv(FlexEnv):
@@ -72,7 +62,7 @@ class ClothEnv(FlexEnv):
         self.action_space = self.action_tool.action_space
         self.picker_radius = picker_radius
         self.picker_initial_pos = kwargs['picker_initial_pos']
-        logging.info('[sofgym, cloth_env] picker_initial_pos: {}'.format(self.picker_initial_pos))
+        #logging.info('[sofgym, cloth_env] picker_initial_pos: {}'.format(self.picker_initial_pos))
         
 
         if ('state' not in observation_mode.keys()) or (observation_mode['state'] == None):

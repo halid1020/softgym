@@ -219,6 +219,12 @@ class FlexEnv(gym.Env):
             save_numpy_as_gif(np.array(self.video_frames), video_path, **kwargs)
         del self.video_frames
 
+    def get_num_episodes(self):
+        if self.eval_flag:
+            return int(0.1 * self.num_variations)
+        else:
+            return int(0.9 * self.num_variations)
+
     def reset(self, episode_id=None):
      
         

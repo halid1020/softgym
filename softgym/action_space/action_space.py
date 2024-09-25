@@ -135,6 +135,9 @@ class Picker(ActionToolBase):
         self.particle_inv_mass = pyflex.get_positions().reshape(-1, 4)[:, 3]
         # print('inv_mass_shape after reset:', self.particle_inv_mass.shape)
 
+        self.last_grasp_mode = None
+        self.graps_try_step = 0
+
     # num_pickers * 14
     def get_picker_pos(self):
         return np.array(pyflex.get_shape_states()).reshape(-1, 14)
@@ -233,6 +236,7 @@ class Picker(ActionToolBase):
             dists = cdist(picker_pos[pickers_to_pick], particle_pos[:, :3])
             
             threshold = self.picker_threshold + self.picker_radius + self.particle_radius
+            #print('threshold:', threshold)
             mask = dists <= threshold
             
             for i, picker_idx in enumerate(pickers_to_pick):
@@ -242,11 +246,24 @@ class Picker(ActionToolBase):
                     candidate_particles = valid_particles[sorted_indices]
                     
                     mode = np.random.choice(list(self.grasp_mode.keys()), p=list(self.grasp_mode.values()))
+
+                    if self.last_grasp_mode == 'miss' and self.graps_try_step < 40:
+                        self.graps_try_step += 1
                     
-                    if mode == 'around':
+                    elif mode == 'around':
                         self.picked_particles[picker_idx].extend(candidate_particles)
                     elif mode == 'closest':
                         self.picked_particles[picker_idx].append(candidate_particles[0])
+                    elif mode == 'miss':
+                        #print('drop!')
+                        #print('miss')
+                        self.last_grasp_mode = 'miss'
+                        self.graps_try_step = 0
+                    else:
+                        raise NotImplementedError
+                    
+                    print('len picked particles:', len(self.picked_particles[picker_idx]))
+
                     # 'miss' mode: do nothing
 
         # Update picked particle positions
@@ -259,84 +276,6 @@ class Picker(ActionToolBase):
         self._set_pos(new_picker_pos, new_particle_pos)
         return 1
 
-    # def step(self, action):
-    #     """ action = [translation, pick/unpick] * num_pickers.
-    #     1. Determine whether to pick/unpick the particle and which one, for each picker
-    #     2. Update picker pos
-    #     3. Update picked particle pos
-    #     """
-        
-    #     action = np.reshape(action, (-1, 4))
-
-    #     grip_flag = (action[:, 3] < 0)
-    #     realse_flag = (0 <= action[:, 3]) & (action[:, 3] <= 1)
-        
-    #     picker_pos, particle_pos = self._get_pos()
-    #     new_picker_pos, new_particle_pos = picker_pos.copy(), particle_pos.copy()
-
-    #     # Un-pick the particles
-    #     # print('check pick id:', self.picked_particles, new_particle_pos.shape, self.particle_inv_mass.shape)
-    #     for i in range(self.num_picker):
-    #         if realse_flag[i]:
-    #             for j in self.picked_particles[i]:
-    #                 new_particle_pos[j, 3] = self.particle_inv_mass[j]  # Revert the mass
-                    
-    #             self.picked_particles[i] = []
-        
-    #     self._set_pos(new_picker_pos, new_particle_pos)
-
-    #     # Pick new particles and update the mass and the positions
-    #     new_picker_pos = self._apply_picker_boundary(picker_pos+ action[:, :3])
-
-    #     for i in range(self.num_picker):
-    #         if grip_flag[i] and (len(self.picked_particles[i]) == 0):  # No particle is currently picked and thus need to select a particle to pick
-    #             dists = scipy.spatial.distance.cdist(picker_pos[i].reshape((-1, 3)), particle_pos[:, :3].reshape((-1, 3)))
-    #             idx_dists = np.hstack([np.arange(particle_pos.shape[0]).reshape((-1, 1)), dists.reshape((-1, 1))])
-                
-
-    #             mask = dists.flatten() <= self.picker_threshold + self.picker_radius + self.particle_radius
-    #             idx_dists = idx_dists[mask, :].reshape((-1, 2))
-    #             idx_dists = list(idx_dists)
-    #             idx_dists.sort(key=lambda i: (i[1], i[0]))
-    #             idx_dists = np.asarray(idx_dists)
-
-    #             candidate_particles = []
-    #             if idx_dists.shape[0] > 0:
-                    
-    #                 for j in range(idx_dists.shape[0]):
-    #                     if idx_dists[j, 0] not in self.picked_particles[i]:
-    #                         candidate_particles.append(int(idx_dists[j, 0]))
-                
-    #             ### we have around, miss, and closest mode and grasp_mode is a directionary with the key as the mode and the value as the probability
-    #             ### sample the mode based on the probability
-
-    #             mode = np.random.choice(list(self.grasp_mode.keys()), p=list(self.grasp_mode.values()))
-                
-    #             #print('mode', mode)
-                    
-    #             if mode == 'around':
-    #                 #print('pick particles', len(candidate_particles) )
-    #                 self.picked_particles[i].extend(candidate_particles)
-    #             elif mode == 'miss':
-    #                 pass
-    #             elif mode == 'closest':
-    #                 if len(candidate_particles) > 0:
-    #                     self.picked_particles[i].append(candidate_particles[0])
-
-    #         for j in self.picked_particles[i]:
-    #             #print('j', j)
-    #             # TODO The position of the particle needs to be updated such that it is close to the picker particle
-    #             new_particle_pos[j, :3] = \
-    #                 particle_pos[j, :3] + new_picker_pos[i, :] - picker_pos[i, :]
-    #             new_particle_pos[j, 3] = 0  # Set the mass to infinity
-
-
-    #     self._set_pos(new_picker_pos, new_particle_pos)
-        
-    #     return 1
-
-
-        
 
 
 class PickerPickPlace(Picker):
