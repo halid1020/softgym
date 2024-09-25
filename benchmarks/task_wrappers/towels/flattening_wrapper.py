@@ -105,8 +105,7 @@ class FlatteningWrapper(TaskWrapper):
         return np.argmax(self.successes) if np.any(self.successes) else -1
     
     def evaluate(self,
-            metrics = ['normalised_improvement', 'normalised_coverage', 'wrinkle_pixel_ratio', 'canonical_IoU',
-                       'canonical_hausdorff_distance', 'success', 'steps2sucess'],
+            metrics = ['normalised_improvement', 'normalised_coverage', 'wrinkle_pixel_ratio', 'success', 'steps2sucess'],
         ):
 
         target_coverage = self.env.get_flattened_coverage()

@@ -96,7 +96,7 @@ class OraclTowelFolding(Real2SimSmoothing):
     
     def terminate(self):
         flg = self.fold_steps >= len(self.folding_pick_order)
-        print('terminate (oracle)', flg)
+        #print('terminate (oracle)', flg)
         return flg
     
     def act(self, info):
