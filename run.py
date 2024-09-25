@@ -227,25 +227,21 @@ def main():
     parser.add_argument('--policy', default='real2sim-smoothing')
     parser.add_argument('--initial', default='crumple')
     parser.add_argument('--eid', default=1, type=int)
-    parser.add_argument('--disp', default=0, type=int)
-    parser.add_argument('--save_video', default=0, type=int)
+   
+    ## make the --disp keywords a boolean when set it becomes true
+
+    parser.add_argument('--disp', action='store_true')
+    parser.add_argument('--save_video', action='store_true')
     parser.add_argument('--log_dir', default='.')
     
     args = parser.parse_args()
-
-    if args.disp == 1:
-        disp = True
-    elif args.disp == 0:
-        disp = False
-    else:
-        raise NotImplementedError
     
 
     save_dir = f"{args.log_dir}/results/{args.domain}-{args.task}-{args.initial}/{args.policy}/"
 
     ### Initialise arena
     env_name = 'softgym|domain:{},initial:{},action:pixel-pick-and-place(1),task:{},disp:{}'\
-        .format(args.domain, args.initial, args.task, disp)
+        .format(args.domain, args.initial, args.task, args.disp)
     from benchmarks.builder import Builder
     env = Builder.build(env_name)
 
@@ -262,7 +258,7 @@ def main():
         env, 
         episode_config={
             'eid': args.eid, 
-            'save_video': (True if args.save_video == 1 else False)
+            'save_video': args.save_video,
         },
         logger=MyLogger(save_dir))
     

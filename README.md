@@ -1,8 +1,8 @@
 <h1>  SoftGym (fit DeepCloth-ROB2QSP&P [1]): Extension on SoftGym for towel-shaping benchmarks and oracles </h1>
 
-This fork is extended on the original [`SoftGym`](https://github.com/Xingyu-Lin/softgym) with modification mainly on the cloth environments (Note that the other environments do not work properly in this version). If there is a conflict of interest, please contact `ah390@st-andrews.ac.uk`. This fork supports benchmark environment `mono-square-fabric`, `rainbow-square-fabrics`, `rainbow-rectangular-fabrics`, `real2sim-towels` and `real2sim-towels-sq`; These benchmarks used by `PlaNet-ClothPick` [3], `JA-TN` [2] and `DeepCloth-ROB2QSP&P` [1] projects.
+This fork is extended on the original [`SoftGym`](https://github.com/Xingyu-Lin/softgym) with modification mainly on the cloth environments (Note that the other environments do not work properly in this version). If there is a conflict of interest, please contact `ah390@st-andrews.ac.uk`. This fork supports benchmark environments `mono-square-fabric`, `rainbow-square-fabrics`, `rainbow-rectangular-fabrics`, `real2sim-towels` and `real2sim-towels-sq`; These benchmarks used by `PlaNet-ClothPick` [3], `JA-TN` [2] and `DeepCloth-ROB2QSP&P` [1] projects.
 
-Authored by Halid Abdulrahim Kadi and supervised by Kasim Terzić; Luis Figueredo and Praminda Caleb-Solly provided some insights for `real2sim` benchmark environments; and, Ryan Haward provided some contributions to this `README` file
+This repository is authored by Halid Abdulrahim Kadi and supervised by Kasim Terzić; Luis Figueredo and Praminda Caleb-Solly provided some insights for `real2sim` benchmark environments; and, Ryan Haward provided some contributions to this `README` file
 
 ## I. Install and Setup the Simulator
 
@@ -67,7 +67,7 @@ Note that the <absolute_path_to_home_dir> should be the $HOME from OUTSIDE the d
 
 
 
-# II. Run oracle policies
+# II. Run Oracle Policies
 
 You do not need to employ the docker container used during the compilation in this section, but you do need to do the setup again under the root directory of the repository.
 
@@ -81,14 +81,17 @@ Then, you can continue the following instructions right under the root directory
 
 We support two smoothing oracle policies `oracle-towel-smoothing` and `real2sim-smoothing`. For example, run `real2sim-smoothing` oracle policy in `real2sim-towels`:
 ```
-python run.py --domain real2sim-towels --initial crumpled --task flattening --policy real2sim-smoothing
+python run.py --domain real2sim-towels --initial crumpled \
+    --task flattening --policy real2sim-smoothing --eid 0 --save_video
 ```
 ## B. Folding oracles
-The supported folding types include `one-corner-inward-folding`, `double-corner-inward-folding`, `all-corner-inward-folding`, `diagonal-folding`, `digonal-cross-folding`, `corners-edge-inward-folding`, `rectangular-folding`, `side-folding` and `double-side-folding`. Note that some foldings are only supported in square-fabric benchmark environments.
+The supported folding types include `one-corner-inward-folding`, `double-corner-inward-folding`, `all-corner-inward-folding`, `diagonal-folding`, `digonal-cross-folding`, `corners-edge-inward-folding`, `rectangular-folding`, `side-folding` and `double-side-folding`. Note that some folding types are only supported in square-fabric benchmark environments.
 
 For example, run `all corner-inward folding` in `real2sim-towels` from `flattened` initial positions.
 ```
-python run.py --domain real2sim-towels-sq --initial flattened --task all-corner-inward-folding --policy all-corner-inward-folding --eid 1
+python run.py --domain real2sim-towels-sq --initial flattened  \
+    --task all-corner-inward-folding --policy all-corner-inward-folding \
+    --eid 0 --save_video
 ```
 
 # Related Papers
