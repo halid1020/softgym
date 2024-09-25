@@ -1,11 +1,8 @@
-<h1>  SoftGym (fit DeepCloth-ROB2QSP&P): Extension on SoftGym for towel-shaping benchmarks and oracles </h1>
+<h1>  SoftGym (fit DeepCloth-ROB2QSP&P [1]): Extension on SoftGym for towel-shaping benchmarks and oracles </h1>
 
-Authored by Halid Abdulrahim Kadi and supervised by Kasim Terzic; Ryan Haward also contributed to this `README` file; Luis Figueredo and Praminda Caleb-Solly provided insights for `real2sim` benchmark environments.
+This fork is extended on the original [`SoftGym`](https://github.com/Xingyu-Lin/softgym) with modification mainly on the cloth environments (Note that the other environments do not work properly in this version). If there is a conflict of interest, please contact `ah390@st-andrews.ac.uk`. This fork supports benchmark environment `mono-square-fabric`, `rainbow-square-fabrics`, `rainbow-rectangular-fabrics`, `real2sim-towels` and `real2sim-towels-sq`; These benchmarks used by `PlaNet-ClothPick` [3], `JA-TN` [2] and `DeepCloth-ROB2QSP&P` [1] projects.
 
-This fork is extended on the original [`SoftGym`](https://github.com/Xingyu-Lin/softgym) with modification mainly on the cloth environments (Note that the other environments do not work properly in this version).
-
-This fork of SoftGym supports benchmark environment `mono-square-fabric`, `rainbow-square-fabrics`, `rainbow-rectangular-fabrics`, `real2sim-towels` and `real2sim-towels-sq`; These benchmarks used by `PlaNet-ClothPick`, `JA-TN` and `DeepCloth-ROB2QSP&P` projects.
-
+Authored by Halid Abdulrahim Kadi and supervised by Kasim Terzić; Luis Figueredo and Praminda Caleb-Solly provided some insights for `real2sim` benchmark environments; and, Ryan Haward provided some contributions to this `README` file
 
 ## I. Install and Setup the Simulator
 
@@ -31,12 +28,12 @@ Note that if you want to remove the environment
 conda remove -n softgym --all  
 ```
 
-4. Download and install the [`cloth_initial_states.zip`](https://drive.google.com/file/d/1yPsEX1WikWO9RlWhkap7II9Xs0HIPj88/view?usp=sharing).
+4. Download and install the [`cloth_initial_states.zip`](https://drive.google.com/file/d/1bFgrjLffy9q4PIWHGfFRCHGEzSo8iHfE/view?usp=sharing). Note that you can skip this step if you want the environment generates the corresponding initial states, but it may take quite a long time.
 ```
 
 # Do not forget to install `gdown` using `pip install gdown`.
 
-gdown https://drive.google.com/uc?id=1yPsEX1WikWO9RlWhkap7II9Xs0HIPj88 
+gdown https://drive.google.com/uc?id=1bFgrjLffy9q4PIWHGfFRCHGEzSo8iHfE
 
 mv cloth_initial_states.zip <path_to_softgym>/softgym/cached_initial_states
 
@@ -66,48 +63,38 @@ cd softgym
 . ./setup.sh  && . ./compile.sh
 ```
 
-Note that the <absolute_path_to_home_dir> should be the $HOME from OUTSIDE the docker, not from inside it ($HOME inside the docker is /root/, which isn't where we've mapped anaconda3.)
+Note that the <absolute_path_to_home_dir> should be the $HOME from OUTSIDE the docker, not from inside it ($HOME inside the docker is /root/, which isn't where we've mapped anaconda3).
 
-# II. Test Softgym
 
-1. Ensure [`agent-arena`](https://github.com/halid1020/agent-arena) is installed.
 
-2. Go to the directory of `softgym` and run `. ./setup.sh`.
+# II. Run oracle policies
 
-3. Then, go to the direcotory of `agent-arena`, then run the following commands
+You do not need to employ the docker container used during the compilation in this section, but you do need to do the setup again under the root directory of the repository.
+
 ```
 . ./setup.sh
-
-cd src/test
-
-python test_arena --arena "softgym|domain:mono-square-fabric,initial:crumple,action:pixel-pick-and-place(1),task:flattening"
 ```
 
+Then, you can continue the following instructions right under the root directory.
 
-# III. Run oracle policies
+## A. Flattening Oracles
 
-
-
-## A. Flattening oracles
-
-We support two smoothing oracle policies `oracle-towel-smoothing` and `real2sim-smoothing`.
-
-For example, run `real2sim-smoothing` oracle policy in `real2sim-towels`
+We support two smoothing oracle policies `oracle-towel-smoothing` and `real2sim-smoothing`. For example, run `real2sim-smoothing` oracle policy in `real2sim-towels`:
 ```
 python run.py --domain real2sim-towels --initial crumpled --task flattening --policy real2sim-smoothing
 ```
-## B. folding oracles
-
-Run the follow command to run and evaluate the folding oracle policies
-```
-python run.py --domain <domain-name> --initial <crumpled/flattened> --task <folding-type> --policy <folding-type> --eid <episode-id>
-```
-
-Supported folding types `one-corner-inward-folding`, `double-corner-inward-folding`, `all-corner-inward-folding`,  `diagonal-folding`, `digonal-cross-folding`, `corners-edge-inward-folding`, `rectangular-folding`, `side-folding` and `double-side-folding`.
-
+## B. Folding oracles
+The supported folding types include `one-corner-inward-folding`, `double-corner-inward-folding`, `all-corner-inward-folding`, `diagonal-folding`, `digonal-cross-folding`, `corners-edge-inward-folding`, `rectangular-folding`, `side-folding` and `double-side-folding`. Note that some foldings are only supported in square-fabric benchmark environments.
 
 For example, run `all corner-inward folding` in `real2sim-towels` from `flattened` initial positions.
 ```
 python run.py --domain real2sim-towels-sq --initial flattened --task all-corner-inward-folding --policy all-corner-inward-folding --eid 1
 ```
 
+# Related Papers
+
+[1] Kadi HA, Chandy JA, Figuerdo L, Terzić K, Caleb-Solly P. DeepCloth-ROB2QSP&P: Towards a Robust Robot Deployment for Quasi-Static Pick-and-Place Cloth-Shaping Neural Controllers. arXiv preprint arXiv:2409.15159 2024.
+
+[2] Kadi HA, Terzić K. JA-TN: Pick-and-Place Towel Shaping from Crumpled States based on TransporterNet with Joint-Probability Action Inference. In8th Annual Conference on Robot Learning 2024.
+
+[3] Kadi HA, Terzić K. PlaNet-ClothPick: effective fabric flattening based on latent dynamic planning. In2024 IEEE/SICE International Symposium on System Integration (SII) 2024 Jan 8 (pp. 972-979). IEEE.
