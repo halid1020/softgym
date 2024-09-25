@@ -75,5 +75,5 @@ class RectangularFolding(OraclTowelFolding):
         if self.canonical:
             flg = flg and info['canonical_IoU'] >= FOLDING_IoU_THRESHOLD
         
-        print('is success (oracle)', flg)
+        #print('is success (oracle)', flg)
         return flg

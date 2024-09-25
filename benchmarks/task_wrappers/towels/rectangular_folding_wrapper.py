@@ -63,6 +63,6 @@ class RectangularFoldingWrapper(FoldingWrapper):
         if self.canonical:
             is_success = is_success and self._get_canonical_IoU() >= FOLDING_IoU_THRESHOLD
         
-        print('is_success (task): {}'.format(is_success))
+        #print('is_success (task): {}'.format(is_success))
         
         return is_success
