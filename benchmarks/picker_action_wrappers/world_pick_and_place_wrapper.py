@@ -40,10 +40,10 @@ class WorldPickAndPlaceWrapper():
         self.action_dim = action_dim
         self.num_picker = self.env.get_num_picker()
         space_low = np.concatenate([pick_lower_bound, place_lower_bound]*action_dim)\
-            .reshape(action_dim, -1)
+            .reshape(action_dim, -1).astype(np.float32)
         space_high = np.concatenate([pick_upper_bound, place_upper_bound]*action_dim)\
-            .reshape(action_dim, -1)
-        self.action_space = Box(space_low, space_high, dtype=np.float64)
+            .reshape(action_dim, -1).astype(np.float32)
+        self.action_space = Box(space_low, space_high, dtype=np.float32)
 
         self.ready_pos = np.asarray(ready_pos)
 

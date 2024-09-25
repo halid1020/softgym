@@ -33,11 +33,10 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
         self.search_range = 0.5
         self.camera_height = 0.65
         self.action_space = gym.spaces.Box(
-            low=np.asarray(kwargs['action_low'] if 'action_low' in kwargs else [-1, -1, -1, -1]),
-            high=np.asarray(kwargs['action_high'] if 'action_high' in kwargs else [1, 1, 1, 1]),
-            shape=tuple(kwargs['action_dim'] if 'action_dim' in kwargs else [4])
-                        , dtype=np.float32)
-
+            low=np.asarray(kwargs['action_low'] if 'action_low' in kwargs else [-1.0, -1.0, -1.0, -1.0]).astype(np.float32),
+            high=np.asarray(kwargs['action_high'] if 'action_high' in kwargs else [1.0, 1.0, 1.0, 1.0]).astype(np.float32),
+            shape=tuple(kwargs['action_dim'] if 'action_dim' in kwargs else [4]), dtype=np.float32)
+        
         self.over_ratio = 1.08
         self.search_interval = 0.01
         self.pick_z = kwargs['pick_z'] if 'pick_z' in kwargs else False
@@ -500,7 +499,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
         return self.is_success
     
     def act(self, info):
-        print('!!!!!!!!')
+        #print('!!!!!!!!')
 
         arena = info['arena']
         ####
@@ -591,7 +590,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
         )
 
         if self.success(info):
-            print('Case success')
+            print('Case: success')
             self.is_success = True
             #logging.debug('[oracle,rect-fabric,flattening, expert] Case flattening: flatten')
             
@@ -599,7 +598,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
             return self._process_action(flatten_action, arena, noise=self.flatten_noise)
 
         if self.flatten(info) and len(out_corner_points) >= 1:
-            print('Case flatten but out of boundary')
+            print('Case: flatten but out of boundary')
             return self._process_action(canon_flatten_action, arena, noise=self.flatten_noise)
 
         
@@ -609,7 +608,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
             #logging.debug('[oracle,rect-fabric,flattening, expert] Case to drag to the opposite side')
             if len(hidden_corner_points) >= 4 or len(valid_corner_points) == 0:
                 action = self._get_opposite_side_action(arena, action, far=True)
-                print('Cse first drag to opposite side')
+                print('Case: first drag to opposite side')
                 return self._process_action(action, arena, noise=self.flatten_noise)
             action = self._get_opposite_side_action(arena, action, far=False)
 
@@ -626,7 +625,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
             # for c in valid_corner_points:
             #     action[0, :2] = pcp[c]
             #     action[0, 2:] = np.sign(cfp_pcp[canon_pairs[c][0]])*scale
-            print('Case second drag to opposite side')
+            print('Case: second drag to opposite side')
             return self._process_action(action, arena, noise=self.flatten_noise)
             
         ## Case 1: If revealing corners in the last step but not successfully to do so.
@@ -638,7 +637,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
             action = self._reveal_hidden_corner(
                 arena, action, pcp, 
                 self.last_corner_id, pairs, fp_pcp)
-            print('Case continue to reveal')
+            print('Case: continue to reveal')
             return self._process_action(action, arena, noise=self.flatten_noise)
 
         if self.revealing_corner \
@@ -649,7 +648,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
                 arena, action, pcp, 
                 self.last_corner_id, pairs, fp_pcp, big_action=True)
         
-            print('Case continue to reveal, but big action')
+            print('Case: continue to reveal, but big action')
             return self._process_action(action, arena, noise=self.flatten_noise)
         
         ## Case 2: If succesffully revealed a corner in the last step, and we need to flatten the corner
@@ -661,11 +660,11 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
                 action[0, :2] = pcp[self.last_corner_id]
                 action[0, 2:] = fp_pcp[pairs[self.last_corner_id][0]]
                 self.counter_stretch = True
-                print('Case success reveal now flat')
+                print('Case: success reveal now flat')
                 return self._process_action(action, arena, noise=self.flatten_noise)
         
         if self.counter_stretch:
-            print('Case strech oppositie to reveal after flat')
+            print('Case: strech oppositie to reveal after flat')
             cid = 3 - self.last_corner_id
             if cid not in valid_corner_points and len(valid_corner_points) > 0:
                 cid = valid_corner_points[0]
@@ -716,7 +715,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
                 #print('reveal edge point')
                 return self._process_action(action, arena, noise=self.flatten_noise)
         
-            print('serious flatten')
+            print('Case: serious flatten')
             return self._process_action(flatten_action, arena, noise=self.flatten_noise)
 
         
@@ -731,7 +730,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
             distance = np.linalg.norm(action[0, :2] - action[0, 2:])
             #print('Case hidden corner 1')
             if distance >= 0.1:
-                print('Case hidden corner 1, drag the opposite corner to reveal')
+                print('Case: hidden corner 1, drag the opposite corner to reveal')
                 return self._process_action(action, arena, noise=self.flatten_noise)
 
 
@@ -740,7 +739,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
         ## Case 5: If there are more than two hidden points
         ## and there is no out of boundary points, and the coverage is high enough
         if len(hidden_corner_points) >= 1:
-            print('Case first reveal')
+            print('Case: first reveal')
             self.action_type = 'reveal-hidden-corners'
             logging.debug('[oracle,rect-fabric,flattening, expert] Case more than two hidden points, reveal hidden point')
             self.last_corner_id = hidden_corner_points[0]
@@ -765,11 +764,11 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
         ## Case 7: flatten the cloth
         #logging.debug('[oracle,rect-fabric,flattening, expert] Case to flatten the cloth')
         #print('final flatten')
-        print('Case final flatten')
+        print('Case: final flatten')
         return self._process_action(flatten_action, arena, noise=self.flatten_noise)
 
     def fold_on_top(self, action, info):
-        print('Check fold on top !!!')
+        #print('Check fold on top !!!')
         
         contour = self._get_cloth_contour(info['arena'])
         H, W = contour.shape
@@ -789,7 +788,7 @@ class Real2SimSmoothing(RandomPickAndPlacePolicy):
         
         ## if the pick pixel and the closest point on the contour is far away, return True
         if min_dis > 5:
-            print('Case fold on top')
+            print('Case: fold on top')
             # adjust action to the closest point on the contour
             action[:2] = np.asarray([xx, yy])/H * 2 - 1
 

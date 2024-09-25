@@ -1,10 +1,8 @@
 import abc
 import numpy as np
 from gym.spaces import Box
-import logging
 
 import pyflex
-import scipy.spatial
 from enum import Enum
 from scipy.spatial.distance import cdist
 
@@ -43,7 +41,7 @@ class Picker(ActionToolBase):
         """
 
         super(Picker).__init__()
-        logging.info('[softgym, picker]  picker threshold: {}'.format(picker_threshold))
+        # logging.info('[softgym, picker]  picker threshold: {}'.format(picker_threshold))
         
         self.set_save_step_info(save_step_info)
         self._render = render
@@ -56,9 +54,9 @@ class Picker(ActionToolBase):
         self.picker_low, self.picker_high = np.array(list(picker_low)).astype(np.float32), np.array(list(picker_high)).astype(np.float32)
         self.grasp_mode = grasp_mode
         
-        logging.info('[softgym, picker] num picker: {}'.format(self.num_picker))
-        logging.info('[softgym, picker] picker low: {}'.format(self.picker_low))
-        logging.info('[softgym, picker] picker high: {}'.format(self.picker_high))
+        # logging.info('[softgym, picker] num picker: {}'.format(self.num_picker))
+        # logging.info('[softgym, picker] picker low: {}'.format(self.picker_low))
+        # logging.info('[softgym, picker] picker high: {}'.format(self.picker_high))
         
         self.init_pos = init_pos
         self.particle_radius = particle_radius
@@ -67,7 +65,8 @@ class Picker(ActionToolBase):
 
         space_low = np.array([-0.1, -0.1, -0.1, -10] * self.num_picker) * 0.1  # [dx, dy, dz, [-1, 1]]
         space_high = np.array([0.1, 0.1, 0.1, 10] * self.num_picker) * 0.1
-        self.action_space = Box(space_low, space_high, dtype=np.float64)
+        self.action_space = Box(space_low.astype(np.float32), 
+                                space_high.astype(np.float32), dtype=np.float32)
     
     def set_save_step_info(self, save_step_info):
         self.save_step_info=save_step_info
@@ -351,7 +350,7 @@ class PickerPickPlace(Picker):
         picker_low, picker_high = list(picker_low), list(picker_high)
 
         self.action_space = Box(np.array(picker_low),
-                                np.array(picker_high), dtype=np.float64)
+                                np.array(picker_high), dtype=np.float32)
         self.delta_move = 0.01 # maximum velociy 2cm/frame
         self.env = env
         self._step_mode = step_mode

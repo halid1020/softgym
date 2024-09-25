@@ -269,7 +269,7 @@ class ClothVelocityControlEnv():
         self.episode_id = self._env.episode_id
         episode_config['eid'] = self.episode_id
         self.episode_config = episode_config.copy()
-        print('reset end')
+        #print('reset end')
         return self._process_info(info)
     
     def get_episode_config(self):
@@ -358,8 +358,8 @@ class ClothVelocityControlEnv():
         if self.symbolic:
             return self._env.observation_space
         else:
-            return Box(low=-np.inf, high=np.inf, 
-                shape=(self.observation_shape()['image'][0], self.observation_shape()['image'][1], self.observation_space()[2]), dtype=np.float64)
+            return Box(low=-np.inf.astype(np.float32), high=np.inf.astype(np.float32), 
+                shape=(self.observation_shape()['image'][0], self.observation_shape()['image'][1], self.observation_space()[2]), dtype=np.float32)
 
     @property
     def observation_size(self):
