@@ -141,6 +141,8 @@ def perform(arena, agent, mode='eval', episode_config=None,
     for k, v in evals.items():
         res['evaluation'][k] = [v]
     
+    print('\nInitial Eval: {}\n'.format(evals))
+    
     update_agent_from_arena(agent, arena)
 
     #agent.init_state(information)
@@ -178,10 +180,6 @@ def perform(arena, agent, mode='eval', episode_config=None,
        
         evals = arena.evaluate()
         
-        if 'normalised_coverage' in evals:
-            print('evals', evals['normalised_coverage'])
-        
-
        
         agent.update(information, action)
         
@@ -190,7 +188,7 @@ def perform(arena, agent, mode='eval', episode_config=None,
         for k, v in evals.items():
             res['evaluation'][k].append(v)
 
-        print('\n\nStep: {}, Eval: {}'.format(len(actions), evals))
+        print('\nStep {}, Eval: {}\n'.format(len(actions), evals))
 
        
     res['actions'] = actions #np.stack(actions)
