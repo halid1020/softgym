@@ -176,7 +176,8 @@ class FlexEnv(gym.Env):
         camera_param = self.resevered_camera_params[camera_name]
         
         pyflex.set_camera_params(
-            np.array([*camera_param['pos'], *camera_param['angle'], camera_param['width'], camera_param['height']]))
+            np.array([*camera_param['pos'], *camera_param['angle'],
+                       camera_param['width'], camera_param['height']]))
 
     def get_state(self):
         pos = pyflex.get_positions()
@@ -286,7 +287,7 @@ class FlexEnv(gym.Env):
         done = False
         if self.control_step >= self.control_horizon:
             done = True
-
+        #print('lowest step!!!')
         return {
             'observation': obs,
             'done': done

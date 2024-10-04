@@ -57,69 +57,18 @@ class FabricDomainBuilder():
         if action == 'pixel-pick-and-place':
 
             kwargs = {
-                'motion_trajectory': 'rectangular',
                 'pick_height': 0.028,
                 'place_height':  0.05,
                 'pick_lower_bound': [-1, -1],
                 'pick_upper_bound': [1, 1],
                 'place_lower_bound': [-1, -1],
                 'place_upper_bound': [1, 1],
-                # 'intermidiate_height_ratio': 0.4,
-                # "minimum_intermidiate_height": 0.07,
-                # "maximum_intermidiate_height": 0.1,
-                # "release_height": 0.05,
-                "prepare_height": 0.05,
-                'fix_pick_height': True,
-                'fix_place_height': True,
-                'velocity': 0.05,
-                'action_dim': num_picker
             }
-            if domain in ['real2sim-towels', 'real2sim-toewls-sq']:
-                #kwargs['pick_height'] = 0.03
-                kwargs['motion_trajectory'] = 'rectangular'
-                kwargs['prepare_height'] = 0.05
-            kwargs['action_horizon'] = config['action_horizon']
-            if num_picker <=2:
-                pass
-            else:
-                raise NotImplementedError
-            env = PixelPickAndPlaceWrapper(env, **kwargs)
-
-        elif action == 'pixel-pick-and-place-z':
-
-            kwargs = {
-                'motion_trajectory': 'triangle_with_height_ratio',
-                'pick_height': 0.028,
-                'place_height':  0.06,
-                'pick_lower_bound': [-1, -1, 0],
-                'pick_upper_bound': [1, 1, 1.5],
-                'place_lower_bound': [-1, -1, 0],
-                'place_upper_bound': [1, 1, 1.5],
-                'intermidiate_height_ratio': 0.4,
-                "minimum_intermidiate_height": 0.07,
-                "maximum_intermidiate_height": 0.15,
-                "release_height": 0.09,
-                'fix_pick_height': False,
-                'fix_place_height': False,
-                "prepare_height": 0.2,
-                'velocity': 0.05,
-                'action_dim': num_picker
-            }
-            kwargs['action_horizon'] = config['action_horizon']
-            if num_picker <= 2:
-                pass
-            else:
-                raise NotImplementedError
-            
+            kwargs['action_horizon'] = 1 # config['action_horizon']
             env = PixelPickAndPlaceWrapper(env, **kwargs)
         
         elif action == 'world-pick-and-place':
-            kwargs = {
-                'motion_trajectory': 'rectangular',
-                "prepare_height": 0.1,
-                'velocity': 0.05,
-                'action_dim': num_picker
-            }
+            kwargs = {}
             kwargs['action_horizon'] = config['action_horizon']
             
             from .picker_action_wrappers.world_pick_and_place_wrapper \

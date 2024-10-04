@@ -591,6 +591,512 @@ inline float sqr(float x) { return x * x; }
 #include <iostream>
 using namespace std;
 
+void Init_from_dict(int scene, py::dict scene_params)
+{
+    bool centerCamera = false;
+    RandInit();
+    if (g_solver)
+    {
+        if (g_buffers)
+            DestroyBuffers(g_buffers);
+
+        if (g_render)
+        {
+            DestroyFluidRenderBuffers(g_fluidRenderBuffers);
+            DestroyDiffuseRenderBuffers(g_diffuseRenderBuffers);
+        }
+
+        for (auto &iter : g_meshes)
+        {
+            NvFlexDestroyTriangleMesh(g_flexLib, iter.first);
+            DestroyGpuMesh(iter.second);
+        }
+
+        // std::cout << "mesh destroyed" << endl;
+
+        for (auto &iter : g_fields)
+        {
+            NvFlexDestroyDistanceField(g_flexLib, iter.first);
+            DestroyGpuMesh(iter.second);
+        }
+
+        for (auto &iter : g_convexes)
+        {
+            NvFlexDestroyConvexMesh(g_flexLib, iter.first);
+            DestroyGpuMesh(iter.second);
+        }
+
+        g_fields.clear();
+        g_meshes.clear();
+        g_convexes.clear();
+
+        NvFlexDestroySolver(g_solver);
+        g_solver = nullptr;
+    }
+
+    // alloc buffers
+    g_buffers = AllocBuffers(g_flexLib);
+
+    // map during initialization
+    MapBuffers(g_buffers);
+
+    // std::cout << "buffers mapped" << endl;
+
+    g_buffers->positions.resize(0);
+    g_buffers->velocities.resize(0);
+    g_buffers->phases.resize(0);
+
+    g_buffers->rigidOffsets.resize(0);
+    g_buffers->rigidIndices.resize(0);
+    g_buffers->rigidMeshSize.resize(0);
+    g_buffers->rigidRotations.resize(0);
+    g_buffers->rigidTranslations.resize(0);
+    g_buffers->rigidCoefficients.resize(0);
+    g_buffers->rigidPlasticThresholds.resize(0);
+    g_buffers->rigidPlasticCreeps.resize(0);
+    g_buffers->rigidLocalPositions.resize(0);
+    g_buffers->rigidLocalNormals.resize(0);
+
+    g_buffers->springIndices.resize(0);
+    g_buffers->springLengths.resize(0);
+    g_buffers->springStiffness.resize(0);
+    g_buffers->triangles.resize(0);
+    g_buffers->triangleNormals.resize(0);
+    g_buffers->uvs.resize(0);
+
+    g_meshSkinIndices.resize(0);
+    g_meshSkinWeights.resize(0);
+
+    g_emitters.resize(1);
+    g_emitters[0].mEnabled = false;
+    g_emitters[0].mSpeed = 1.0f;
+    g_emitters[0].mLeftOver = 0.0f;
+    g_emitters[0].mWidth = 8;
+
+    g_buffers->shapeGeometry.resize(0);
+    g_buffers->shapePositions.resize(0);
+    g_buffers->shapeRotations.resize(0);
+    g_buffers->shapePrevPositions.resize(0);
+    g_buffers->shapePrevRotations.resize(0);
+    g_buffers->shapeFlags.resize(0);
+
+    g_ropes.resize(0);
+
+    // remove collision shapes
+    delete g_mesh;
+    g_mesh = NULL;
+
+    g_frame = 0;
+    g_pause = false;
+
+    g_dt = 1.0f / 100.0f;
+    g_waveTime = 0.0f;
+    g_windTime = 0.0f;
+    g_windStrength = 1.0f;
+
+    g_blur = 1.0f;
+    g_fluidColor = Vec4(0.1f, 0.4f, 0.8f, 1.0f); // we can change fluid color here
+    g_meshColor = Vec3(0.9f, 0.9f, 0.9f);
+    g_drawEllipsoids = false;
+    g_drawPoints = true;
+    g_drawCloth = true;
+    g_expandCloth = 0.0f;
+
+    g_drawOpaque = false;
+    g_drawSprings = false;
+    g_drawDiffuse = false;
+    g_drawMesh = true;
+    g_drawRopes = true;
+    g_drawDensity = false;
+    g_ior = 1.0f;
+    g_lightDistance = 10.0f;
+    g_fogDistance = 0.005f;
+
+    g_camSpeed = 0.075f;
+    g_camNear = 0.01f;
+    g_camFar = 10.0f;
+
+    g_pointScale = 1.0f;
+    g_ropeScale = 1.0f;
+    g_drawPlaneBias = 0.0f;
+
+    // sim params
+    g_params.gravity[0] = 0.0f;
+    g_params.gravity[1] = -9.8f;
+    g_params.gravity[2] = 0.0f;
+
+    g_params.wind[0] = 0.0f;
+    g_params.wind[1] = 0.0f;
+    g_params.wind[2] = 0.0f;
+
+    g_params.radius = 0.15f;
+    g_params.viscosity = 0.0f;
+    g_params.dynamicFriction = 0.0f;
+    g_params.staticFriction = 0.0f;
+    g_params.particleFriction = 0.0f; // scale friction between particles by default
+    g_params.freeSurfaceDrag = 0.0f;
+    g_params.drag = 0.0f;
+    g_params.lift = 0.0f;
+    g_params.numIterations = 3;
+    g_params.fluidRestDistance = 0.0f;
+    g_params.solidRestDistance = 0.0f;
+
+    g_params.anisotropyScale = 1.0f;
+    g_params.anisotropyMin = 0.1f;
+    g_params.anisotropyMax = 2.0f;
+    g_params.smoothing = 1.0f;
+
+    g_params.dissipation = 0.0f;
+    g_params.damping = 0.0f;
+    g_params.particleCollisionMargin = 0.0f;
+    g_params.shapeCollisionMargin = 0.0f;
+    g_params.collisionDistance = 0.0f;
+    g_params.sleepThreshold = 0.0f;
+    g_params.shockPropagation = 0.0f;
+    g_params.restitution = 0.0f;
+
+    g_params.maxSpeed = FLT_MAX;
+    g_params.maxAcceleration = 100.0f; // approximately 10x gravity
+
+    g_params.relaxationMode = eNvFlexRelaxationLocal;
+    g_params.relaxationFactor = 1.0f;
+    g_params.solidPressure = 1.0f;
+    g_params.adhesion = 0.0f;
+    g_params.cohesion = 0.025f;
+    g_params.surfaceTension = 0.0f;
+    g_params.vorticityConfinement = 0.0f;
+    g_params.buoyancy = 1.0f;
+    g_params.diffuseThreshold = 100.0f;
+    g_params.diffuseBuoyancy = 1.0f;
+    g_params.diffuseDrag = 0.8f;
+    g_params.diffuseBallistic = 16;
+    g_params.diffuseLifetime = 2.0f;
+
+    g_numSubsteps = 4;
+
+    // planes created after particles
+    g_params.numPlanes = 1;
+
+    g_diffuseScale = 0.5f;
+    g_diffuseColor = 1.0f;
+    g_diffuseMotionScale = 1.0f;
+    g_diffuseShadow = false;
+    g_diffuseInscatter = 0.8f;
+    g_diffuseOutscatter = 0.53f;
+
+    // reset phase 0 particle color to blue
+    //    g_colors[0] = Colour(0.0f, 0.5f, 1.0f);
+
+    g_numSolidParticles = 0;
+
+    g_waveFrequency = 1.5f;
+    g_waveAmplitude = 1.5f;
+    g_waveFloorTilt = 0.0f;
+    g_emit = false;
+    g_warmup = false;
+
+    g_mouseParticle = -1;
+
+    g_maxDiffuseParticles = 0; // number of diffuse particles
+    g_maxNeighborsPerParticle = 96;
+    g_numExtraParticles = 0; // number of particles allocated but not made active
+    g_maxContactsPerParticle = 6;
+
+    g_sceneLower = FLT_MAX;
+    g_sceneUpper = -FLT_MAX;
+
+    // initialize solver desc
+    NvFlexSetSolverDescDefaults(&g_solverDesc);
+
+    // create scene
+    StartGpuWork();
+    //    cout<<thread_idx<<endl;
+    g_scenes[g_scene]->Initialize_from_dict(scene_params);
+    EndGpuWork();
+
+    uint32_t numParticles = g_buffers->positions.size();
+    uint32_t maxParticles = numParticles + g_numExtraParticles * g_numExtraMultiplier;
+
+    if (g_params.solidRestDistance == 0.0f)
+        g_params.solidRestDistance = g_params.radius;
+
+    // if fluid present then we assume solid particles have the same radius
+    if (g_params.fluidRestDistance > 0.0f)
+        g_params.solidRestDistance = g_params.fluidRestDistance;
+
+    // set collision distance automatically based on rest distance if not already set
+    if (g_params.collisionDistance == 0.0f)
+        g_params.collisionDistance = Max(g_params.solidRestDistance, g_params.fluidRestDistance) * 0.5f;
+
+    // default particle friction to 10% of shape friction
+    if (g_params.particleFriction == 0.0f)
+        g_params.particleFriction = g_params.dynamicFriction * 0.1f;
+
+    // add a margin for detecting contacts between particles and shapes
+    if (g_params.shapeCollisionMargin == 0.0f)
+        g_params.shapeCollisionMargin = g_params.collisionDistance * 0.5f;
+
+    // calculate particle bounds
+    Vec3 particleLower, particleUpper;
+    GetParticleBounds(particleLower, particleUpper);
+
+    // accommodate shapes
+    Vec3 shapeLower, shapeUpper;
+    GetShapeBounds(shapeLower, shapeUpper);
+
+    // update bounds
+    g_sceneLower = Min(Min(g_sceneLower, particleLower), shapeLower);
+    g_sceneUpper = Max(Max(g_sceneUpper, particleUpper), shapeUpper);
+
+    g_sceneLower -= g_params.collisionDistance;
+    g_sceneUpper += g_params.collisionDistance;
+
+    // update collision planes to match flexs
+    Vec3 up = Normalize(Vec3(-g_waveFloorTilt, 1.0f, 0.0f));
+
+    (Vec4 &)g_params.planes[0] = Vec4(up.x, up.y, up.z, 0.0f);
+    (Vec4 &)g_params.planes[1] = Vec4(0.0f, 0.0f, 1.0f, -g_sceneLower.z);
+    (Vec4 &)g_params.planes[2] = Vec4(1.0f, 0.0f, 0.0f, -g_sceneLower.x);
+    (Vec4 &)g_params.planes[3] = Vec4(-1.0f, 0.0f, 0.0f, g_sceneUpper.x);
+    (Vec4 &)g_params.planes[4] = Vec4(0.0f, 0.0f, -1.0f, g_sceneUpper.z);
+    (Vec4 &)g_params.planes[5] = Vec4(0.0f, -1.0f, 0.0f, g_sceneUpper.y);
+
+    g_wavePlane = g_params.planes[2][3];
+
+    g_buffers->diffusePositions.resize(g_maxDiffuseParticles);
+    g_buffers->diffuseVelocities.resize(g_maxDiffuseParticles);
+    g_buffers->diffuseCount.resize(1, 0);
+
+    // for fluid rendering these are the Laplacian smoothed positions
+    g_buffers->smoothPositions.resize(maxParticles);
+
+    g_buffers->normals.resize(0);
+    g_buffers->normals.resize(maxParticles);
+
+    // initialize normals (just for rendering before simulation starts)
+    int numTris = g_buffers->triangles.size() / 3;
+    for (int i = 0; i < numTris; ++i)
+    {
+        Vec3 v0 = Vec3(g_buffers->positions[g_buffers->triangles[i * 3 + 0]]);
+        Vec3 v1 = Vec3(g_buffers->positions[g_buffers->triangles[i * 3 + 1]]);
+        Vec3 v2 = Vec3(g_buffers->positions[g_buffers->triangles[i * 3 + 2]]);
+
+        Vec3 n = Cross(v1 - v0, v2 - v0);
+
+        g_buffers->normals[g_buffers->triangles[i * 3 + 0]] += Vec4(n, 0.0f);
+        g_buffers->normals[g_buffers->triangles[i * 3 + 1]] += Vec4(n, 0.0f);
+        g_buffers->normals[g_buffers->triangles[i * 3 + 2]] += Vec4(n, 0.0f);
+    }
+
+    for (int i = 0; i < int(maxParticles); ++i)
+        g_buffers->normals[i] = Vec4(SafeNormalize(Vec3(g_buffers->normals[i]), Vec3(0.0f, 1.0f, 0.0f)), 0.0f);
+
+    // std::cout << "normals initialized" << endl;
+
+    // save mesh positions for skinning
+    if (g_mesh)
+    {
+        g_meshRestPositions = g_mesh->m_positions;
+    }
+    else
+    {
+        g_meshRestPositions.resize(0);
+    }
+
+    g_solverDesc.maxParticles = maxParticles;
+    g_solverDesc.maxDiffuseParticles = g_maxDiffuseParticles;
+    g_solverDesc.maxNeighborsPerParticle = g_maxNeighborsPerParticle;
+    g_solverDesc.maxContactsPerParticle = g_maxContactsPerParticle;
+
+    // main create method for the Flex solver
+    g_solver = NvFlexCreateSolver(g_flexLib, &g_solverDesc);
+
+    // give scene a chance to do some post solver initialization
+    g_scenes[g_scene]->PostInitialize();
+
+    // center camera on particles
+    if (centerCamera)
+    {
+        g_camPos = Vec3((g_sceneLower.x + g_sceneUpper.x) * 0.5f, min(g_sceneUpper.y * 1.25f, 6.0f),
+                        g_sceneUpper.z + min(g_sceneUpper.y, 6.0f) * 2.0f);
+        g_camAngle = Vec3(0.0f, -DegToRad(15.0f), 0.0f);
+
+        // give scene a chance to modify camera position
+        g_scenes[g_scene]->CenterCamera();
+    }
+
+    // create active indices (just a contiguous block for the demo)
+    g_buffers->activeIndices.resize(g_buffers->positions.size());
+    for (int i = 0; i < g_buffers->activeIndices.size(); ++i)
+        g_buffers->activeIndices[i] = i;
+
+    // resize particle buffers to fit
+    g_buffers->positions.resize(maxParticles);
+    g_buffers->velocities.resize(maxParticles);
+    g_buffers->phases.resize(maxParticles);
+    g_buffers->uvs.resize(maxParticles);
+
+    g_buffers->densities.resize(maxParticles);
+    g_buffers->anisotropy1.resize(maxParticles);
+    g_buffers->anisotropy2.resize(maxParticles);
+    g_buffers->anisotropy3.resize(maxParticles);
+
+    // save rest positions
+    // g_buffers->restPositions.resize(g_buffers->positions.size());
+    g_buffers->restPositions.resize(maxParticles);
+    for (int i = 0; i < g_buffers->positions.size(); ++i)
+        g_buffers->restPositions[i] = g_buffers->positions[i];
+
+    // builds rigids constraints
+    if (g_buffers->rigidOffsets.size())
+    {
+        assert(g_buffers->rigidOffsets.size() > 1);
+
+        const int numRigids = g_buffers->rigidOffsets.size() - 1;
+
+        /*
+        printf("rigidOffsets\n");
+        for (size_t i = 0; i < (size_t) g_buffers->rigidOffsets.size(); i++) {
+            printf("%d %d\n", i, g_buffers->rigidOffsets[i]);
+        }
+
+        printf("rigidIndices\n");
+        for (size_t i = 0; i < (size_t) g_buffers->rigidIndices.size(); i++) {
+            printf("%d %d\n", i, g_buffers->rigidIndices[i]);
+        }
+         */
+
+        // If the centers of mass for the rigids are not yet computed, this is done here
+        // (If the CreateParticleShape method is used instead of the NvFlexExt methods, the centers of mass will be calculated here)
+        if (g_buffers->rigidTranslations.size() == 0)
+        {
+            g_buffers->rigidTranslations.resize(g_buffers->rigidOffsets.size() - 1, Vec3());
+            CalculateRigidCentersOfMass(&g_buffers->positions[0], g_buffers->positions.size(),
+                                        &g_buffers->rigidOffsets[0], &g_buffers->rigidTranslations[0],
+                                        &g_buffers->rigidIndices[0], numRigids);
+        }
+
+        // calculate local rest space positions
+        g_buffers->rigidLocalPositions.resize(g_buffers->rigidOffsets.back());
+        CalculateRigidLocalPositions(&g_buffers->positions[0], &g_buffers->rigidOffsets[0],
+                                     &g_buffers->rigidTranslations[0], &g_buffers->rigidIndices[0], numRigids,
+                                     &g_buffers->rigidLocalPositions[0]);
+
+        // set rigidRotations to correct length, probably NULL up until here
+        g_buffers->rigidRotations.resize(g_buffers->rigidOffsets.size() - 1, Quat());
+    }
+
+    // unmap so we can start transferring data to GPU
+    UnmapBuffers(g_buffers);
+
+    //-----------------------------
+    // Send data to Flex
+
+    NvFlexCopyDesc copyDesc;
+    copyDesc.dstOffset = 0;
+    copyDesc.srcOffset = 0;
+    copyDesc.elementCount = numParticles;
+
+    NvFlexSetParams(g_solver, &g_params);
+    NvFlexSetParticles(g_solver, g_buffers->positions.buffer, &copyDesc);
+    NvFlexSetVelocities(g_solver, g_buffers->velocities.buffer, &copyDesc);
+    NvFlexSetNormals(g_solver, g_buffers->normals.buffer, &copyDesc);
+    NvFlexSetPhases(g_solver, g_buffers->phases.buffer, &copyDesc);
+    NvFlexSetRestParticles(g_solver, g_buffers->restPositions.buffer, &copyDesc);
+
+    NvFlexSetActive(g_solver, g_buffers->activeIndices.buffer, &copyDesc);
+    NvFlexSetActiveCount(g_solver, numParticles);
+
+    // springs
+    if (g_buffers->springIndices.size())
+    {
+        assert((g_buffers->springIndices.size() & 1) == 0);
+        assert((g_buffers->springIndices.size() / 2) == g_buffers->springLengths.size());
+
+        NvFlexSetSprings(g_solver, g_buffers->springIndices.buffer, g_buffers->springLengths.buffer,
+                         g_buffers->springStiffness.buffer, g_buffers->springLengths.size());
+    }
+
+    // rigids
+    if (g_buffers->rigidOffsets.size())
+    {
+        NvFlexSetRigids(g_solver, g_buffers->rigidOffsets.buffer, g_buffers->rigidIndices.buffer,
+                        g_buffers->rigidLocalPositions.buffer, g_buffers->rigidLocalNormals.buffer,
+                        g_buffers->rigidCoefficients.buffer, g_buffers->rigidPlasticThresholds.buffer,
+                        g_buffers->rigidPlasticCreeps.buffer, g_buffers->rigidRotations.buffer,
+                        g_buffers->rigidTranslations.buffer, g_buffers->rigidOffsets.size() - 1,
+                        g_buffers->rigidIndices.size());
+    }
+
+    // std::cout << "rigids setup done" << endl;
+
+    // inflatables
+    if (g_buffers->inflatableTriOffsets.size())
+    {
+        NvFlexSetInflatables(g_solver, g_buffers->inflatableTriOffsets.buffer, g_buffers->inflatableTriCounts.buffer,
+                             g_buffers->inflatableVolumes.buffer, g_buffers->inflatablePressures.buffer,
+                             g_buffers->inflatableCoefficients.buffer, g_buffers->inflatableTriOffsets.size());
+    }
+
+    // dynamic triangles
+    if (g_buffers->triangles.size())
+    {
+        NvFlexSetDynamicTriangles(g_solver, g_buffers->triangles.buffer, g_buffers->triangleNormals.buffer,
+                                  g_buffers->triangles.size() / 3);
+    }
+
+    // collision shapes
+    if (g_buffers->shapeFlags.size())
+    {
+        NvFlexSetShapes(
+            g_solver,
+            g_buffers->shapeGeometry.buffer,
+            g_buffers->shapePositions.buffer,
+            g_buffers->shapeRotations.buffer,
+            g_buffers->shapePrevPositions.buffer,
+            g_buffers->shapePrevRotations.buffer,
+            g_buffers->shapeFlags.buffer,
+            int(g_buffers->shapeFlags.size()));
+    }
+
+    // create render buffers
+    if (g_render)
+    {
+        g_fluidRenderBuffers = CreateFluidRenderBuffers(maxParticles, g_interop);
+        g_diffuseRenderBuffers = CreateDiffuseRenderBuffers(g_maxDiffuseParticles, g_interop);
+    }
+
+    // perform initial sim warm up
+    if (g_warmup)
+    {
+        printf("Warming up sim..\n");
+
+        // warm it up (relax positions to reach rest density without affecting velocity)
+        NvFlexParams copy = g_params;
+        copy.numIterations = 4;
+
+        NvFlexSetParams(g_solver, &copy);
+
+        const int kWarmupIterations = 100;
+
+        for (int i = 0; i < kWarmupIterations; ++i)
+        {
+            NvFlexUpdateSolver(g_solver, 0.0001f, 1, false);
+            NvFlexSetVelocities(g_solver, g_buffers->velocities.buffer, NULL);
+        }
+
+        // udpate host copy
+        NvFlexGetParticles(g_solver, g_buffers->positions.buffer, NULL);
+        NvFlexGetSmoothParticles(g_solver, g_buffers->smoothPositions.buffer, NULL);
+        NvFlexGetAnisotropy(g_solver, g_buffers->anisotropy1.buffer, g_buffers->anisotropy2.buffer,
+                            g_buffers->anisotropy3.buffer, NULL);
+
+        printf("Finished warm up.\n");
+    }
+    //    printf("init scene done.\n");
+}
+
+
 void Init(int scene, py::array_t<float> scene_params, bool centerCamera = true, int thread_idx = 0) {
     RandInit();
     if (g_solver) {

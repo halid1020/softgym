@@ -64,6 +64,7 @@ class PixelPickAndPlaceWrapper():
 
         self.action_step = 0
         self.action_horizon = action_horizon
+        print('action_horizon', action_horizon)
         self.fix_pick_height = fix_pick_height
         self.fix_place_height = fix_place_height
         self.kwargs = kwargs

@@ -7,6 +7,7 @@ from softgym.action_space.action_space import  Picker
 from copy import deepcopy
 from softgym.utils.misc import vectorized_range, vectorized_meshgrid
 from softgym.utils.gemo_utils import *
+from softgym.utils.env_utils import *
 from tqdm import tqdm
 
 class ClothEnv(FlexEnv):
@@ -344,41 +345,10 @@ class ClothEnv(FlexEnv):
         return H, W
     
     def get_coverage(self, positions=None):
-        """
-        Calculate the covered area by taking max x,y cood and min x,y coord, create a discritized grid between the points
-        :param pos: Current positions of the particle states
-        """
-        #pos = np.reshape(pos, [-1, 4])
         if positions is None:
             positions = self.get_particle_positions()
 
-        min_x = np.min(positions[:, 0])
-        min_y = np.min(positions[:, 2])
-        max_x = np.max(positions[:, 0])
-        max_y = np.max(positions[:, 2])
-        init = np.array([min_x, min_y])
-        span = np.array([max_x - min_x, max_y - min_y]) / 100.
-        pos2d = positions[:, [0, 2]]
-
-        offset = pos2d - init
-        slotted_x_low = np.maximum(np.round((offset[:, 0] - self.cloth_particle_radius) / span[0]).astype(int), 0)
-        slotted_x_high = np.minimum(np.round((offset[:, 0] + self.cloth_particle_radius) / span[0]).astype(int), 100)
-        slotted_y_low = np.maximum(np.round((offset[:, 1] - self.cloth_particle_radius) / span[1]).astype(int), 0)
-        slotted_y_high = np.minimum(np.round((offset[:, 1] + self.cloth_particle_radius) / span[1]).astype(int), 100)
-
-        # Method 1
-        grid = np.zeros(10000)  # Discretization
-        listx = vectorized_range(slotted_x_low, slotted_x_high)
-        listy = vectorized_range(slotted_y_low, slotted_y_high)
-        listxx, listyy = vectorized_meshgrid(listx, listy)
-        idx = listxx * 100 + listyy
-        idx = np.clip(idx.flatten(), 0, 9999)
-        grid[idx] = 1
-
-        return np.sum(grid) * span[0] * span[1]
-
-
-    
+        return get_coverage(positions, self.cloth_particle_radius)
 
     def _sample_cloth_size(self):
         return np.random.randint(60, 120), np.random.randint(60, 120)
@@ -526,14 +496,9 @@ class ClothEnv(FlexEnv):
     
     
     def _step(self, action):
-        #logging.debug(['[softgym, cloth_env] action', action])
         self.control_step +=  self.action_tool.step(action)
         self.tick_control_step()
-        # if self.save_control_step_info:
-        #     if 'control_signal' not in self.control_step_info:
-        #         self.control_step_info['control_signal'] = []
-        #     self.control_step_info['control_signal'].append(action)
-    
+
     def wait_until_stable(self, max_wait_step=200, stable_vel_threshold=0.0006):
         wait_steps = self._wait_to_stabalise(max_wait_step=max_wait_step, stable_vel_threshold=stable_vel_threshold)
         # print('wait steps', wait_steps)

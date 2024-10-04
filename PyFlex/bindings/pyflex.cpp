@@ -1,4 +1,6 @@
 #include <bindings/main.cpp>
+#include <bindings/clothfunnel_api.h>
+
 #include "opengl/shader.h"
 
 char rope_path[100];
@@ -24,50 +26,8 @@ void pyflex_init(bool headless=false, bool render=true, int camera_width=720, in
 
     // Register Scenes
     g_scenes.push_back(new SoftgymCloth("Softgym Flag Cloth"));
-    g_scenes.push_back(new SoftgymFluid("Softgym Pour Water"));
-    g_scenes.push_back(new SoftgymRope("Softgym Rope"));
-    g_scenes.push_back(new SoftgymRigidCloth("Softgym Rigid Cloth"));
-    g_scenes.push_back(new SoftgymTorus("Softgym Torus"));
     g_scenes.push_back(new SoftgymGarment("Softgym Garment"));
-
-    SoftgymSoftBody::Instance rope(make_path(rope_path, "/data/rope.obj"));
-	rope.mScale = Vec3(50.0f);
-	rope.mClusterSpacing = 1.5f;
-	rope.mClusterRadius = 0.0f;
-	rope.mClusterStiffness = 0.55f;
-    rope.mTranslation = Vec3(0.0f, 0.6f, 0.0f);
-	SoftgymSoftBody* softRopeSceneNew = new SoftgymSoftBody("Soft Rope");
-	softRopeSceneNew->AddInstance(rope);
-    g_scenes.push_back(softRopeSceneNew);
-
-    SoftgymSoftBody::Instance stackBox(make_path(box_high_path, "/data/box_high.ply"));
-    stackBox.mScale = Vec3(10.0f);
-    stackBox.mClusterSpacing = 1.5f;
-    stackBox.mClusterRadius = 0.0f;
-    stackBox.mClusterStiffness = 0.0f;
-    stackBox.mGlobalStiffness = 1.0f;
-    stackBox.mClusterPlasticThreshold = 0.005f;
-    stackBox.mClusterPlasticCreep = 0.25f;
-    stackBox.mTranslation.y = 0.5f;
-    SoftgymSoftBody::Instance stackSphere(make_path(sphere_path, "/data/sphere.ply"));
-    stackSphere.mScale = Vec3(10.0f);
-    stackSphere.mClusterSpacing = 1.5f;
-    stackSphere.mClusterRadius = 0.0f;
-    stackSphere.mClusterStiffness = 0.0f;
-    stackSphere.mGlobalStiffness = 1.0f;
-    stackSphere.mClusterPlasticThreshold = 0.0015f;
-    stackSphere.mClusterPlasticCreep = 0.25f;
-    stackSphere.mTranslation.y = 2.0f;
-    auto *softgym_PlasticDough = new SoftgymSoftBody("Plastic Stack");
-    softgym_PlasticDough->AddInstance(stackBox);
-    // softgym_PlasticDough->AddInstance(stackSphere);
-    // for (int i = 0; i < 3; i++) {
-    //     stackBox.mTranslation.y += 2.0f;
-    //     stackSphere.mTranslation.y += 2.0f;
-    //     softgym_PlasticDough->AddInstance(stackBox);
-    //     softgym_PlasticDough->AddInstance(stackSphere);
-    // }
-    g_scenes.push_back(softgym_PlasticDough);
+    g_scenes.push_back(new EmptyScene("Empty Scene"));
 
 
     switch (g_graphics) {
@@ -277,6 +237,13 @@ void pyflex_set_scene(int scene_idx, py::array_t<float> scene_params, int thread
     g_scene = scene_idx;
     g_selectedScene = g_scene;
     Init(g_selectedScene, scene_params, true, thread_idx);
+}
+
+void pyflex_set_scene_from_dict(int scene_idx, py::dict scene_params)
+{
+    g_scene = scene_idx;
+    g_selectedScene = g_scene;
+    Init_from_dict(g_selectedScene, scene_params);
 }
 
 void pyflex_MapShapeBuffers(SimBuffers *buffers) {
@@ -1185,5 +1152,23 @@ PYBIND11_MODULE(pyflex, m) {
 
     m.def("add_rigid_body", &pyflex_add_rigid_body);
     m.def("set_shape_color", &pyflex_set_shape_color, "Set the color of the shape");
+
+    m.def("add_cloth_square", &pyflex_add_cloth_square, "Add cloth (square)");
+    m.def("add_cloth_mesh",
+          &pyflex_add_cloth_mesh,
+          "Add cloth (mesh)",
+          py::arg("position"),
+          py::arg("verts"),
+          py::arg("faces"),
+          py::arg("stretch_edges"),
+          py::arg("bend_edges"),
+          py::arg("shear_edges"),
+          py::arg("uvs"),
+          py::arg("stiffness"),
+          py::arg("mass") = 1);
+    m.def("emit_particles_box", &pyflex_emit_particles_box, "Emit particles (box)");
+    m.def("emit_particles_cone", &pyflex_emit_particles_cone, "Emit particles (cone)");
+    m.def("change_cloth_color", &pyflex_change_cloth_color, "Change color");
+    m.def("set_scene_from_dict", &pyflex_set_scene_from_dict);
 }
 
