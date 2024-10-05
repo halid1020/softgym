@@ -120,6 +120,7 @@ class Picker(ActionToolBase):
         init_picker_poses = self._get_centered_picker_pos(center)
 
         for picker_pos in init_picker_poses:
+            #print('!!!!add sphere')
             pyflex.add_sphere(self.picker_radius, picker_pos, [1, 0, 0, 0])
         pos = pyflex.get_shape_states()  # Need to call this to update the shape collision
         pyflex.set_shape_states(pos)
@@ -139,6 +140,7 @@ class Picker(ActionToolBase):
 
     # num_pickers * 14
     def get_picker_pos(self):
+        #print('get picker pos', pyflex.get_shape_states())
         return np.array(pyflex.get_shape_states()).reshape(-1, 14)
 
     # num_pickers * 14
