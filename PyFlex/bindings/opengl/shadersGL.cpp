@@ -500,6 +500,20 @@ void ReadFrame(int* backbuffer, int width, int height)
 	glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, backbuffer);
 }
 
+void ReadFrame(float *backbuffer_red, float *backbuffer_green, float *backbuffer_blue, int width, int height)
+	{
+		glVerify(glReadBuffer(GL_BACK));
+		glReadPixels(0, 0, width, height, GL_RED, GL_FLOAT, backbuffer_red);
+		glReadPixels(0, 0, width, height, GL_GREEN, GL_FLOAT, backbuffer_green);
+		glReadPixels(0, 0, width, height, GL_BLUE, GL_FLOAT, backbuffer_blue);
+	}
+
+void ReadDepth(float *backbuffer, int width, int height)
+{
+	glVerify(glReadBuffer(GL_BACK));
+	glReadPixels(0, 0, width, height, GL_DEPTH_COMPONENT, GL_FLOAT, backbuffer);
+}
+
 void PresentFrame(bool fullsync)
 {
 #ifndef ANDROID
@@ -1141,126 +1155,160 @@ void DrawPlanes(Vec4* planes, int n, float bias)
 	glVerify(glUniform1f(uBias, g_shadowBias));
 }
 
-void DrawMesh(const Mesh* m, Vec3 color)
-{
-	if (m)
+void DrawMesh(const Mesh *m, Vec3 color)
 	{
+		if (m)
+		{
+			glVerify(glColor3fv(color));
+			glVerify(glSecondaryColor3fv(color));
 
+			glVerify(glBindBuffer(GL_ARRAY_BUFFER, 0));
+			glVerify(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
 
-#if 1
-	GLint program;
-	glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+			glVerify(glEnableClientState(GL_NORMAL_ARRAY));
+			glVerify(glEnableClientState(GL_VERTEX_ARRAY));
 
-	if (program == GLint(s_diffuseProgram))
-	{
-		GLint uBias = glGetUniformLocation(s_diffuseProgram, "bias");
-		glUniform1f(uBias, 0.0f);
+			glVerify(glNormalPointer(GL_FLOAT, sizeof(float) * 3, &m->m_normals[0]));
+			glVerify(glVertexPointer(3, GL_FLOAT, sizeof(float) * 3, &m->m_positions[0]));
 
-		GLint uExpand = glGetUniformLocation(s_diffuseProgram, "expand");
-		glUniform1f(uExpand, 0.0f);
+			if (m->m_colours.size())
+			{
+				glVerify(glEnableClientState(GL_COLOR_ARRAY));
+				glVerify(glColorPointer(4, GL_FLOAT, 0, &m->m_colours[0]));
+			}
+
+			glVerify(glDrawElements(GL_TRIANGLES, m->GetNumFaces() * 3, GL_UNSIGNED_INT, &m->m_indices[0]));
+
+			glVerify(glDisableClientState(GL_VERTEX_ARRAY));
+			glVerify(glDisableClientState(GL_NORMAL_ARRAY));
+
+			if (m->m_colours.size())
+				glVerify(glDisableClientState(GL_COLOR_ARRAY));
+		}
 	}
-#endif	
-		glDisable(GL_CULL_FACE);
-		glVerify(glColor3fv(color));
-		glVerify(glSecondaryColor3fv(color));
 
-		
+
+// void DrawCloth(const Vec4* positions, const Vec4* normals, const float* uvs, 
+// 	const int* indices, int numTris, int numPositions, 
+// 	int colorIndex, float expand, bool twosided, bool smooth)
+// {
+// 	if (!numTris)
+// 		return;
+
+// 	if (twosided)
+// 		glDisable(GL_CULL_FACE);
+
+// #if 1
+// 	GLint program;
+// 	glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+
+// 	if (program == GLint(s_diffuseProgram))
+// 	{
+// 		GLint uBias = glGetUniformLocation(s_diffuseProgram, "bias");
+// 		glUniform1f(uBias, 0.0f);
+
+// 		GLint uExpand = glGetUniformLocation(s_diffuseProgram, "expand");
+// 		//std::cout << "expand: " << expand << std::endl;
+// 		glUniform1f(uExpand, expand);
+// 	}
+// #endif
+
+// 	glColor3fv(g_colors[colorIndex+1]*1.5f);
+// 	glSecondaryColor3fv(g_colors[colorIndex]*1.5f);
+
+// 	glVerify(glBindBuffer(GL_ARRAY_BUFFER, 0));
+// 	glVerify(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+
+// 	glVerify(glEnableClientState(GL_VERTEX_ARRAY));
+// 	glVerify(glEnableClientState(GL_NORMAL_ARRAY));
+
+// 	glVerify(glVertexPointer(3, GL_FLOAT, sizeof(float)*4, positions));
+// 	glVerify(glNormalPointer(GL_FLOAT, sizeof(float)*4, normals));
+
+// 	if (uvs)
+// 	{
+// 		glVerify(glEnableClientState(GL_COLOR_ARRAY));
+// 		glVerify(glColorPointer(3, GL_FLOAT, 0, uvs));
+// 	}
+
+// 	glVerify(glDrawElements(GL_TRIANGLES, numTris*3, GL_UNSIGNED_INT, indices));
+
+// 	glVerify(glDisableClientState(GL_VERTEX_ARRAY));
+// 	glVerify(glDisableClientState(GL_NORMAL_ARRAY));
+
+// 	if (twosided)
+// 		glEnable(GL_CULL_FACE);
+	
+// 	if (uvs)
+// 	{
+// 		glVerify(glDisableClientState(GL_COLOR_ARRAY));
+// 	}
+
+// #if 1
+// 	if (program == GLint(s_diffuseProgram))
+// 	{
+// 		GLint uBias = glGetUniformLocation(s_diffuseProgram, "bias");
+// 		glUniform1f(uBias, g_shadowBias);
+
+// 		GLint uExpand = glGetUniformLocation(s_diffuseProgram, "expand");
+// 		glUniform1f(uExpand, 0.0f);
+// 	}
+// #endif
+// }
+
+void DrawCloth(
+		const Vec4 *positions, const Vec4 *normals, const Vec3 *uvs, const int *indices, int numTris,
+		int numPositions, int colorIndex, float expand, bool renderUV)
+	{
+		if (!numTris)
+			return;
+
+		glDisable(GL_CULL_FACE);
+
+		GLint program;
+		glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+
+		if (program == GLint(s_diffuseProgram))
+		{
+			GLint uBias = glGetUniformLocation(s_diffuseProgram, "bias");
+			glUniform1f(uBias, 0.0f);
+
+			GLint uExpand = glGetUniformLocation(s_diffuseProgram, "expand");
+			glUniform1f(uExpand, expand);
+		}
+
+		glColor3fv(g_colors[colorIndex + 1] * 1.5f);
+		glSecondaryColor3fv(g_colors[colorIndex] * 1.5f);
 
 		glVerify(glBindBuffer(GL_ARRAY_BUFFER, 0));
 		glVerify(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
 
-		glVerify(glEnableClientState(GL_NORMAL_ARRAY));
 		glVerify(glEnableClientState(GL_VERTEX_ARRAY));
+		glVerify(glEnableClientState(GL_NORMAL_ARRAY));
 
-		glVerify(glVertexPointer(3, GL_FLOAT, sizeof(float) * 3, &m->m_positions[0]));
-		glVerify(glNormalPointer(GL_FLOAT, sizeof(float) * 3, &m->m_normals[0]));
+		glVerify(glVertexPointer(3, GL_FLOAT, sizeof(float) * 4, positions));
+		glVerify(glNormalPointer(GL_FLOAT, sizeof(float) * 4, normals));
+
+		// disable uv
+		glVerify(glDisableClientState(GL_TEXTURE_COORD_ARRAY));
+		glVerify(glUniform1i(glGetUniformLocation(s_diffuseProgram, "renderUV"), 0));
 		
-
-		if (m->m_colours.size())
-		{
-			glVerify(glEnableClientState(GL_COLOR_ARRAY));
-			glVerify(glColorPointer(4, GL_FLOAT, 0, &m->m_colours[0]));
-		}
-
-		glVerify(glDrawElements(GL_TRIANGLES, m->GetNumFaces() * 3, GL_UNSIGNED_INT, &m->m_indices[0]));
+		glVerify(glDrawElements(GL_TRIANGLES, numTris * 3, GL_UNSIGNED_INT, indices));
 
 		glVerify(glDisableClientState(GL_VERTEX_ARRAY));
 		glVerify(glDisableClientState(GL_NORMAL_ARRAY));
+
 		glEnable(GL_CULL_FACE);
 
-		if (m->m_colours.size())
-			glVerify(glDisableClientState(GL_COLOR_ARRAY));
+		if (program == GLint(s_diffuseProgram))
+		{
+			GLint uBias = glGetUniformLocation(s_diffuseProgram, "bias");
+			glUniform1f(uBias, g_shadowBias);
+
+			GLint uExpand = glGetUniformLocation(s_diffuseProgram, "expand");
+			glUniform1f(uExpand, 0.0f);
+		}
 	}
-}
-
-
-void DrawCloth(const Vec4* positions, const Vec4* normals, const float* uvs, 
-	const int* indices, int numTris, int numPositions, 
-	int colorIndex, float expand, bool twosided, bool smooth)
-{
-	if (!numTris)
-		return;
-
-	if (twosided)
-		glDisable(GL_CULL_FACE);
-
-#if 1
-	GLint program;
-	glGetIntegerv(GL_CURRENT_PROGRAM, &program);
-
-	if (program == GLint(s_diffuseProgram))
-	{
-		GLint uBias = glGetUniformLocation(s_diffuseProgram, "bias");
-		glUniform1f(uBias, 0.0f);
-
-		GLint uExpand = glGetUniformLocation(s_diffuseProgram, "expand");
-		//std::cout << "expand: " << expand << std::endl;
-		glUniform1f(uExpand, expand);
-	}
-#endif
-
-	glColor3fv(g_colors[colorIndex+1]*1.5f);
-	glSecondaryColor3fv(g_colors[colorIndex]*1.5f);
-
-	glVerify(glBindBuffer(GL_ARRAY_BUFFER, 0));
-	glVerify(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
-
-	glVerify(glEnableClientState(GL_VERTEX_ARRAY));
-	glVerify(glEnableClientState(GL_NORMAL_ARRAY));
-
-	glVerify(glVertexPointer(3, GL_FLOAT, sizeof(float)*4, positions));
-	glVerify(glNormalPointer(GL_FLOAT, sizeof(float)*4, normals));
-
-	if (uvs)
-	{
-		glVerify(glEnableClientState(GL_COLOR_ARRAY));
-		glVerify(glColorPointer(3, GL_FLOAT, 0, uvs));
-	}
-
-	glVerify(glDrawElements(GL_TRIANGLES, numTris*3, GL_UNSIGNED_INT, indices));
-
-	glVerify(glDisableClientState(GL_VERTEX_ARRAY));
-	glVerify(glDisableClientState(GL_NORMAL_ARRAY));
-
-	if (twosided)
-		glEnable(GL_CULL_FACE);
-	
-	if (uvs)
-	{
-		glVerify(glDisableClientState(GL_COLOR_ARRAY));
-	}
-
-#if 1
-	if (program == GLint(s_diffuseProgram))
-	{
-		GLint uBias = glGetUniformLocation(s_diffuseProgram, "bias");
-		glUniform1f(uBias, g_shadowBias);
-
-		GLint uExpand = glGetUniformLocation(s_diffuseProgram, "expand");
-		glUniform1f(uExpand, 0.0f);
-	}
-#endif
-}
 
 void DrawRope(Vec4* positions, int* indices, int numIndices, float radius, int color)
 {
@@ -3089,6 +3137,16 @@ void DemoContextOGL::readFrame(int* buffer, int width, int height)
 	OGL_Renderer::ReadFrame(buffer, width, height);
 }
 
+void DemoContextOGL::readFrame(float *backbuffer_red, float *backbuffer_green, float *backbuffer_blue, int width, int height)
+{
+	OGL_Renderer::ReadFrame(backbuffer_red, backbuffer_green, backbuffer_blue, width, height);
+}
+
+void DemoContextOGL::readDepth(float *buffer, int width, int height)
+{
+	OGL_Renderer::ReadDepth(buffer, width, height);
+}
+
 void DemoContextOGL::getViewRay(int x, int y, Vec3& origin, Vec3& dir)
 {
 	OGL_Renderer::GetViewRay(x, y, origin, dir);
@@ -3109,9 +3167,14 @@ void DemoContextOGL::drawMesh(const Mesh* m, Vec3 color)
 	OGL_Renderer::DrawMesh(m, color);
 }
 
-void DemoContextOGL::drawCloth(const Vec4* positions, const Vec4* normals, const float* uvs, const int* indices, int numTris, int numPositions, int colorIndex, float expand, bool twosided, bool smooth)
+// void DemoContextOGL::drawCloth(const Vec4* positions, const Vec4* normals, const float* uvs, const int* indices, int numTris, int numPositions, int colorIndex, float expand, bool twosided, bool smooth)
+// {
+// 	OGL_Renderer::DrawCloth(positions, normals, uvs, indices, numTris, numPositions, colorIndex, expand, twosided, smooth);
+// }
+
+void DemoContextOGL::drawCloth(const Vec4 *positions, const Vec4 *normals, const Vec3 *uvs, const int *indices, int numTris, int numPositions, int colorIndex, float expand, bool renderUV)
 {
-	OGL_Renderer::DrawCloth(positions, normals, uvs, indices, numTris, numPositions, colorIndex, expand, twosided, smooth);
+	OGL_Renderer::DrawCloth(positions, normals, uvs, indices, numTris, numPositions, colorIndex, expand, renderUV);
 }
 
 void DemoContextOGL::drawRope(Vec4* positions, int* indices, int numIndices, float radius, int color)

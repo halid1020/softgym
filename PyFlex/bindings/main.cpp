@@ -1907,9 +1907,9 @@ void RenderScene() {
     // printf("pass DrawShapes\n");
     g_drawCloth = true;
     if (g_drawCloth && g_buffers->triangles.size()) {
-        DrawCloth(&g_buffers->positions[0], &g_buffers->normals[0], g_buffers->uvs.size() ? &g_buffers->uvs[0].x : NULL,
-                  &g_buffers->triangles[0], g_buffers->triangles.size() / 3, g_buffers->positions.size(), 3,
-                  g_expandCloth);
+        DrawCloth(&g_buffers->positions[0], &g_buffers->normals[0],
+                          g_buffers->uvs.size() ? &g_buffers->uvs[0] : nullptr, &g_buffers->triangles[0],
+                          g_buffers->triangles.size() / 3, g_buffers->positions.size(), 3, g_expandCloth, false);
     }
 
     if (g_drawRopes && !g_clothOnly) {
@@ -1957,9 +1957,9 @@ void RenderScene() {
     for (int i = 0; i != passes; i++) {
         if (g_clothOnly){
             if (g_drawCloth && g_buffers->triangles.size())
-                            DrawCloth(&g_buffers->positions[0], &g_buffers->normals[0],
-                                      g_buffers->uvs.size() ? &g_buffers->uvs[0].x : nullptr, &g_buffers->triangles[0],
-                                      g_buffers->triangles.size() / 3, g_buffers->positions.size(), 3, g_expandCloth);
+                DrawCloth(&g_buffers->positions[0], &g_buffers->normals[0],
+                          g_buffers->uvs.size() ? &g_buffers->uvs[0] : nullptr, &g_buffers->triangles[0],
+                          g_buffers->triangles.size() / 3, g_buffers->positions.size(), 3, g_expandCloth, false);
         } else
         {
             DrawPlanes((Vec4 *) g_params.planes, g_params.numPlanes, g_drawPlaneBias);
@@ -1972,8 +1972,8 @@ void RenderScene() {
 
             if (g_drawCloth && g_buffers->triangles.size())
                 DrawCloth(&g_buffers->positions[0], &g_buffers->normals[0],
-                          g_buffers->uvs.size() ? &g_buffers->uvs[0].x : nullptr, &g_buffers->triangles[0],
-                          g_buffers->triangles.size() / 3, g_buffers->positions.size(), 3, g_expandCloth);
+                          g_buffers->uvs.size() ? &g_buffers->uvs[0] : nullptr, &g_buffers->triangles[0],
+                          g_buffers->triangles.size() / 3, g_buffers->positions.size(), 3, g_expandCloth, false);
 
             if (g_drawRopes) {
                 for (size_t i = 0; i < g_ropes.size(); ++i)
