@@ -9,6 +9,7 @@ import cv2
 import os.path as osp
 import pickle
 import logging
+from softgym.utils.env_utils import get_camera_matrix
 
 try:
     import pyflex
@@ -174,6 +175,22 @@ class FlexEnv(gym.Env):
             self.resevered_camera_params[camera_name] = camera_param
         
         camera_param = self.resevered_camera_params[camera_name]
+
+        camera_pos = camera_param['pos'].copy()
+        camera_pos[1], camera_pos[2] = camera_pos[2], camera_pos[1]
+        #print('camera_pos', camera_pos)
+        self.camera_height = camera_pos[2]
+        camera_angle = camera_param['angle'].copy()
+        camera_angle[1], camera_angle[2] = camera_angle[2], camera_angle[1]
+        camera_angle[0] = np.pi + camera_angle[0]
+        camera_angle[2] = 4*np.pi/2 - camera_angle[2]
+
+        self.camera_intrinsics, self.camera_pose = get_camera_matrix(
+            camera_pos, 
+            camera_angle, 
+            [camera_param['width'], camera_param['height']],
+            np.pi/4.0)
+        self.camera_size = [camera_param['width'], camera_param['height']]
         
         pyflex.set_camera_params(
             np.array([*camera_param['pos'], *camera_param['angle'],
@@ -320,6 +337,7 @@ class FlexEnv(gym.Env):
         self.update_camera(camera_name)
         pyflex.step()
         img, depth_img = pyflex.render()
+        #print('depth_img min max', np.min(depth_img), np.max(depth_img))
         #self.update_camera(camera_name)
         
         width, height = self.resevered_camera_params[camera_name]['width'], self.camera_params[camera_name]['height']

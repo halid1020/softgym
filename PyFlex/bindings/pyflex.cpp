@@ -1,6 +1,5 @@
 #include <bindings/main.cpp>
-#include <bindings/clothfunnel_api.h>
-
+#include <bindings/customisedAPI.h>
 #include "opengl/shader.h"
 
 char rope_path[100];
@@ -12,8 +11,6 @@ char *make_path(char *full_path, std::string path) {
     strcat(full_path, path.c_str());
     return full_path;
 }
-
-
 
 void pyflex_init(bool headless=false, bool render=true, int camera_width=720, int camera_height=720) {
     g_screenWidth = camera_width;
@@ -30,6 +27,46 @@ void pyflex_init(bool headless=false, bool render=true, int camera_width=720, in
     g_scenes.push_back(new SoftgymCloth("Softgym Flag Cloth"));
     g_scenes.push_back(new SoftgymGarment("Softgym Garment"));
     g_scenes.push_back(new EmptyScene("Empty Scene"));
+    
+
+    SoftgymSoftBody::Instance rope(make_path(rope_path, "/data/rope.obj"));
+	rope.mScale = Vec3(50.0f);
+	rope.mClusterSpacing = 1.5f;
+	rope.mClusterRadius = 0.0f;
+	rope.mClusterStiffness = 0.55f;
+    rope.mTranslation = Vec3(0.0f, 0.6f, 0.0f);
+	SoftgymSoftBody* softRopeSceneNew = new SoftgymSoftBody("Soft Rope");
+	softRopeSceneNew->AddInstance(rope);
+    g_scenes.push_back(softRopeSceneNew);
+
+    SoftgymSoftBody::Instance stackBox(make_path(box_high_path, "/data/box_high.ply"));
+    stackBox.mScale = Vec3(10.0f);
+    stackBox.mClusterSpacing = 1.5f;
+    stackBox.mClusterRadius = 0.0f;
+    stackBox.mClusterStiffness = 0.0f;
+    stackBox.mGlobalStiffness = 1.0f;
+    stackBox.mClusterPlasticThreshold = 0.005f;
+    stackBox.mClusterPlasticCreep = 0.25f;
+    stackBox.mTranslation.y = 0.5f;
+    SoftgymSoftBody::Instance stackSphere(make_path(sphere_path, "/data/sphere.ply"));
+    stackSphere.mScale = Vec3(10.0f);
+    stackSphere.mClusterSpacing = 1.5f;
+    stackSphere.mClusterRadius = 0.0f;
+    stackSphere.mClusterStiffness = 0.0f;
+    stackSphere.mGlobalStiffness = 1.0f;
+    stackSphere.mClusterPlasticThreshold = 0.0015f;
+    stackSphere.mClusterPlasticCreep = 0.25f;
+    stackSphere.mTranslation.y = 2.0f;
+    auto *softgym_PlasticDough = new SoftgymSoftBody("Plastic Stack");
+    softgym_PlasticDough->AddInstance(stackBox);
+    // softgym_PlasticDough->AddInstance(stackSphere);
+    // for (int i = 0; i < 3; i++) {
+    //     stackBox.mTranslation.y += 2.0f;
+    //     stackSphere.mTranslation.y += 2.0f;
+    //     softgym_PlasticDough->AddInstance(stackBox);
+    //     softgym_PlasticDough->AddInstance(stackSphere);
+    // }
+    g_scenes.push_back(softgym_PlasticDough);
 
 
     switch (g_graphics) {
@@ -215,19 +252,19 @@ void pyflex_step(py::array_t<float> update_params, int capture, char *path, int 
     int temp_render = g_render;
     g_render = render;
 
-    // if (capture == 1) {
-    //     g_capture = true;
-    //     g_ffmpeg = fopen(path, "wb");
-    // }
+    if (capture == 1) {
+        g_capture = true;
+        g_ffmpeg = fopen(path, "wb");
+    }
 
     UpdateFrame(update_params);
     SDL_EventFunc();
 
-    // if (capture == 1) {
-    //     g_capture = false;
-    //     fclose(g_ffmpeg);
-    //     g_ffmpeg = nullptr;
-    // }
+    if (capture == 1) {
+        g_capture = false;
+        fclose(g_ffmpeg);
+        g_ffmpeg = nullptr;
+    }
     g_render = temp_render;
 }
 
@@ -247,6 +284,7 @@ void pyflex_set_scene_from_dict(int scene_idx, py::dict scene_params)
     g_selectedScene = g_scene;
     Init_from_dict(g_selectedScene, scene_params);
 }
+
 
 void pyflex_MapShapeBuffers(SimBuffers *buffers) {
     buffers->shapeGeometry.map();
@@ -796,36 +834,7 @@ py::array_t<float> pyflex_get_sceneUpper() {
     return scene_upper;
 }
 
-py::array_t<float> pyflex_get_sceneLower() {
-    auto scene_lower = py::array_t<float>(3);
-    auto buf = scene_lower.request();
-    auto ptr = (float *) buf.ptr;
-
-    ptr[0] = g_sceneLower.x;
-    ptr[1] = g_sceneLower.y;
-    ptr[2] = g_sceneLower.z;
-
-    return scene_lower;
-}
-
-py::array_t<int> pyflex_get_camera_params() {
-    // Right now only returns width and height for the default screen camera
-    // yf: add the camera position and camera angle
-    auto default_camera_param = py::array_t<float>(8);
-    auto default_camera_param_ptr = (float *) default_camera_param.request().ptr;
-    default_camera_param_ptr[0] = g_screenWidth;
-    default_camera_param_ptr[1] = g_screenHeight;
-    default_camera_param_ptr[2] = g_camPos.x;
-    default_camera_param_ptr[3] = g_camPos.y;
-    default_camera_param_ptr[4] = g_camPos.z;
-    default_camera_param_ptr[5] = g_camAngle.x;
-    default_camera_param_ptr[6] = g_camAngle.y;
-    default_camera_param_ptr[7] = g_camAngle.z;
-    return default_camera_param;
-}
-
-
-void pyflex_set_camera_params_from_dict(py::dict scene_params)
+void pyflex_set_camera_params_v2(py::dict scene_params)
 {
     if (g_render)
     {
@@ -885,26 +894,33 @@ void pyflex_set_camera_params_from_dict(py::dict scene_params)
     }
 }
 
-std::tuple<py::array_t<float>, py::array_t<float>, py::array_t<int>, py::float_> pyflex_get_camera_params_to_dict()
-{
-    auto camPos = py::array_t<float>(3);
-    auto camPosPtr = (float *)camPos.request().ptr;
-    camPosPtr[0] = g_camPos.x;
-    camPosPtr[1] = g_camPos.y;
-    camPosPtr[2] = g_camPos.z;
 
-    auto camAngle = py::array_t<float>(3);
-    auto camAnglePtr = (float *)camAngle.request().ptr;
-    camAnglePtr[0] = g_camAngle.x;
-    camAnglePtr[1] = g_camAngle.y;
-    camAnglePtr[2] = g_camAngle.z;
+py::array_t<float> pyflex_get_sceneLower() {
+    auto scene_lower = py::array_t<float>(3);
+    auto buf = scene_lower.request();
+    auto ptr = (float *) buf.ptr;
 
-    auto camSize = py::array_t<int>(2);
-    auto camSizePtr = (int *)camSize.request().ptr;
-    camSizePtr[0] = g_screenWidth;
-    camSizePtr[1] = g_screenHeight;
+    ptr[0] = g_sceneLower.x;
+    ptr[1] = g_sceneLower.y;
+    ptr[2] = g_sceneLower.z;
 
-    return std::make_tuple(camPos, camAngle, camSize, py::float_(fov));
+    return scene_lower;
+}
+
+py::array_t<int> pyflex_get_camera_params() {
+    // Right now only returns width and height for the default screen camera
+    // yf: add the camera position and camera angle
+    auto default_camera_param = py::array_t<float>(8);
+    auto default_camera_param_ptr = (float *) default_camera_param.request().ptr;
+    default_camera_param_ptr[0] = g_screenWidth;
+    default_camera_param_ptr[1] = g_screenHeight;
+    default_camera_param_ptr[2] = g_camPos.x;
+    default_camera_param_ptr[3] = g_camPos.y;
+    default_camera_param_ptr[4] = g_camPos.z;
+    default_camera_param_ptr[5] = g_camAngle.x;
+    default_camera_param_ptr[6] = g_camAngle.y;
+    default_camera_param_ptr[7] = g_camAngle.z;
+    return default_camera_param;
 }
 
 void pyflex_set_camera_params(py::array_t<float> update_camera_param) {
@@ -920,348 +936,276 @@ void pyflex_set_camera_params(py::array_t<float> update_camera_param) {
         g_screenHeight = camera_param_ptr[7];}
 }
 
-// std::tuple<py::array_t<unsigned char>, py::array_t<float>> pyflex_render(int capture, char *path) {
-//     // TODO: Turn off the GUI menu for rendering
-//     static double lastTime;
+std::tuple<py::array_t<unsigned char>, py::array_t<float>> pyflex_render(int capture, char *path) {
+    // TODO: Turn off the GUI menu for rendering
+    static double lastTime;
 
-//     // real elapsed frame time
-//     double frameBeginTime = GetSeconds();
+    // real elapsed frame time
+    double frameBeginTime = GetSeconds();
 
-//     g_realdt = float(frameBeginTime - lastTime);
-//     lastTime = frameBeginTime;
+    g_realdt = float(frameBeginTime - lastTime);
+    lastTime = frameBeginTime;
 
-//     if (capture == 1) {
-//         g_capture = true;
-//         g_ffmpeg = fopen(path, "wb");
-//     }
+    if (capture == 1) {
+        g_capture = true;
+        g_ffmpeg = fopen(path, "wb");
+    }
 
-//     //-------------------------------------------------------------------
-//     // Scene Update
+    //-------------------------------------------------------------------
+    // Scene Update
 
-//     double waitBeginTime = GetSeconds();
+    double waitBeginTime = GetSeconds();
 
-//     MapBuffers(g_buffers);
-
-//     double waitEndTime = GetSeconds();
-
-//     // Getting timers causes CPU/GPU sync, so we do it after a map
-//     float newSimLatency = NvFlexGetDeviceLatency(g_solver, &g_GpuTimers.computeBegin, &g_GpuTimers.computeEnd,
-//                                                  &g_GpuTimers.computeFreq);
-//     float newGfxLatency = RendererGetDeviceTimestamps(&g_GpuTimers.renderBegin, &g_GpuTimers.renderEnd,
-//                                                       &g_GpuTimers.renderFreq);
-//     (void) newGfxLatency;
-
-//     UpdateCamera();
-
-//     if (!g_pause || g_step) {
-//         UpdateEmitters();
-//         UpdateMouse();
-//         UpdateWind();
-//         // UpdateScene();
-//     }
-
-
-//     // printf("update scene over!\n");
-
-//     //-------------------------------------------------------------------
-//     // Render
-
-//     double renderBeginTime = GetSeconds();
-//     // printf("after get seconds!\n");
-
-//     if (g_profile && (!g_pause || g_step)) {
-//         if (g_benchmark) {
-//             g_numDetailTimers = NvFlexGetDetailTimers(g_solver, &g_detailTimers);
-//         } else {
-//             // printf("memset before!\n");
-//             memset(&g_timers, 0, sizeof(g_timers));
-//             NvFlexGetTimers(g_solver, &g_timers);
-//         }
-//     }
-
-//     // printf("StartFrame before!\n");
-//     StartFrame(Vec4(g_clearColor, 1.0f));
-//     // printf("Render scene before!\n");
-
-//     // main scene render
-//     RenderScene();
-
-//     // printf("Render scene over!\n");
-
-//     RenderDebug();
-//     // printf("Render debug over!\n");
-
-
-//     int newScene = DoUI();
-
-//     EndFrame();
-
-//     // If user has disabled async compute, ensure that no compute can overlap
-//     // graphics by placing a sync between them
-//     if (!g_useAsyncCompute)
-//         NvFlexComputeWaitForGraphics(g_flexLib);
-
-//     UnmapBuffers(g_buffers);
-
-//     // move mouse particle (must be done here as GetViewRay() uses the GL projection state)
-//     if (g_mouseParticle != -1) {
-//         Vec3 origin, dir;
-//         GetViewRay(g_lastx, g_screenHeight - g_lasty, origin, dir);
-
-//         g_mousePos = origin + dir * g_mouseT;
-//     }
-
-//     if (!g_interop && g_render) {
-//         // if not using interop then we read back fluid data to host
-//         if (g_drawEllipsoids) {
-//             NvFlexGetSmoothParticles(g_solver, g_buffers->smoothPositions.buffer, nullptr);
-//             NvFlexGetAnisotropy(g_solver, g_buffers->anisotropy1.buffer, g_buffers->anisotropy2.buffer,
-//                                 g_buffers->anisotropy3.buffer, NULL);
-//         }
-
-//         // read back diffuse data to host
-//         if (g_drawDensity)
-//             NvFlexGetDensities(g_solver, g_buffers->densities.buffer, nullptr);
-
-//         if (GetNumDiffuseRenderParticles(g_diffuseRenderBuffers)) {
-//             NvFlexGetDiffuseParticles(g_solver, g_buffers->diffusePositions.buffer, g_buffers->diffuseVelocities.buffer,
-//                                       g_buffers->diffuseCount.buffer);
-//         }
-//     } else if (g_render) {
-//         // read back just the new diffuse particle count, render buffers will be updated during rendering
-//         NvFlexGetDiffuseParticles(g_solver, nullptr, nullptr, g_buffers->diffuseCount.buffer);
-//     }
-
-//     // Original function for rendering and saving to disk
-//     if (g_capture) {
-//         TgaImage img;
-//         img.m_width = g_screenWidth;
-//         img.m_height = g_screenHeight;
-//         img.m_data = new uint32_t[g_screenWidth*g_screenHeight];
-
-//         ReadFrame((int*)img.m_data, g_screenWidth, g_screenHeight);
-//         TgaSave(g_ffmpeg, img, false);
-
-//         // fwrite(img.m_data, sizeof(uint32_t)*g_screenWidth*g_screenHeight, 1, g_ffmpeg);
-
-//         delete[] img.m_data;
-//     }
-
-//     // auto rendered_img = py::array_t<uint32_t>((uint32_t) g_screenWidth*g_screenHeight);
-//     auto rendered_img = py::array_t<uint8_t>((int) g_screenWidth * g_screenHeight * 4);
-//     auto rendered_img_ptr = (uint8_t *) rendered_img.request().ptr;
-
-//     int rendered_img_int32_ptr[g_screenWidth * g_screenHeight];
-//     ReadFrame(rendered_img_int32_ptr, g_screenWidth, g_screenHeight);
-
-//     /*
-//     * This depth rendering functionality in PyFLex was provided by
-//     * Zhenjia Xu
-//     * email: xuzhenjia [at] cs (dot) columbia (dot) edu
-//     * website: https://www.zhenjiaxu.com/
-//     */
-//     auto rendered_depth = py::array_t<float>((float)g_screenWidth * g_screenHeight);
-//     auto rendered_depth_ptr = (float *)rendered_depth.request().ptr;
-
-//     float rendered_depth_float_ptr[g_screenWidth * g_screenHeight];
-//     glVerify(glReadBuffer(GL_BACK));
-//     glReadPixels(0, 0, g_screenWidth, g_screenHeight, GL_DEPTH_COMPONENT, GL_FLOAT, rendered_depth_float_ptr);
-
-//     for (int i = 0; i < g_screenWidth * g_screenHeight; ++i) {
-//         int32_abgr_to_int8_rgba((uint32_t) rendered_img_int32_ptr[i],
-//                                 rendered_img_ptr[4 * i],
-//                                 rendered_img_ptr[4 * i + 1],
-//                                 rendered_img_ptr[4 * i + 2],
-//                                 rendered_img_ptr[4 * i + 3]);
-//         rendered_depth_ptr[i] = 2 * g_camFar * g_camNear / (g_camFar + g_camNear - (2 * rendered_depth_float_ptr[i] - 1) * (g_camFar - g_camNear));
-//     }
-//     // Should be able to return the image here, instead of at the end
-
-//     // delete[] img.m_data;
-
-//     double renderEndTime = GetSeconds();
-
-//     // if user requested a scene reset process it now
-//     if (g_resetScene) {
-//         // Reset();
-//         g_resetScene = false;
-//     }
-
-//     //-------------------------------------------------------------------
-//     // Flex Update
-
-//     double updateBeginTime = GetSeconds();
-
-//     // send any particle updates to the solver
-//     NvFlexSetParticles(g_solver, g_buffers->positions.buffer, nullptr);
-//     NvFlexSetVelocities(g_solver, g_buffers->velocities.buffer, nullptr);
-//     NvFlexSetPhases(g_solver, g_buffers->phases.buffer, nullptr);
-//     NvFlexSetActive(g_solver, g_buffers->activeIndices.buffer, nullptr);
-
-//     NvFlexSetActiveCount(g_solver, g_buffers->activeIndices.size());
-
-//     if (!g_pause || g_step) {
-//         // tick solver
-//         // NvFlexSetParams(g_solver, &g_params);
-//         // NvFlexUpdateSolver(g_solver, g_dt, g_numSubsteps, g_profile);
-
-//         g_frame++;
-//         g_step = false;
-//     }
-
-//     // read back base particle data
-//     // Note that flexGet calls don't wait for the GPU, they just queue a GPU copy
-//     // to be executed later.
-//     // When we're ready to read the fetched buffers we'll Map them, and that's when
-//     // the CPU will wait for the GPU flex update and GPU copy to finish.
-//     NvFlexGetParticles(g_solver, g_buffers->positions.buffer, nullptr);
-//     NvFlexGetVelocities(g_solver, g_buffers->velocities.buffer, nullptr);
-//     NvFlexGetNormals(g_solver, g_buffers->normals.buffer, nullptr);
-
-//     // readback rigid transforms
-//     // if (g_buffers->rigidOffsets.size())
-//     //    NvFlexGetRigids(g_solver, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, g_buffers->rigidRotations.buffer, g_buffers->rigidTranslations.buffer);
-
-//     double updateEndTime = GetSeconds();
-
-//     //-------------------------------------------------------
-//     // Update the on-screen timers
-
-//     auto newUpdateTime = float(updateEndTime - updateBeginTime);
-//     auto newRenderTime = float(renderEndTime - renderBeginTime);
-//     auto newWaitTime = float(waitBeginTime - waitEndTime);
-
-//     // Exponential filter to make the display easier to read
-//     const float timerSmoothing = 0.05f;
-
-//     g_updateTime = (g_updateTime == 0.0f) ? newUpdateTime : Lerp(g_updateTime, newUpdateTime, timerSmoothing);
-//     g_renderTime = (g_renderTime == 0.0f) ? newRenderTime : Lerp(g_renderTime, newRenderTime, timerSmoothing);
-//     g_waitTime = (g_waitTime == 0.0f) ? newWaitTime : Lerp(g_waitTime, newWaitTime, timerSmoothing);
-//     g_simLatency = (g_simLatency == 0.0f) ? newSimLatency : Lerp(g_simLatency, newSimLatency, timerSmoothing);
-
-//     if (g_benchmark) newScene = BenchmarkUpdate();
-
-//     // flush out the last frame before freeing up resources in the event of a scene change
-//     // this is necessary for d3d12
-//     PresentFrame(g_vsync);
-
-//     // if gui or benchmark requested a scene change process it now
-//     if (newScene != -1) {
-//         g_scene = newScene;
-//         // Init(g_scene);
-//     }
-
-//     SDL_EventFunc();
-
-//     if (capture == 1) {
-//         g_capture = false;
-//         fclose(g_ffmpeg);
-//         g_ffmpeg = nullptr;
-//     }
-
-//     return std::make_tuple(rendered_img, rendered_depth);
-//}
-
-std::tuple<
-    py::array_t<unsigned char>,
-    py::array_t<float>,
-    py::array_t<float>>
-pyflex_render(bool uv)
-{
     MapBuffers(g_buffers);
+
+    double waitEndTime = GetSeconds();
+
+    // Getting timers causes CPU/GPU sync, so we do it after a map
+    float newSimLatency = NvFlexGetDeviceLatency(g_solver, &g_GpuTimers.computeBegin, &g_GpuTimers.computeEnd,
+                                                 &g_GpuTimers.computeFreq);
+    float newGfxLatency = RendererGetDeviceTimestamps(&g_GpuTimers.renderBegin, &g_GpuTimers.renderEnd,
+                                                      &g_GpuTimers.renderFreq);
+    (void) newGfxLatency;
+
+    UpdateCamera();
+
+    if (!g_pause || g_step) {
+        UpdateEmitters();
+        UpdateMouse();
+        UpdateWind();
+        // UpdateScene();
+    }
+
+
+    // printf("update scene over!\n");
+
+    //-------------------------------------------------------------------
+    // Render
+
+    double renderBeginTime = GetSeconds();
+    // printf("after get seconds!\n");
+
+    if (g_profile && (!g_pause || g_step)) {
+        if (g_benchmark) {
+            g_numDetailTimers = NvFlexGetDetailTimers(g_solver, &g_detailTimers);
+        } else {
+            // printf("memset before!\n");
+            memset(&g_timers, 0, sizeof(g_timers));
+            NvFlexGetTimers(g_solver, &g_timers);
+        }
+    }
+
+    // printf("StartFrame before!\n");
     StartFrame(Vec4(g_clearColor, 1.0f));
+    // printf("Render scene before!\n");
 
     // main scene render
     RenderScene();
+
+    // printf("Render scene over!\n");
+
     RenderDebug();
+    // printf("Render debug over!\n");
+
 
     int newScene = DoUI();
-    EndFrame();
-    int rendered_img_int32_ptr[g_screenWidth * g_screenHeight];
-    ReadFrame(rendered_img_int32_ptr, g_screenWidth, g_screenHeight);
-    float rendered_depth_float_ptr[g_screenWidth * g_screenHeight];
-    ReadDepth(rendered_depth_float_ptr, g_screenWidth, g_screenHeight);
 
-    // now render UVs
-    float *rendered_uvs_red_float_ptr = new float[g_screenWidth * g_screenHeight];
-    float *rendered_uvs_green_float_ptr = new float[g_screenWidth * g_screenHeight];
-    float *rendered_uvs_blue_float_ptr = new float[g_screenWidth * g_screenHeight];
-    if (uv)
-    {
-        StartFrame(Vec4(g_clearColor, 0.0f));
-        RenderScene(true);
-        EndFrame();
-        // float rendered_uvs_alpha_float_ptr[g_screenWidth * g_screenHeight];
-        ReadFrame(rendered_uvs_red_float_ptr,
-                rendered_uvs_green_float_ptr,
-                rendered_uvs_blue_float_ptr,
-                g_screenWidth,
-                g_screenHeight);
+    EndFrame();
+
+    // If user has disabled async compute, ensure that no compute can overlap
+    // graphics by placing a sync between them
+    if (!g_useAsyncCompute)
+        NvFlexComputeWaitForGraphics(g_flexLib);
+
+    UnmapBuffers(g_buffers);
+
+    // move mouse particle (must be done here as GetViewRay() uses the GL projection state)
+    if (g_mouseParticle != -1) {
+        Vec3 origin, dir;
+        GetViewRay(g_lastx, g_screenHeight - g_lasty, origin, dir);
+
+        g_mousePos = origin + dir * g_mouseT;
     }
 
-    auto rendered_img = py::array_t<uint8_t>((int)g_screenWidth * g_screenHeight * 4);
-    auto rendered_img_ptr = (uint8_t *)rendered_img.request().ptr;
+    if (!g_interop && g_render) {
+        // if not using interop then we read back fluid data to host
+        if (g_drawEllipsoids) {
+            NvFlexGetSmoothParticles(g_solver, g_buffers->smoothPositions.buffer, nullptr);
+            NvFlexGetAnisotropy(g_solver, g_buffers->anisotropy1.buffer, g_buffers->anisotropy2.buffer,
+                                g_buffers->anisotropy3.buffer, NULL);
+        }
 
+        // read back diffuse data to host
+        if (g_drawDensity)
+            NvFlexGetDensities(g_solver, g_buffers->densities.buffer, nullptr);
+
+        if (GetNumDiffuseRenderParticles(g_diffuseRenderBuffers)) {
+            NvFlexGetDiffuseParticles(g_solver, g_buffers->diffusePositions.buffer, g_buffers->diffuseVelocities.buffer,
+                                      g_buffers->diffuseCount.buffer);
+        }
+    } else if (g_render) {
+        // read back just the new diffuse particle count, render buffers will be updated during rendering
+        NvFlexGetDiffuseParticles(g_solver, nullptr, nullptr, g_buffers->diffuseCount.buffer);
+    }
+
+    // Original function for rendering and saving to disk
+    if (g_capture) {
+        TgaImage img;
+        img.m_width = g_screenWidth;
+        img.m_height = g_screenHeight;
+        img.m_data = new uint32_t[g_screenWidth*g_screenHeight];
+
+        ReadFrame((int*)img.m_data, g_screenWidth, g_screenHeight);
+        TgaSave(g_ffmpeg, img, false);
+
+        // fwrite(img.m_data, sizeof(uint32_t)*g_screenWidth*g_screenHeight, 1, g_ffmpeg);
+
+        delete[] img.m_data;
+    }
+
+    // auto rendered_img = py::array_t<uint32_t>((uint32_t) g_screenWidth*g_screenHeight);
+    auto rendered_img = py::array_t<uint8_t>((int) g_screenWidth * g_screenHeight * 4);
+    auto rendered_img_ptr = (uint8_t *) rendered_img.request().ptr;
+
+    int rendered_img_int32_ptr[g_screenWidth * g_screenHeight];
+    ReadFrame(rendered_img_int32_ptr, g_screenWidth, g_screenHeight);
+
+    /*
+    * This depth rendering functionality in PyFLex was provided by
+    * Zhenjia Xu
+    * email: xuzhenjia [at] cs (dot) columbia (dot) edu
+    * website: https://www.zhenjiaxu.com/
+    */
     auto rendered_depth = py::array_t<float>((float)g_screenWidth * g_screenHeight);
     auto rendered_depth_ptr = (float *)rendered_depth.request().ptr;
 
-    auto rendered_uvs = py::array_t<float>((float)g_screenWidth * g_screenHeight * 3);
-    auto rendered_uvs_ptr = (float *)rendered_uvs.request().ptr;
+    float rendered_depth_float_ptr[g_screenWidth * g_screenHeight];
+    glVerify(glReadBuffer(GL_BACK));
+    glReadPixels(0, 0, g_screenWidth, g_screenHeight, GL_DEPTH_COMPONENT, GL_FLOAT, rendered_depth_float_ptr);
 
-    for (int i = 0; i < g_screenWidth * g_screenHeight; ++i)
-    {
-        int32_abgr_to_int8_rgba((uint32_t)rendered_img_int32_ptr[i],
+    for (int i = 0; i < g_screenWidth * g_screenHeight; ++i) {
+        int32_abgr_to_int8_rgba((uint32_t) rendered_img_int32_ptr[i],
                                 rendered_img_ptr[4 * i],
                                 rendered_img_ptr[4 * i + 1],
                                 rendered_img_ptr[4 * i + 2],
                                 rendered_img_ptr[4 * i + 3]);
         rendered_depth_ptr[i] = 2 * g_camFar * g_camNear / (g_camFar + g_camNear - (2 * rendered_depth_float_ptr[i] - 1) * (g_camFar - g_camNear));
-        if (uv)
-        {
-            rendered_uvs_ptr[3 * i] = rendered_uvs_red_float_ptr[i];
-            rendered_uvs_ptr[3 * i + 1] = rendered_uvs_green_float_ptr[i];
-            rendered_uvs_ptr[3 * i + 2] = rendered_uvs_blue_float_ptr[i];
-            // rendered_uvs_ptr[4 * i + 3] = rendered_uvs_alpha_float_ptr[i];
-        }
     }
-    delete[] rendered_uvs_red_float_ptr;
-    delete[] rendered_uvs_green_float_ptr;
-    delete[] rendered_uvs_blue_float_ptr;
+    // Should be able to return the image here, instead of at the end
 
-    UnmapBuffers(g_buffers);
+    // delete[] img.m_data;
 
-    return std::make_tuple(
-        rendered_img,
-        rendered_depth,
-        rendered_uvs);
+    double renderEndTime = GetSeconds();
 
+    // if user requested a scene reset process it now
+    if (g_resetScene) {
+        // Reset();
+        g_resetScene = false;
+    }
+
+    //-------------------------------------------------------------------
+    // Flex Update
+
+    double updateBeginTime = GetSeconds();
+
+    // send any particle updates to the solver
+    NvFlexSetParticles(g_solver, g_buffers->positions.buffer, nullptr);
+    NvFlexSetVelocities(g_solver, g_buffers->velocities.buffer, nullptr);
+    NvFlexSetPhases(g_solver, g_buffers->phases.buffer, nullptr);
+    NvFlexSetActive(g_solver, g_buffers->activeIndices.buffer, nullptr);
+
+    NvFlexSetActiveCount(g_solver, g_buffers->activeIndices.size());
+
+    if (!g_pause || g_step) {
+        // tick solver
+        // NvFlexSetParams(g_solver, &g_params);
+        // NvFlexUpdateSolver(g_solver, g_dt, g_numSubsteps, g_profile);
+
+        g_frame++;
+        g_step = false;
+    }
+
+    // read back base particle data
+    // Note that flexGet calls don't wait for the GPU, they just queue a GPU copy
+    // to be executed later.
+    // When we're ready to read the fetched buffers we'll Map them, and that's when
+    // the CPU will wait for the GPU flex update and GPU copy to finish.
+    NvFlexGetParticles(g_solver, g_buffers->positions.buffer, nullptr);
+    NvFlexGetVelocities(g_solver, g_buffers->velocities.buffer, nullptr);
+    NvFlexGetNormals(g_solver, g_buffers->normals.buffer, nullptr);
+
+    // readback rigid transforms
+    // if (g_buffers->rigidOffsets.size())
+    //    NvFlexGetRigids(g_solver, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, g_buffers->rigidRotations.buffer, g_buffers->rigidTranslations.buffer);
+
+    double updateEndTime = GetSeconds();
+
+    //-------------------------------------------------------
+    // Update the on-screen timers
+
+    auto newUpdateTime = float(updateEndTime - updateBeginTime);
+    auto newRenderTime = float(renderEndTime - renderBeginTime);
+    auto newWaitTime = float(waitBeginTime - waitEndTime);
+
+    // Exponential filter to make the display easier to read
+    const float timerSmoothing = 0.05f;
+
+    g_updateTime = (g_updateTime == 0.0f) ? newUpdateTime : Lerp(g_updateTime, newUpdateTime, timerSmoothing);
+    g_renderTime = (g_renderTime == 0.0f) ? newRenderTime : Lerp(g_renderTime, newRenderTime, timerSmoothing);
+    g_waitTime = (g_waitTime == 0.0f) ? newWaitTime : Lerp(g_waitTime, newWaitTime, timerSmoothing);
+    g_simLatency = (g_simLatency == 0.0f) ? newSimLatency : Lerp(g_simLatency, newSimLatency, timerSmoothing);
+
+    if (g_benchmark) newScene = BenchmarkUpdate();
+
+    // flush out the last frame before freeing up resources in the event of a scene change
+    // this is necessary for d3d12
+    PresentFrame(g_vsync);
+
+    // if gui or benchmark requested a scene change process it now
+    if (newScene != -1) {
+        g_scene = newScene;
+        // Init(g_scene);
+    }
+
+    SDL_EventFunc();
+
+    if (capture == 1) {
+        g_capture = false;
+        fclose(g_ffmpeg);
+        g_ffmpeg = nullptr;
+    }
+
+    return std::make_tuple(rendered_img, rendered_depth);
 }
 
-// std::tuple<py::array_t<unsigned char>, py::array_t<float>> pyflex_render_cloth(int capture, char *path) {
-//     int g_clothOnly_bak = g_clothOnly;
-//     g_clothOnly = 1;
-//     auto ret = pyflex_render(capture, path);
-//     g_clothOnly = g_clothOnly_bak;
-//     return ret;
-// }
+std::tuple<py::array_t<unsigned char>, py::array_t<float>> pyflex_render_cloth(int capture, char *path) {
+    int g_clothOnly_bak = g_clothOnly;
+    g_clothOnly = 1;
+    auto ret = pyflex_render(capture, path);
+    g_clothOnly = g_clothOnly_bak;
+    return ret;
+}
 
 PYBIND11_MODULE(pyflex, m) {
     m.def("main", &main);
 
     m.def("init", &pyflex_init);
     m.def("set_scene", &pyflex_set_scene);
+    
     m.def("clean", &pyflex_clean);
     m.def("step", &pyflex_step,
           py::arg("update_params") = nullptr,
           py::arg("capture") = 0,
           py::arg("path") = nullptr,
           py::arg("render") = 0);
-    m.def("render", &pyflex_render, py::arg("uv")=false);
-
-    // m.def("render_cloth", &pyflex_render_cloth,
-    //       py::arg("capture") = 0,
-    //       py::arg("path") = nullptr
-    //     );
+    m.def("render", &pyflex_render,
+          py::arg("capture") = 0,
+          py::arg("path") = nullptr
+        );
+    m.def("render_cloth", &pyflex_render_cloth,
+          py::arg("capture") = 0,
+          py::arg("path") = nullptr
+        );
     m.def("get_camera_params", &pyflex_get_camera_params, "Get camera parameters");
     m.def("set_camera_params", &pyflex_set_camera_params, "Set camera parameters");
 
@@ -1311,7 +1255,9 @@ PYBIND11_MODULE(pyflex, m) {
     m.def("add_rigid_body", &pyflex_add_rigid_body);
     m.def("set_shape_color", &pyflex_set_shape_color, "Set the color of the shape");
 
-    m.def("add_cloth_square", &pyflex_add_cloth_square, "Add cloth (square)");
+
+    m.def("set_scene_from_dict", &pyflex_set_scene_from_dict);
+    //m.def("add_cloth_square", &pyflex_add_cloth_square, "Add cloth (square)");
     m.def("add_cloth_mesh",
           &pyflex_add_cloth_mesh,
           "Add cloth (mesh)",
@@ -1324,11 +1270,7 @@ PYBIND11_MODULE(pyflex, m) {
           py::arg("uvs"),
           py::arg("stiffness"),
           py::arg("mass") = 1);
-    m.def("emit_particles_box", &pyflex_emit_particles_box, "Emit particles (box)");
-    m.def("emit_particles_cone", &pyflex_emit_particles_cone, "Emit particles (cone)");
     m.def("change_cloth_color", &pyflex_change_cloth_color, "Change color");
-    m.def("set_scene_from_dict", &pyflex_set_scene_from_dict);
-    m.def("set_camera_params_from_dict", &pyflex_set_camera_params_from_dict);
-    m.def("get_camera_params_to_dict", &pyflex_get_camera_params_to_dict);
+    m.def("set_camera_params_v2", &pyflex_set_camera_params_v2, "Set camera parameters");
 }
 
