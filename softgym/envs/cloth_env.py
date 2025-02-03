@@ -274,11 +274,11 @@ class ClothEnv(FlexEnv):
     
     def set_to_flatten(self):
         self._set_to_flatten()
-        obs =  self._get_obs()
-        return {
-            'observation': obs,
-            'done': False
-        }
+        return self._get_obs()
+        # return {
+        #     'observation': obs,
+        #     'done': False
+        # }
 
 
     def get_visibility(self, positions=None, resolution=(64, 64), camera_height=None):
@@ -395,8 +395,8 @@ class ClothEnv(FlexEnv):
     def _get_obs(self):
         obs = {}
         obs['rgb'] = self.render(mode='rgb')
-        
         obs['depth'] = self.render(mode='d')
+        obs['mask'] = self.get_cloth_mask(camera_name=self.current_camera)
         
 
         if 'state' not in self.observation_mode.keys():

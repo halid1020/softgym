@@ -230,7 +230,7 @@ class FabricEnv(ClothEnv):
             self.set_scene(
                 self.cached_configs[self.current_config_id], 
                 self.cached_init_states[self.current_config_id])
-            self._set_to_flatten()
+            self._goal = self.set_to_flatten()
             self.set_scene(
                 self.cached_configs[self.current_config_id], 
                 self.cached_init_states[self.current_config_id])
