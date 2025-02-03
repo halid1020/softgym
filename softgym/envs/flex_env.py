@@ -185,7 +185,7 @@ class FlexEnv(gym.Env):
         camera_angle[0] = np.pi + camera_angle[0]
         camera_angle[2] = 4*np.pi/2 - camera_angle[2]
 
-        self.camera_intrinsics, self.camera_pose = get_camera_matrix(
+        self.camera_intrinsic_matrix, self.camera_extrinsic_matrix = get_camera_matrix(
             camera_pos, 
             camera_angle, 
             [camera_param['width'], camera_param['height']],

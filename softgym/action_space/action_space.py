@@ -31,8 +31,8 @@ class Picker(ActionToolBase):
         return self.action_space
 
     def __init__(self, num_picker=1, picker_radius=0.05, init_pos=(0., -0.1, 0.), 
-        picker_threshold=0.007, particle_radius=0.05, picker_low=(-0.4, 0., -0.4), 
-        picker_high=(0.4, 1.0, 0.4), init_particle_pos=None, spring_coef=1.2, save_step_info=False, render=False, grasp_mode={'closest': 1.0}, **kwargs):
+        picker_threshold=0.007, particle_radius=0.05, picker_low=(-1, 0., -1), 
+        picker_high=(1, 1.0, 1), init_particle_pos=None, spring_coef=1.2, save_step_info=False, render=False, grasp_mode={'closest': 1.0}, **kwargs):
         
         """
         :param gripper_type:
@@ -135,8 +135,8 @@ class Picker(ActionToolBase):
         self.particle_inv_mass = pyflex.get_positions().reshape(-1, 4)[:, 3]
         # print('inv_mass_shape after reset:', self.particle_inv_mass.shape)
 
-        self.last_grasp_mode = None
-        self.graps_try_step = 0
+        self.last_grasp_mode = ['realease' for _ in range(self.num_picker)]
+        self.graps_try_step = [0 for _ in range(self.num_picker)]
 
     # num_pickers * 14
     def get_picker_pos(self):
@@ -214,6 +214,7 @@ class Picker(ActionToolBase):
             raise NotImplementedError
         
     def step(self, action):
+        #print('grasp mode:', self.grasp_mode)
         action = np.reshape(action, (-1, 4))
         grip_flag = action[:, 3] < 0
         release_flag = (0 <= action[:, 3]) & (action[:, 3] <= 1)
@@ -227,11 +228,14 @@ class Picker(ActionToolBase):
         for i in np.where(release_flag)[0]:
             if self.picked_particles[i]:
                 release_mask[i] = True
+                self.last_grasp_mode[i] = 'release'
+                self.graps_try_step[i] = 0
                 new_particle_pos[self.picked_particles[i], 3] = self.particle_inv_mass[self.picked_particles[i]]
                 self.picked_particles[i] = []
 
         # Pick new particles
         pick_mask = grip_flag & (np.array([len(p) for p in self.picked_particles]) == 0)
+        
         if np.any(pick_mask):
             pickers_to_pick = np.where(pick_mask)[0]
             dists = cdist(picker_pos[pickers_to_pick], particle_pos[:, :3])
@@ -239,6 +243,7 @@ class Picker(ActionToolBase):
             threshold = self.picker_threshold + self.picker_radius + self.particle_radius
             #print('threshold:', threshold)
             mask = dists <= threshold
+            #print('grasp num', np.sum(mask, axis=1))
             
             for i, picker_idx in enumerate(pickers_to_pick):
                 valid_particles = np.where(mask[i])[0]
@@ -248,18 +253,16 @@ class Picker(ActionToolBase):
                     
                     mode = np.random.choice(list(self.grasp_mode.keys()), p=list(self.grasp_mode.values()))
 
-                    if self.last_grasp_mode == 'miss' and self.graps_try_step < 40:
-                        self.graps_try_step += 1
-                    
+                    if self.last_grasp_mode[i] == 'miss' and self.graps_try_step[i] < 40:
+                        self.graps_try_step[i] += 1
                     elif mode == 'around':
                         self.picked_particles[picker_idx].extend(candidate_particles)
+                        self.last_grasp_mode[i] = 'around'
                     elif mode == 'closest':
                         self.picked_particles[picker_idx].append(candidate_particles[0])
+                        self.last_grasp_mode[i] = 'closest'
                     elif mode == 'miss':
-                        #print('drop!')
-                        #print('miss')
-                        self.last_grasp_mode = 'miss'
-                        self.graps_try_step = 0
+                        self.last_grasp_mode[i] = 'miss'
                     else:
                         raise NotImplementedError
                     
