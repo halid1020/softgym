@@ -224,7 +224,7 @@ class FabricDomainBuilder():
             config['val_episodes'] = [i for i in range(3)]
         
         
-        elif domain in ['real2sim-towels', 'real2sim-towels-sq']:
+        elif domain in ['realadapt-towels', 'realadapt-towels-sq']:
             config['num_variations'] = 1000
             config['cached_states_path'] = "{}.pkl".format(domain)
             config['eval_tiers'] = { 0: [i for i in range(30)] }

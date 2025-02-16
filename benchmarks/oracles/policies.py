@@ -1,7 +1,7 @@
 from .random_policy import RandomPolicy
 from .random_pick_and_place_policy import RandomPickAndPlacePolicy
 
-from .real2sim_smoothing import Real2SimSmoothing
+from .realadapt_OTS import RealAdaptOTS
 from .oracle_towel_smoothing import OracleTowelSmoothing
 
 from .one_corner_inward_folding_policies import OneCornerInwardFolding
@@ -18,7 +18,7 @@ from .diagonal_cross_folding_policies import DiagonalCrossFolding
 NAME2POLICY = {
     "random": RandomPolicy,
     "random_pick_and_place": RandomPickAndPlacePolicy,
-    'real2sim-smoothing': Real2SimSmoothing,
+    'realadapt-OTS': RealAdaptOTS,
     'oracle-towel-smoothing': OracleTowelSmoothing,
     'one-corner-inward-folding': OneCornerInwardFolding,
     'all-corner-inward-folding': AllCornerInwardFolding,

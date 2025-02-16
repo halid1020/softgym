@@ -8,7 +8,7 @@ import gym
 from .random_pick_and_place_policy import RandomPickAndPlacePolicy
 
 
-class Real2SimSmoothing(RandomPickAndPlacePolicy):
+class RealAdaptOTS(RandomPickAndPlacePolicy):
     """
     Always return one picker pick and place position, [1, 4]
     """
