@@ -1,10 +1,10 @@
 import numpy as np
 import random
 
-from .real2sim_smoothing import Real2SimSmoothing
+from .realadapt_OTS import RealAdaptOTS
 from ..task_wrappers.towels.flattening_wrapper import FlatteningWrapper
   
-class OraclTowelFolding(Real2SimSmoothing):
+class OraclTowelFolding(RealAdaptOTS):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

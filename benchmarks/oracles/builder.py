@@ -27,7 +27,7 @@ class OracleRectFabricPolicyBuilder():
             
             if 'flattening' == task or 'canonical-flattening' == task:
                 if strategy == 'real2sim-smoothing':
-                    from .real2sim_smoothing import Real2SimPickSmoothing
+                    from .realadapt_OTS import RealAdaptOTS
                     return Real2SimPickSmoothing
                 return RectFabricPickAndPlaceExpertPolicy
             

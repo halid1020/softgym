@@ -12,7 +12,7 @@ class WorldPickAndPlaceWrapper():
                  action_horizon=20,
 
                  velocity=0.1,
-                 motion_trajectory='triangle_with_height_ratio',
+                 motion_trajectory='rectangular',
 
                  pick_height=0.025,
                  place_height=0.06,
@@ -118,7 +118,7 @@ class WorldPickAndPlaceWrapper():
         no_cloth_velocity_np = np.array([0.3]*self.num_picker).reshape(self.num_picker, -1)
 
         
-        if self.motion_trajectory in ['rectangular']:
+        if True:
             
 
             pick_positions_ = pick_positions.copy()

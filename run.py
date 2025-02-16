@@ -220,9 +220,9 @@ def main():
     ### Argument Definition
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('--domain', default='real2sim-towels')
+    parser.add_argument('--domain', default='realadapt-towels')
     parser.add_argument('--task', default='flattening')
-    parser.add_argument('--policy', default='real2sim-smoothing')
+    parser.add_argument('--policy', default='realadapt-OTS')
     parser.add_argument('--initial', default='crumple')
     parser.add_argument('--eid', default=1, type=int)
    
