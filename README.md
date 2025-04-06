@@ -33,7 +33,7 @@ conda remove -n softgym --all
 
 # Do not forget to install `gdown` using `pip install gdown`.
 
-gdown https://drive.google.com/uc?id=1bFgrjLffy9q4PIWHGfFRCHGEzSo8iHfE
+gdown https://drive.google.com/uc?id=1c6vPb-TVqkqOkc5-X33nDVJm5e2LPUG7
 
 mv cloth_initial_states.zip <path_to_softgym>/softgym
 
