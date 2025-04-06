@@ -88,7 +88,7 @@ We support two smoothing oracle policies `oracle-towel-smoothing` and `realadapt
 
 ```
 python run.py --domain realadapt-towels --initial crumpled \
-    --task flattening --policy realadapt-OTS --eid 0 --save_video
+    --task flattening --policy realadapt-OTS --eid 1 --save_video
 ```
 
 ## B. Folding oracles
