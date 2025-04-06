@@ -77,6 +77,7 @@ Note that the <absolute_path_to_home_dir> should be the `$HOME` from **OUTSIDE**
 You do not need to employ the docker container used during the compilation in this section, but you do need to do the setup again under the root directory of the repository.
 
 ```
+conda activate softgym
 . ./setup.sh
 ```
 
