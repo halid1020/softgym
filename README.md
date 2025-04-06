@@ -95,7 +95,7 @@ python run.py --domain realadapt-towels --initial crumpled \
 
 The supported folding types include `one-corner-inward-folding`, `double-corner-inward-folding`, `all-corner-inward-folding`, `diagonal-folding`, `digonal-cross-folding`, `corners-edge-inward-folding`, `rectangular-folding`, `side-folding` and `double-side-folding`. Note that some folding types are only supported in square-fabric benchmark environments.
 
-For example, run `all corner-inward folding` in `real2sim-towels` from `flattened` initial positions.
+For example, run `all corner-inward folding` in `realadapt-towels` from `flattened` initial positions.
 
 ```
 python run.py --domain realadapt-towels-sq --initial flattened  \
