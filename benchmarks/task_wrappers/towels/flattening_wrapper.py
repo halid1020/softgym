@@ -10,7 +10,7 @@ from ...utils import get_wrinkle_pixel_ratio
 
 class FlatteningWrapper(TaskWrapper):
     def __init__(self, env, canonical=False, 
-                 domain='mono-square-fabric', initial='crumple'):
+                 domain='mono-square-fabric', initial='crumpled'):
         self.env = env
         self.canonical = canonical
         self.successes = []

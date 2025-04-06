@@ -9,56 +9,50 @@ class WorldPickAndPlaceWrapper():
 
     def __init__(self, 
                  env,
-                 action_horizon=20,
-
-                 velocity=0.1,
-                 motion_trajectory='rectangular',
-
-                 pick_height=0.025,
-                 place_height=0.06,
-
-
-                 pick_lower_bound=[-1, -1, 0],
-                 pick_upper_bound=[1, 1, 1],
-
-                 place_lower_bound=[-1, -1, 0],
-                 place_upper_bound=[1, 1, 1],
-
-                 ready_pos = [[1, 1, 0.6], [1, 1, 0.6]],
-                 
-                 fix_pick_height=True,
-                 fix_place_height=True,
-                 action_dim=2,
-
-                 **kwargs):
+                 config):
         
         ### Environment has to be WorldPickAndFlingWrapper
-        self.env = WorldPositionWithVelocityAndGraspingControlWrapper(env, **kwargs)
+        self.env = WorldPositionWithVelocityAndGraspingControlWrapper(env)
         self.camera_height = self.env.camera_height
+        self.config = config
 
         #### Define the action space
-        self.action_dim = action_dim
+        #print(config)
+        self.action_dim = 2
         self.num_picker = self.env.get_num_picker()
-        space_low = np.concatenate([pick_lower_bound, place_lower_bound]*action_dim)\
-            .reshape(action_dim, -1).astype(np.float32)
-        space_high = np.concatenate([pick_upper_bound, place_upper_bound]*action_dim)\
-            .reshape(action_dim, -1).astype(np.float32)
-        self.action_space = Box(space_low, space_high, dtype=np.float32)
+        self.pick_lower_bound = [-1, -1, 0]
+        self.pick_upper_bound=[1, 1, 1]
+        self.place_lower_bound=[-1, -1, 0]
+        self.place_upper_bound=[1, 1, 1]
+        space_low = np.concatenate([self.pick_lower_bound, self.place_lower_bound]*self.action_dim)\
+            .reshape(self.action_dim, -1)
+        space_high = np.concatenate([self.pick_upper_bound, self.place_upper_bound]*self.action_dim)\
+            .reshape(self.action_dim, -1)
+        self.action_space = Box(space_low, space_high, dtype=np.float64)
 
-        self.ready_pos = np.asarray(ready_pos)
+        self.ready_pos = np.asarray([[1, 1, 0.6], [1, 1, 0.6]])
+
+        # if self.no_op.shape[0] == 2:
+        #     self.no_op = self.no_op.reshape(2, 2, -1)
+        #     self.no_op[1, :, 0] *= -1
+        #     if self.no_op.shape[2] == 3:
+        #         self.no_op[:, :, 2] = 0.2
+        #     self.no_op = self.no_op.reshape(*self.action_space.shape)
+        
 
         ### Each parameters has its class variable
-        self.velocity = velocity
+        self.velocity = 0.1
 
-        self.motion_trajectory = motion_trajectory
-        self.pick_height = pick_height
-        self.place_height = place_height
+        self.motion_trajectory = 'rectangular'
+        self.pick_height = config.pick_height
+        self.place_height = config.place_height
 
         self.action_step = 0
-        self.action_horizon = action_horizon
-        self.fix_pick_height = fix_pick_height
-        self.fix_place_height = fix_place_height
-        self.kwargs = kwargs
+        self.action_horizon = config.action_horizon
+        self.fix_pick_height = config.fix_pick_height
+        self.fix_place_height = config.fix_place_height
+        #self.kwargs = kwargs
+        #print('kwargs', self.kwargs)
         self.action_mode = 'world-pick-and-place'
         self.horizon = self.action_horizon
         self.logger_name = 'standard_logger'
@@ -118,12 +112,19 @@ class WorldPickAndPlaceWrapper():
         no_cloth_velocity_np = np.array([0.3]*self.num_picker).reshape(self.num_picker, -1)
 
         
-        if True:
+        if self.motion_trajectory in ['rectangular']:
             
+            # intermidiate_heights = self.kwargs['intermidiate_height_ratio'] * np.linalg.norm(place_positions - pick_positions, axis=1)
+            # intermidiate_heights = np.clip(intermidiate_heights, 
+            #                                self.kwargs['minimum_intermidiate_height'], 
+            #                                self.kwargs['maximum_intermidiate_height'])
+            # #print('intermidiate_heights', intermidiate_heights)
+            
+            # intermidiate_positions = (pick_positions + place_positions)/2
 
             pick_positions_ = pick_positions.copy()
-            pick_positions_[:, 2] = self.kwargs['prepare_height']
-            #print('prepare height', self.kwargs['prepare_height'])  
+            pick_positions_[:, 2] = self.config.prepare_height
+            #print('prepare height', self.prepare_height'])  
             if self.single_operator:
                 pick_positions_[1] = self.ready_pos[0, :3]
 
@@ -207,13 +208,17 @@ class WorldPickAndPlaceWrapper():
             raise NotImplementedError
         
 
+        # for i, act in enumerate(actions):
+        #     print('act {} '.format(i), act)
+
         info = self.env.step(actions)
         info = self.env.wait_until_stable()
         
         self.action_step += 1
         done = self.action_step >= self.action_horizon
+        # print('done', done)
+        # print('action step', self.action_step)
         #print('action horizon', self.action_horizon)
-
         info['done'] = done
         return self._process_info(info)
     

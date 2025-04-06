@@ -9,41 +9,44 @@ class PixelPickAndPlaceWrapper():
 
     def __init__(self, 
                  env,
-                 action_horizon=20,
+                 config):
+                #  action_horizon=20,
 
-                 velocity=0.1,
-                 motion_trajectory='legacy',
+                #  velocity=0.1,
+                #  motion_trajectory='rectangular',
 
-                 pick_height=0.025,
-                 place_height=0.06,
+                #  pick_height=0.025,
+                #  place_height=0.06,
 
 
-                 pick_lower_bound=[-1, -1],
-                 pick_upper_bound=[1, 1],
-                 place_lower_bound=[-1, -1],
-                 place_upper_bound=[1, 1],
+                #  pick_lower_bound=[-1, -1],
+                #  pick_upper_bound=[1, 1],
+                #  place_lower_bound=[-1, -1],
+                #  place_upper_bound=[1, 1],
 
-                 ready_pos = [[1.5, 1.5, 0.6], [1.5, 1.5, 0.6]],
+                #  ready_pos = [[1.5, 1.5, 0.6], [1.5, 1.5, 0.6]],
                  
                  
-                 fix_pick_height=True,
-                 fix_place_height=True,
-                 action_dim=2,
+                #  fix_pick_height=True,
+                #  fix_place_height=True,
+                #  action_dim=2,
 
-                 **kwargs):
+                #  **kwargs):
         
         ### Environment has to be WorldPickAndFlingWrapper
-        self.env = WorldPickAndPlaceWrapper(env, **kwargs) 
+        #print('kwargs', kwargs)
+        #print('config', config)
+        self.env = WorldPickAndPlaceWrapper(env, config) 
         self.camera_height = self.env.camera_height
 
         #### Define the action space
         #self.num_picker = self.env.get_num_picker()
-        self.action_dim = action_dim
+        self.action_dim = 2
         self.num_picker = self.env.get_num_picker()
-        space_low = np.concatenate([pick_lower_bound, place_lower_bound]*action_dim)\
-            .reshape(action_dim, -1).astype(np.float32)
-        space_high = np.concatenate([pick_upper_bound, place_upper_bound]*action_dim)\
-            .reshape(action_dim, -1).astype(np.float32)
+        space_low = np.concatenate([config.pick_lower_bound, config.place_lower_bound]*self.action_dim)\
+            .reshape(self.action_dim, -1).astype(np.float32)
+        space_high = np.concatenate([config.pick_upper_bound, config.place_upper_bound]*self.action_dim)\
+            .reshape(self.action_dim, -1).astype(np.float32)
         self.action_space = Box(space_low, space_high, dtype=np.float32)
 
         self.no_op = np.ones(self.action_space.shape)
@@ -54,20 +57,19 @@ class PixelPickAndPlaceWrapper():
                 self.no_op[:, :, 2] = 0.2
             self.no_op = self.no_op.reshape(*self.action_space.shape)
         
-        self.ready_pos = np.asarray(ready_pos)
+        self.ready_pos = np.asarray([[1.5, 1.5, 0.6], [1.5, 1.5, 0.6]])
         ### Each parameters has its class variable
-        self.velocity = velocity
+        self.velocity = 0.1
 
-        self.motion_trajectory = motion_trajectory
-        self.pick_height = pick_height
-        self.place_height = place_height
+        self.motion_trajectory = 'rectangular'
+        self.pick_height = config.pick_height
+        self.place_height = config.place_height
 
         self.action_step = 0
-        self.action_horizon = action_horizon
-        print('action_horizon', action_horizon)
-        self.fix_pick_height = fix_pick_height
-        self.fix_place_height = fix_place_height
-        self.kwargs = kwargs
+        self.action_horizon = config.action_horizon
+        self.fix_pick_height = config.fix_pick_height
+        self.fix_place_height = config.fix_place_height
+        #self.kwargs = kwargs
         self.action_mode = 'pixel-pick-and-place'
         self.horizon = self.action_horizon
         self.logger_name = 'pick_and_place_fabric_single_task_logger'
@@ -88,9 +90,17 @@ class PixelPickAndPlaceWrapper():
     
     def get_action_horizon(self):
         return self.action_horizon
+    
+    
 
     def reset(self, episode_config=None):
-        return self.env.reset(episode_config)
+        #self.action_step = 0
+        info = self.env.reset(episode_config)
+        #info =  self._process_info(info)
+        #logging.debug('[pixel-pick-and-place, reset], info keys: {}'.format(info.keys()))
+        return info
+    
+   
     
 
     def process(self, action):
@@ -104,11 +114,14 @@ class PixelPickAndPlaceWrapper():
         process_action[:, 1, 2] = self.place_height
 
         return process_action.reshape(-1, 6)
-    
+
+      
     ## It accpet action has shape (num_picker, 2, 3), where num_picker can be 1 or 2
     def step(self, action):
+      
         action_ = self.process(action)
-        return self.env.step(action_)  
+        return self.env.step(action_)
+    
 
     def __getattr__(self, name):
         method = getattr(self.env, name)

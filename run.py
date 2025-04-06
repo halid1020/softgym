@@ -223,7 +223,7 @@ def main():
     parser.add_argument('--domain', default='realadapt-towels')
     parser.add_argument('--task', default='flattening')
     parser.add_argument('--policy', default='realadapt-OTS')
-    parser.add_argument('--initial', default='crumple')
+    parser.add_argument('--initial', default='crumpled')
     parser.add_argument('--eid', default=1, type=int)
    
     ## make the --disp keywords a boolean when set it becomes true

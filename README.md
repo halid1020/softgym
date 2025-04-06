@@ -44,7 +44,7 @@ mkdir cached_initial_states
 unzip cloth_initial_states.zip && mv cloth_initial_states/*.pkl cached_initial_states/
 ```
 
-5. Ensure `nvidia-docker` is installed, as we need to use docker environment to compile the simulation environment; it can be installed by following this [tutorial](https://docs.docker.com/engine/install/ubuntu/) and this [tutorial](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/1.10.0/install-guide.html).
+5. Ensure `nvidia-docker` is installed (this is deprecated), as we need to use docker environment to compile the simulation environment; it can be installed by following this [tutorial](https://docs.docker.com/engine/install/ubuntu/) and this [tutorial](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/1.10.0/install-guide.html).
 6. Compile the simulator inside a docker file provided by the original authors of `SoftGym`.
 
 ```
@@ -52,9 +52,9 @@ nvidia-docker run -v <path_to_softgym>/softgym:/workspace/softgym \
 -v $HOME/anaconda3:$HOME/anaconda3 \
 -it xingyu/softgym:latest bash
 
-# Or
+# Or (recommend)
 
-docker run --gpu all -v <path_to_softgym>/softgym:/workspace/softgym \
+docker run -v <path_to_softgym>/softgym:/workspace/softgym \
 -v $HOME/anaconda3:$HOME/anaconda3 \
 -it xingyu/softgym:latest bash
 
@@ -87,8 +87,8 @@ Then, you can continue the following instructions right under the root directory
 We support two smoothing oracle policies `oracle-towel-smoothing` and `realadapt-OTS`. For example, run `realadapt-OTS` oracle policy in `realadapt-towels`:
 
 ```
-python run.py --domain real2sim-towels --initial crumpled \
-    --task flattening --policy real2sim-smoothing --eid 0 --save_video
+python run.py --domain realadapt-towels --initial crumpled \
+    --task flattening --policy realadapt-OTS --eid 0 --save_video
 ```
 
 ## B. Folding oracles

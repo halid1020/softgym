@@ -2,9 +2,8 @@ import numpy as np
 
 class WorldPositionWithVelocityAndGraspingControlWrapper():
 
-    def __init__(self, env, **kwargs):
+    def __init__(self, env):
         self.env = env
-        self.kwargs = kwargs
 
     def step(self, actions):
         total_steps = 0
