@@ -27,7 +27,7 @@ Note that if you want to remove the environment
 conda remove -n softgym --all  
 ```
 
-4. Download and install the [`cloth_initial_states.zip`](https://drive.google.com/file/d/1bFgrjLffy9q4PIWHGfFRCHGEzSo8iHfE/view?usp=sharing). Note that you can skip this step if you want the environments themselves generates the corresponding initial states automatically at the begining of initialisation, but it may take quite a long time.
+4. Download and install the [`cloth_initial_states.zip`](https://drive.google.com/uc?id=1c6vPb-TVqkqOkc5-X33nDVJm5e2LPUG7) Note that you can skip this step if you want the environments themselves generates the corresponding initial states automatically at the begining of initialisation, but it may take quite a long time.
 
 ```
 
