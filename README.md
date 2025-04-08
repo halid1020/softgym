@@ -109,7 +109,7 @@ python run.py --domain realadapt-towels-sq --initial flattened  \
 
 # Related Papers
 
-[1] Kadi HA, Chandy JA, Figuerdo L, Terzić K, Caleb-Solly P. DeepCloth-ROB2QSP&P: Towards a Robust Robot Deployment for Quasi-Static Pick-and-Place Cloth-Shaping Neural Controllers. arXiv preprint arXiv:2409.15159 2024.
+[1] Kadi HA, Chandy JA, Figuerdo L, Terzić K, Caleb-Solly P. DRAPER: Towards a Robust Robot Deployment and Reliable Evaluation for Quasi-Static Pick-and-Place Cloth-Shaping Neural Controllers. arXiv preprint arXiv:2409.15159 2024.
 
 [2] Kadi HA, Terzić K. JA-TN: Pick-and-Place Towel Shaping from Crumpled States based on TransporterNet with Joint-Probability Action Inference. In8th Annual Conference on Robot Learning 2024.
 
