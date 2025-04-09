@@ -7,7 +7,6 @@ class ClothVelocityControlEnv():
 
 
     def __init__(self, kwargs):
-        #self.hoirzon = kwargs['horizon']
         self.eval_para = {
             'eval_tiers': kwargs['eval_tiers'],
             'video_episodes': kwargs['video_episodes']
@@ -59,9 +58,6 @@ class ClothVelocityControlEnv():
     
     def observation_shape(self): ### If image: H*W*C
         raise NotImplementedError
-    
-    # def step(self, action):
-    #     raise NotImplementedError
     
     def get_flatten_canonical_IoU(self):
         mask = self.get_cloth_mask(resolution=(128, 128)).reshape(128, 128)
@@ -253,7 +249,6 @@ class ClothVelocityControlEnv():
         return goal
         
     def reset(self, episode_config=None):
-        #print('reset')
         if episode_config == None:
             episode_config = {
                 'eid': None,
@@ -269,7 +264,6 @@ class ClothVelocityControlEnv():
         self.episode_id = self._env.episode_id
         episode_config['eid'] = self.episode_id
         self.episode_config = episode_config.copy()
-        #print('reset end')
         return self._process_info(info)
     
     def get_episode_config(self):
@@ -294,9 +288,7 @@ class ClothVelocityControlEnv():
     def step(self, action, process_info=True):
         
         self._t += 1
-        #print('lowest action start')
         info = self._env.step(action)
-        #print('lowest action end')
         if process_info:
             info = self._process_info(info)
         return info
@@ -320,7 +312,7 @@ class ClothVelocityControlEnv():
         if 'corner_visibility' in self.info_keys:
             info['corner_visibility'], _ = self.get_visibility(info['corner_positions'])
             info['corner_visibility'] = info['corner_visibility'][0]
-        info['pointcloud'] = self.get_pointcloud()
+        info['pointcloud'] = self.get_pointcloud().astype(np.float32)
         return info
     
 

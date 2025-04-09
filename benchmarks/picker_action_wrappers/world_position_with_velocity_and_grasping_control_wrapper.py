@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 
 class WorldPositionWithVelocityAndGraspingControlWrapper():
 
@@ -8,7 +9,9 @@ class WorldPositionWithVelocityAndGraspingControlWrapper():
     def step(self, actions):
         total_steps = 0
         info = {}
-        
+        control_singlas = []
+        control_frames = []
+
         for action in actions:
             
             pickers_position = self.env.get_picker_position()
@@ -31,14 +34,27 @@ class WorldPositionWithVelocityAndGraspingControlWrapper():
                 delta = np.where(mask, target_position - curr_pos, delta)
                 
                 control_signal = np.hstack([delta, action[:, 4:5]])
-                info = self.env.step(control_signal, process_info=(i == num_step))
+                control_singlas.append(control_signal)
+                info = self.env.step(control_signal, process_info=False)
+                control_frames.append(info['observation'])
                 curr_pos += delta
                 total_steps += 1
-            
-            #print(f'action {action} num steps {num_step} took {time.time() - start_time:.6f} seconds')
+
+        control_frames = {k: np.stack([d[k] for d in control_frames]) for k in control_frames[0].keys()}
+        # rgb in control frames has shape S x 720 x 720 x 3. I want to resize it to S x 256 x 256 x 3
+        control_frames['rgb'] = np.stack([np.asarray(cv2.resize(f, (256, 256))) for f in control_frames['rgb']])
+        control_frames['depth'] = np.stack([np.asarray(cv2.resize(f, (256, 256))) for f in control_frames['depth']])
+        if len(control_frames['depth'].shape) == 3:
+            control_frames['depth'] = np.expand_dims(control_frames['depth'], axis=-1)
+        #control_mask = np.stack([np.asarray(cv2.resize(f, (256, 256))) for f in control_frames['mask']])
+    
         
-        info['total_control_steps'] = total_steps
         info = self._process_info(info)
+        info['control_signals'] = np.stack(control_singlas).astype(np.float32)
+        info['control_frames'] = control_frames
+       
+        info['total_control_steps'] = total_steps
+        
         return info
 
     

@@ -5,7 +5,6 @@ class Builder():
     def build(config_str):
         
         # Parse the config string and call the build function
-        #print('helllooo')
         config = Builder.parse_config_str(config_str)
         if 'fabric' in config['domain']:
             from .fabric_domain_builder \

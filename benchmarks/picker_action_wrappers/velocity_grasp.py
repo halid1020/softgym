@@ -21,7 +21,6 @@ class VelocityGrasp():
     
     def step(self, action):
         
-        #self.env.reset_control_step_info()
         for _ in range(self.action_repeat):
             info = self.env.step(action)
             self.interactive_step += 1

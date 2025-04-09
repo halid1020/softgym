@@ -9,11 +9,30 @@ from benchmarks.visualisation_utils import save_video as sv
 from benchmarks.visualisation_utils import save_numpy_as_gif as sg
 from benchmarks.visualisation_utils import plot_pick_and_place_trajectory as pt
 
+def print_information(data, indent=2):
+    """
+    Recursively prints the structure and details of the data in a tree-like format.
+    :param data: The data structure to be printed (dict, list, np.ndarray, etc.)
+    :param indent: The current level of indentation for tree structure
+    """
+    # Create an indentation string based on the current level
+    prefix = " " * indent
+
+    if isinstance(data, dict):
+        for key, value in data.items():
+            print(f"{prefix}{key}:")
+            print_information(value, indent + 4)  # Increase indentation for nested structures
+    elif isinstance(data, list):
+        print(f"{prefix}List of {len(data)} items:")
+        print_information(data[0], indent + 4)
+    elif isinstance(data, np.ndarray):
+        print(f"{prefix}Numpy array with shape {data.shape}, type {data.dtype}")
+    else:
+        print(f"{prefix}scalar with type {type(data)}")
 
 class MyLogger():
     def __init__(self, log_dir):
         self.log_dir = log_dir
-        #super().__init__(log_dir)
 
     def __call__(self, episode_config, result, filename=None):
 
@@ -29,7 +48,6 @@ class MyLogger():
 
         df_dict = {
             'episode_id': [eid],
-            #'return': [result['return']]
         }
 
         evaluations = result['evaluation']
@@ -56,9 +74,8 @@ class MyLogger():
         result['actions'] = result['actions'].reshape(T, N, 2, -1)[:, :, :, :2]
         rgbs = [info['observation']['rgb'] for info in result['informations']]
         pt(
-            np.stack(rgbs), result['actions'].reshape(T, -1, 4), # TODO: this is envionrment specific
-            title='Episode {}'.format(eid), 
-            # rewards=result['rewards'], 
+            np.stack(rgbs), result['actions'].reshape(T, -1, 4),
+            title='Episode {}'.format(eid),  
             save_png = True, save_path=os.path.join(self.log_dir, filename, 'performance_visualisation'), col=10)
 
         
@@ -86,7 +103,6 @@ class MyLogger():
         
         performance_file = \
             os.path.join(self.log_dir, filename, 'performance.csv')
-        #print('performance_file', performance_file)
 
         if not os.path.exists(performance_file):
             return False
@@ -94,7 +110,6 @@ class MyLogger():
         if len(df) == 0:
             return False
         
-        ## Check if there is an entry with the same tier and eid, and return True if there is
         return len(df[(df['episode_id'] == eid)]) > 0
 
 def perform(arena, agent, mode='eval', episode_config=None,
@@ -116,13 +131,11 @@ def perform(arena, agent, mode='eval', episode_config=None,
     depths = []
     internal_states = []
     informations = []
-    #rewards = []
     actions = []
     phases = []
     action_time = []
     res['evaluation'] = {}
-    
-    #arena.set_save_control_step_info(collect_frames)
+
     if episode_config['save_video']:
         frames = []
        
@@ -134,8 +147,6 @@ def perform(arena, agent, mode='eval', episode_config=None,
     information['done'] = False
     informations.append(information)
     agent.init(information)
-    #internal_states.append(agent.get_state().copy())
-    #information['reward'] = 0
     evals = arena.evaluate()
 
     for k, v in evals.items():
@@ -145,17 +156,13 @@ def perform(arena, agent, mode='eval', episode_config=None,
     
     update_agent_from_arena(agent, arena)
 
-    #agent.init_state(information)
-
     if ('save_goal' in episode_config) and episode_config['save_goal']:
         res['goal'] = arena.get_goal()
-        #print('goal keys', res['goal'].keys())
-   
+
     while not information['done']:
         start_time = time.time()
         
         action = agent.act(information)
-        #print('perform action', action)
         phase = agent.get_phase()
         phases.append(phase)
         internal_states.append(agent.get_state().copy())
@@ -164,23 +171,21 @@ def perform(arena, agent, mode='eval', episode_config=None,
         elapsed_time = (end_time - start_time)
         action_time.append(elapsed_time)
         information = arena.step(action)
+
+        ## print out information structure
+        #print_information(information, indent=4)
+        
         informations.append(information)
 
         
         if episode_config['save_video']:
             frame = np.asarray(arena.get_frames())
-            ## resize frames to 256x256
             frame = np.stack([cv2.resize(f, (256, 256)) for f in frame])
-            #print('frame shape', frame.shape)
             frames.append(frame[:, :, :, :3])
             arena.clear_frames()
 
-        #print('action', action)
         actions.append(action)
-       
         evals = arena.evaluate()
-        
-       
         agent.update(information, action)
         
         information['done'] = information['done'] or agent.success() or arena.success() or agent.terminate()
@@ -191,7 +196,7 @@ def perform(arena, agent, mode='eval', episode_config=None,
         print('\nStep {}, Eval: {}\n'.format(len(actions), evals))
 
        
-    res['actions'] = actions #np.stack(actions)
+    res['actions'] = actions
     res['action_durations'] = np.asarray(action_time)
     internal_states.append(agent.get_state().copy())
     res['phases'] = np.stack(phases)
@@ -225,10 +230,7 @@ def main():
     parser.add_argument('--policy', default='realadapt-OTS')
     parser.add_argument('--initial', default='crumpled')
     parser.add_argument('--eid', default=1, type=int)
-   
-    ## make the --disp keywords a boolean when set it becomes true
-
-    parser.add_argument('--disp', action='store_true')
+    parser.add_argument('--disp', action='store_true') # Turn on display
     parser.add_argument('--save_video', action='store_true')
     parser.add_argument('--log_dir', default='.')
     

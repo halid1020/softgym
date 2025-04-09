@@ -10,32 +10,7 @@ class PixelPickAndPlaceWrapper():
     def __init__(self, 
                  env,
                  config):
-                #  action_horizon=20,
 
-                #  velocity=0.1,
-                #  motion_trajectory='rectangular',
-
-                #  pick_height=0.025,
-                #  place_height=0.06,
-
-
-                #  pick_lower_bound=[-1, -1],
-                #  pick_upper_bound=[1, 1],
-                #  place_lower_bound=[-1, -1],
-                #  place_upper_bound=[1, 1],
-
-                #  ready_pos = [[1.5, 1.5, 0.6], [1.5, 1.5, 0.6]],
-                 
-                 
-                #  fix_pick_height=True,
-                #  fix_place_height=True,
-                #  action_dim=2,
-
-                #  **kwargs):
-        
-        ### Environment has to be WorldPickAndFlingWrapper
-        #print('kwargs', kwargs)
-        #print('config', config)
         self.env = WorldPickAndPlaceWrapper(env, config) 
         self.camera_height = self.env.camera_height
 
@@ -69,7 +44,6 @@ class PixelPickAndPlaceWrapper():
         self.action_horizon = config.action_horizon
         self.fix_pick_height = config.fix_pick_height
         self.fix_place_height = config.fix_place_height
-        #self.kwargs = kwargs
         self.action_mode = 'pixel-pick-and-place'
         self.horizon = self.action_horizon
         self.logger_name = 'pick_and_place_fabric_single_task_logger'
@@ -92,15 +66,9 @@ class PixelPickAndPlaceWrapper():
         return self.action_horizon
     
     
-
     def reset(self, episode_config=None):
-        #self.action_step = 0
         info = self.env.reset(episode_config)
-        #info =  self._process_info(info)
-        #logging.debug('[pixel-pick-and-place, reset], info keys: {}'.format(info.keys()))
         return info
-    
-   
     
 
     def process(self, action):
@@ -118,7 +86,6 @@ class PixelPickAndPlaceWrapper():
       
     ## It accpet action has shape (num_picker, 2, 3), where num_picker can be 1 or 2
     def step(self, action):
-      
         action_ = self.process(action)
         return self.env.step(action_)
     

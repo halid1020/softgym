@@ -396,7 +396,7 @@ class ClothEnv(FlexEnv):
         obs = {}
         obs['rgb'] = self.render(mode='rgb')
         obs['depth'] = self.render(mode='d')
-        obs['mask'] = self.get_cloth_mask(camera_name=self.current_camera)
+        #obs['mask'] = self.get_cloth_mask(camera_name=self.current_camera)
         
 
         if 'state' not in self.observation_mode.keys():

@@ -50,7 +50,6 @@ class FabricVelocityControlEnv(ClothVelocityControlEnv):
         self.camera_height = self._env.camera_height
         self.pixel_to_world_ratio = self._env.pixel_to_world_ratio
         self.horizon = self._env.control_horizon
-        #logging.info('[softgym, fabric-velocity-control] action_space {}'.format(self._env.action_space))
         self.no_op = np.zeros(self.get_action_space().shape)
         self.no_op[-1] = -1.0
         self.info_keys = ['contour', 'cloth_size', 
@@ -71,7 +70,6 @@ class FabricVelocityControlEnv(ClothVelocityControlEnv):
         edge_ids = self._env.get_edge_ids()
         positions = self._env.get_particle_positions()
         edge_positions = positions[edge_ids]
-        #print('edge positions', edge_positions)
         visbility, proj_pos = self.get_visibility(edge_positions, resolution=(128, 128))
         visbility = visbility[0]
         proj_pos = proj_pos[0]

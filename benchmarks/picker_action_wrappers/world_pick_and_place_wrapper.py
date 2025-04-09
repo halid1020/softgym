@@ -17,7 +17,6 @@ class WorldPickAndPlaceWrapper():
         self.config = config
 
         #### Define the action space
-        #print(config)
         self.action_dim = 2
         self.num_picker = self.env.get_num_picker()
         self.pick_lower_bound = [-1, -1, 0]
@@ -31,13 +30,6 @@ class WorldPickAndPlaceWrapper():
         self.action_space = Box(space_low, space_high, dtype=np.float64)
 
         self.ready_pos = np.asarray([[1, 1, 0.6], [1, 1, 0.6]])
-
-        # if self.no_op.shape[0] == 2:
-        #     self.no_op = self.no_op.reshape(2, 2, -1)
-        #     self.no_op[1, :, 0] *= -1
-        #     if self.no_op.shape[2] == 3:
-        #         self.no_op[:, :, 2] = 0.2
-        #     self.no_op = self.no_op.reshape(*self.action_space.shape)
         
 
         ### Each parameters has its class variable
@@ -51,8 +43,6 @@ class WorldPickAndPlaceWrapper():
         self.action_horizon = config.action_horizon
         self.fix_pick_height = config.fix_pick_height
         self.fix_place_height = config.fix_place_height
-        #self.kwargs = kwargs
-        #print('kwargs', self.kwargs)
         self.action_mode = 'world-pick-and-place'
         self.horizon = self.action_horizon
         self.logger_name = 'standard_logger'
@@ -94,43 +84,30 @@ class WorldPickAndPlaceWrapper():
             new_action[1] = self.ready_pos.reshape(-1, 6)[-1]
             action = new_action
 
-        #print('process action shape', action.shape)
-
         return {'pick_positions': action.reshape(self.num_picker, 2, -1)[:, 0, :3],
                 'place_positions': action.reshape(self.num_picker, 2, -1)[:, 1, :3],
                 'action': action}
     
     def step(self, action):
         action_ = self.process(action)
-        #print('action', action_)
         pick_positions = action_['pick_positions']
         place_positions = action_['place_positions']
         action = action_['action']
         
-        #print('vel', self.velocity)
         velocity_np = np.array([self.velocity]*self.num_picker).reshape(self.num_picker, -1)
         no_cloth_velocity_np = np.array([0.3]*self.num_picker).reshape(self.num_picker, -1)
 
         
         if self.motion_trajectory in ['rectangular']:
             
-            # intermidiate_heights = self.kwargs['intermidiate_height_ratio'] * np.linalg.norm(place_positions - pick_positions, axis=1)
-            # intermidiate_heights = np.clip(intermidiate_heights, 
-            #                                self.kwargs['minimum_intermidiate_height'], 
-            #                                self.kwargs['maximum_intermidiate_height'])
-            # #print('intermidiate_heights', intermidiate_heights)
-            
-            # intermidiate_positions = (pick_positions + place_positions)/2
 
             pick_positions_ = pick_positions.copy()
             pick_positions_[:, 2] = self.config.prepare_height
-            #print('prepare height', self.prepare_height'])  
             if self.single_operator:
                 pick_positions_[1] = self.ready_pos[0, :3]
 
 
             actions = [
-                ## Go to pick position
                 np.concatenate(
                     [
                         pick_positions_, 
@@ -194,7 +171,6 @@ class WorldPickAndPlaceWrapper():
 
    
                 ## Move back to ready
-                
                 np.concatenate(
                     [
                         self.ready_pos.copy(), 
@@ -208,17 +184,16 @@ class WorldPickAndPlaceWrapper():
             raise NotImplementedError
         
 
-        # for i, act in enumerate(actions):
-        #     print('act {} '.format(i), act)
-
         info = self.env.step(actions)
+        control_signals = info['control_signals']
+        control_frames = info['control_frames']
+
         info = self.env.wait_until_stable()
+        info['control_signals'] = control_signals
+        info['control_frames'] = control_frames
         
         self.action_step += 1
         done = self.action_step >= self.action_horizon
-        # print('done', done)
-        # print('action step', self.action_step)
-        #print('action horizon', self.action_horizon)
         info['done'] = done
         return self._process_info(info)
     

@@ -106,6 +106,65 @@ python run.py --domain realadapt-towels-sq --initial flattened  \
 
 ```
 
+## C. Information Explanation
+
+Environment returns a dictionary of `information` after a pick-and-Place primitive steps on the environments. The structure of the `information` is as follow:
+
+```
+    observation:
+        rgb:
+            Numpy array with shape (256, 256, 3), type uint8
+        depth:
+            Numpy array with shape (256, 256, 1), type float32
+        mask:
+            Numpy array with shape (256, 256), type bool
+        contour:
+            Numpy array with shape (256, 256), type float64
+    done:
+        scalar with type <class 'bool'>
+    wait_steps:
+        scalar with type <class 'int'>
+    no_op: # No operation for pick-and-place of two pickers
+        Numpy array with shape (2, 3), type float64
+    cloth_size:
+        (2, ) with type <class 'tuple'>
+    normalised_coverage:
+        scalar with type <class 'numpy.float64'>
+    corner_positions:
+        Numpy array with shape (4, 3), type float32
+    flatten_canonical_IoU:
+        scalar with type <class 'numpy.float64'>
+    corner_visibility:
+        Numpy array with shape (4,), type bool
+    pointcloud: # Cloth Particles after the pick-and-place action.
+        Numpy array with shape (1359, 3), type float32
+
+    # A sequence of low-level position-based action single for each of the 2 pickers for a primitive action, the sequence varies.
+    # The first values are the x, z, y position; for the last value -1 represents grasp action, and 1 represents release action.
+    control_signals: 
+        Numpy array with shape (87, 2, 4), type float32
+    control_frames: # The observation of the environment after each control single.
+        rgb:
+            Numpy array with shape (87, 256, 256, 3), type uint8
+        depth:
+            Numpy array with shape (87, 256, 256, 1), type float32
+    action_space:
+        scalar with type <class 'gym.spaces.box.Box'>
+    arena:
+        scalar with type <class 'benchmarks.picker_action_wrappers.world_pick_and_place_wrapper.WorldPickAndPlaceWrapper'>
+    goal:
+        rgb:
+            Numpy array with shape (256, 256, 3), type uint8
+        depth:
+            Numpy array with shape (256, 256, 1), type float32
+        mask:
+            Numpy array with shape (256, 256), type bool
+    success:
+        scalar with type <class 'numpy.bool_'>
+    reward:
+        scalar with type <class 'float'>
+```
+
 # Related Papers
 
 [1] Kadi HA, Chandy JA, Figuerdo L, Terzić K, Caleb-Solly P. DeepCloth-ROB2QSP&P: Towards a Robust Robot Deployment for Quasi-Static Pick-and-Place Cloth-Shaping Neural Controllers. arXiv preprint arXiv:2409.15159 2024.
