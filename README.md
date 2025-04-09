@@ -151,9 +151,9 @@ Environment returns a dictionary of `information` after a pick-and-Place primiti
         depth:
             Numpy array with shape (87, 256, 256, 1), type float32
     action_space:
-        scalar with type <class 'gym.spaces.box.Box'>
+        <class 'gym.spaces.box.Box'>
     arena:
-        scalar with type <class 'benchmarks.picker_action_wrappers.world_pick_and_place_wrapper.WorldPickAndPlaceWrapper'>
+        <class 'benchmarks.picker_action_wrappers.world_pick_and_place_wrapper.WorldPickAndPlaceWrapper'>
     goal:
         rgb:
             Numpy array with shape (256, 256, 3), type uint8
