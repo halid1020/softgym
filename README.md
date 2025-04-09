@@ -27,7 +27,7 @@ Note that if you want to remove the environment
 conda remove -n softgym --all  
 ```
 
-4. Download and install the [`cloth_initial_states.zip`](https://drive.google.com/file/d/1bFgrjLffy9q4PIWHGfFRCHGEzSo8iHfE/view?usp=sharing). Note that you can skip this step if you want the environments themselves generates the corresponding initial states automatically at the begining of initialisation, but it may take quite a long time.
+4. Download and install the [`cloth_initial_states.zip`](https://drive.google.com/uc?id=1c6vPb-TVqkqOkc5-X33nDVJm5e2LPUG7) Note that you can skip this step if you want the environments themselves generates the corresponding initial states automatically at the begining of initialisation, but it may take quite a long time.
 
 ```
 
@@ -77,6 +77,7 @@ Note that the <absolute_path_to_home_dir> should be the `$HOME` from **OUTSIDE**
 You do not need to employ the docker container used during the compilation in this section, but you do need to do the setup again under the root directory of the repository.
 
 ```
+conda activate softgym
 . ./setup.sh
 ```
 
@@ -167,7 +168,7 @@ Environment returns a dictionary of `information` after a pick-and-Place primiti
 
 # Related Papers
 
-[1] Kadi HA, Chandy JA, Figuerdo L, Terzić K, Caleb-Solly P. DeepCloth-ROB2QSP&P: Towards a Robust Robot Deployment for Quasi-Static Pick-and-Place Cloth-Shaping Neural Controllers. arXiv preprint arXiv:2409.15159 2024.
+[1] Kadi HA, Chandy JA, Figuerdo L, Terzić K, Caleb-Solly P. DRAPER: Towards a Robust Robot Deployment and Reliable Evaluation for Quasi-Static Pick-and-Place Cloth-Shaping Neural Controllers. arXiv preprint arXiv:2409.15159 2024.
 
 [2] Kadi HA, Terzić K. JA-TN: Pick-and-Place Towel Shaping from Crumpled States based on TransporterNet with Joint-Probability Action Inference. In8th Annual Conference on Robot Learning 2024.
 
