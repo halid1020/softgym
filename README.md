@@ -141,7 +141,8 @@ Environment returns a dictionary of `information` after a pick-and-Place primiti
         Numpy array with shape (1359, 3), type float32
 
     # A sequence of low-level position-based action single for each of the 2 pickers for a primitive action, the sequence varies.
-    # The first values are the x, z, y position; for the last value -1 represents grasp action, and 1 represents release action.
+    # The first values are the x, z, y position in the world frame
+    # for the last value -1 represents grasp action, and 1 represents release action.
     control_signals: 
         Numpy array with shape (87, 2, 4), type float32
     control_frames: # The observation of the environment after each control single.
