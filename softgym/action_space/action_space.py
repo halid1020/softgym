@@ -108,7 +108,7 @@ class Picker(ActionToolBase):
             pos.append([x, y, z])
         return np.array(pos)
 
-    def reset(self, center):
+    def reset(self, picker_pos):
         
         if self.save_step_info:
             self.clean_step_info()
@@ -117,7 +117,7 @@ class Picker(ActionToolBase):
         #     offset = center[i] - (self.picker_high[:, i] + self.picker_low[:, i]) / 2.
         #     self.picker_low[:, i] += offset
         #     self.picker_high[:, i] += offset
-        init_picker_poses = self._get_centered_picker_pos(center)
+        init_picker_poses = picker_pos #self._get_centered_picker_pos(center)
 
         for picker_pos in init_picker_poses:
             #print('!!!!add sphere')
@@ -127,7 +127,8 @@ class Picker(ActionToolBase):
 
         self.picked_particles = [[] for _ in range (self.num_picker)]
         shape_state = np.array(pyflex.get_shape_states()).reshape(-1, 14)
-        centered_picker_pos = self._get_centered_picker_pos(center)
+        #centered_picker_pos = self._get_centered_picker_pos(center)
+        centered_picker_pos = init_picker_poses
         for (i, centered_picker_pos) in enumerate(centered_picker_pos):
             shape_state[i] = np.hstack([centered_picker_pos, centered_picker_pos, [1, 0, 0, 0], [1, 0, 0, 0]])
         pyflex.set_shape_states(shape_state)
