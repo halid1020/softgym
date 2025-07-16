@@ -4,6 +4,8 @@ This fork is extended on the original [`SoftGym`](https://github.com/Xingyu-Lin/
 
 This repository is authored by Halid Abdulrahim Kadi and supervised by Kasim Terzić; Luis Figueredo and Praminda Caleb-Solly provided some insights for `realadapt` benchmark environments; and, Ryan Haward provided some contributions to this `README` file
 
+This repository is practially proven to work in `Ubuntu 20.04.5 LTS`, `Ubuntu 22.04.3 LTS`, and `Ubuntu 24.04.2 LTS` systems.
+
 ## I. Install and Setup the Simulator
 
 1. Install relevant packages before compiling the simulation.
