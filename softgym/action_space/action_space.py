@@ -88,15 +88,8 @@ class Picker(ActionToolBase):
         pyflex.add_box(halfEdge, center, quat)
 
     def _apply_picker_boundary(self, picker_pos):
-        #print('picker_low', self.picker_low)
-        #print('picker pos', picker_pos, self.picker_low, self.picker_high)
+        
         return np.clip(picker_pos, self.picker_low, self.picker_high)
-        #print('clipper picker pos', clipped_picker_pos)
-        # for i in range(3):
-        #     if i == 1:
-        #         print('low z, high z, picker radius, input_pos', self.picker_low[i], self.picker_high[i], self.picker_radius, picker_pos[i])
-        #         clipped_picker_pos[i] = np.clip(picker_pos[i], self.picker_low[:, i], self.picker_high[:, i])
-        return clipped_picker_pos
 
     def _get_centered_picker_pos(self, center):
         r = np.sqrt(self.num_picker - 1) * self.picker_radius * 2.
@@ -277,6 +270,8 @@ class Picker(ActionToolBase):
                 displacement = new_picker_pos[i] - picker_pos[i]
                 new_particle_pos[particles, :3] += displacement
                 new_particle_pos[particles, 3] = 0  # Set mass to infinity
+        
+        # TODO: calculate the distances between the picked particles
 
         self._set_pos(new_picker_pos, new_particle_pos)
         return 1
