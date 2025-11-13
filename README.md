@@ -26,7 +26,7 @@ conda env create -f environment.yml
 Note that if you want to remove the environment
 
 ```
-conda remove -n softgym --all  
+conda remove -n softgym-py3.10 --all  
 ```
 
 4. Download and install the [`cloth_initial_states.zip`](https://drive.google.com/uc?id=1c6vPb-TVqkqOkc5-X33nDVJm5e2LPUG7) Note that you can skip this step if you want the environments themselves generates the corresponding initial states automatically at the begining of initialisation, but it may take quite a long time.
@@ -79,7 +79,7 @@ Note that the <absolute_path_to_home_dir> should be the `$HOME` from **OUTSIDE**
 You do not need to employ the docker container used during the compilation in this section, but you do need to do the setup again under the root directory of the repository.
 
 ```
-conda activate softgym
+conda activate softgym-py3.10
 . ./setup.sh
 ```
 
