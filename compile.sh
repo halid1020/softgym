@@ -7,6 +7,6 @@ cd build
 if [[ $(hostname) = *"compute-0"* ]] || [[ $(hostname) = *"autobot-"* ]] || [[ $(hostname) = *"yertle"* ]]; then
     export CUDA_BIN_PATH=/usr/local/cuda-9.1
 fi
-cmake -DPYBIND11_PYTHON_VERSION=3.10 -DCMAKE_BUILD_TYPE=Release ..
-make -j
+cmake .. -DCMAKE_PREFIX_PATH=$(python -m pybind11 --cmakedir)
+make -j$(nproc)
 cd ../../../
