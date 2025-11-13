@@ -1,6 +1,6 @@
-<h1>  SoftGym: Extension on SoftGym for cloth-shaping benchmarks and oracles </h1>
+<h1>  SoftGym-Py3.10: Extension on SoftGym for cloth-shaping benchmarks and oracles </h1>
 
-This fork is extended on the original [`SoftGym`](https://github.com/Xingyu-Lin/softgym) with modifications mainly on the cloth environments --- Note that the other original environments of `SoftGym` do not work properly in this version. If there is a conflict of interest, please contact `ah390@st-andrews.ac.uk `. This fork supports benchmark environments `mono-square-fabric `, `rainbow-square-fabrics `, `rainbow-rectangular-fabrics `, `realadapt-towels, ` `real2sim-towels-sq, clothfunnels-realadapt-<garment> `; These benchmarks used by `PlaNet-ClothPick `[3],`JA-TN `[2] and `DRAPER` [1] projects.
+This fork is extended on the original [`SoftGym`](https://github.com/Xingyu-Lin/softgym) and the [`PyFlex` from Bifold Project](github.com/Barbany/bifold) with modifications mainly on the cloth environments --- Note that the other original environments of `SoftGym` do not work properly in this version. If there is a conflict of interest, please contact `ah390@st-andrews.ac.uk `. This fork supports benchmark environments `mono-square-fabric `, `rainbow-square-fabrics `, `rainbow-rectangular-fabrics `, `realadapt-towels, ` `real2sim-towels-sq, clothfunnels-realadapt-<garment> `; These benchmarks used by `PlaNet-ClothPick `[3],`JA-TN `[2] and `DRAPER` [1] projects.
 
 This repository is authored by Halid Abdulrahim Kadi and supervised by Kasim Terzić; Luis Figueredo and Praminda Caleb-Solly provided some insights for `realadapt` benchmark environments; and, Ryan Haward provided some contributions to this `README` file
 

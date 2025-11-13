@@ -1,5 +1,4 @@
 #include <bindings/main.cpp>
-#include <bindings/customisedAPI.h>
 #include "opengl/shader.h"
 
 char rope_path[100];
@@ -23,11 +22,13 @@ void pyflex_init(bool headless=false, bool render=true, int camera_width=720, in
         g_pause = false;
     }
 
-    // Register Scenes
     g_scenes.push_back(new SoftgymCloth("Softgym Flag Cloth"));
-    g_scenes.push_back(new SoftgymGarment("Softgym Garment"));
-    g_scenes.push_back(new EmptyScene("Empty Scene"));
-    
+    g_scenes.push_back(new SoftgymFluid("Softgym Pour Water"));
+    g_scenes.push_back(new SoftgymRope("Softgym Rope"));
+    g_scenes.push_back(new SoftgymTshirt("Softgym Tshirt"));
+    g_scenes.push_back(new SoftgymRigidCloth("Softgym Rigid Cloth"));
+    g_scenes.push_back(new SoftgymTorus("Softgym Torus"));
+    g_scenes.push_back(new SoftgymCloth3d("softgym cloth3d"));
 
     SoftgymSoftBody::Instance rope(make_path(rope_path, "/data/rope.obj"));
 	rope.mScale = Vec3(50.0f);
@@ -120,7 +121,7 @@ void pyflex_init(bool headless=false, bool render=true, int camera_width=720, in
         //     SDL_SetWindowFullscreen(g_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
 
         ReshapeWindow(g_screenWidth, g_screenHeight);
-    }
+    } 
     else if (g_render == true)
 	{
 		RenderInitOptions options;
@@ -278,14 +279,6 @@ void pyflex_set_scene(int scene_idx, py::array_t<float> scene_params, int thread
     Init(g_selectedScene, scene_params, true, thread_idx);
 }
 
-void pyflex_set_scene_from_dict(int scene_idx, py::dict scene_params)
-{
-    g_scene = scene_idx;
-    g_selectedScene = g_scene;
-    Init_from_dict(g_selectedScene, scene_params);
-}
-
-
 void pyflex_MapShapeBuffers(SimBuffers *buffers) {
     buffers->shapeGeometry.map();
     buffers->shapePositions.map();
@@ -440,13 +433,48 @@ void pyflex_set_phases(py::array_t<int> phases) {
     NvFlexSetPhases(g_solver, g_buffers->phases.buffer, nullptr);
 }
 
+// py::array_t<float> pyflex_get_positions() {
+//     g_buffers->positions.map();
+//     auto positions = py::array_t<float>((size_t) g_buffers->positions.size() * 4);
+//     auto ptr = (float *) positions.request().ptr;
+
+//     for (size_t i = 0; i < (size_t) g_buffers->positions.size(); i++) {
+//         ptr[i * 4] = g_buffers->positions[i].x;
+//         ptr[i * 4 + 1] = g_buffers->positions[i].y;
+//         ptr[i * 4 + 2] = g_buffers->positions[i].z;
+//         ptr[i * 4 + 3] = g_buffers->positions[i].w;
+//     }
+
+//     g_buffers->positions.unmap();
+
+//     return positions;
+// }
+
+
 py::array_t<float> pyflex_get_positions() {
     g_buffers->positions.map();
-    auto positions = py::array_t<float>((size_t) g_buffers->positions.size() * 4);
-    auto ptr = (float *) positions.request().ptr;
 
-    for (size_t i = 0; i < (size_t) g_buffers->positions.size(); i++) {
-        ptr[i * 4] = g_buffers->positions[i].x;
+    size_t n = g_buffers->positions.size();
+    std::vector<ssize_t> shape   = { static_cast<ssize_t>(n), 4 };
+    std::vector<ssize_t> strides = { static_cast<ssize_t>(4 * sizeof(float)),
+                                     static_cast<ssize_t>(sizeof(float)) };
+
+    auto positions = py::array_t<float>(
+        py::buffer_info(
+            nullptr,                          // no data pointer → pybind allocates
+            sizeof(float),                    // size of one element
+            py::format_descriptor<float>::format(), // NumPy dtype string
+            2,                                // number of dimensions
+            shape,
+            strides
+        )
+    );
+
+    auto buf = positions.request();
+    auto ptr = static_cast<float*>(buf.ptr);
+
+    for (size_t i = 0; i < n; i++) {
+        ptr[i * 4 + 0] = g_buffers->positions[i].x;
         ptr[i * 4 + 1] = g_buffers->positions[i].y;
         ptr[i * 4 + 2] = g_buffers->positions[i].z;
         ptr[i * 4 + 3] = g_buffers->positions[i].w;
@@ -456,6 +484,7 @@ py::array_t<float> pyflex_get_positions() {
 
     return positions;
 }
+
 
 void pyflex_set_positions(py::array_t<float> positions) {
     g_buffers->positions.map();
@@ -484,7 +513,7 @@ void pyflex_add_rigid_body(py::array_t<float> positions, py::array_t<float> velo
 
     auto bufl = lower.request();
     auto lower_ptr = (float *) bufl.ptr;
-
+   
     MapBuffers(g_buffers);
 
     // if (g_buffers->rigidIndices.empty())
@@ -532,7 +561,7 @@ void pyflex_add_rigid_body(py::array_t<float> positions, py::array_t<float> velo
 
     UnmapBuffers(g_buffers);
 
-    // reset pyflex solvers
+    // reset pyflex solvers 
     // NvFlexSetParams(g_solver, &g_params);
     // NvFlexSetParticles(g_solver, g_buffers->positions.buffer, nullptr);
     // NvFlexSetVelocities(g_solver, g_buffers->velocities.buffer, nullptr);
@@ -543,10 +572,10 @@ void pyflex_add_rigid_body(py::array_t<float> positions, py::array_t<float> velo
     NvFlexSetActive(g_solver, g_buffers->activeIndices.buffer, nullptr);
     // printf("ok till here\n");
     NvFlexSetActiveCount(g_solver, numParticles);
-    // NvFlexSetRigids(g_solver, g_buffers->rigidOffsets.buffer, g_buffers->rigidIndices.buffer,
-    //     g_buffers->rigidLocalPositions.buffer, g_buffers->rigidLocalNormals.buffer,
-    //     g_buffers->rigidCoefficients.buffer, g_buffers->rigidPlasticThresholds.buffer,
-    //     g_buffers->rigidPlasticCreeps.buffer, g_buffers->rigidRotations.buffer,
+    // NvFlexSetRigids(g_solver, g_buffers->rigidOffsets.buffer, g_buffers->rigidIndices.buffer, 
+    //     g_buffers->rigidLocalPositions.buffer, g_buffers->rigidLocalNormals.buffer, 
+    //     g_buffers->rigidCoefficients.buffer, g_buffers->rigidPlasticThresholds.buffer, 
+    //     g_buffers->rigidPlasticCreeps.buffer, g_buffers->rigidRotations.buffer, 
     //     g_buffers->rigidTranslations.buffer, g_buffers->rigidOffsets.size() - 1, g_buffers->rigidIndices.size());
     // printf("also ok here\n");
 }
@@ -755,12 +784,24 @@ void pyflex_set_velocities(py::array_t<float> velocities) {
 py::array_t<float> pyflex_get_shape_states() {
     pyflex_MapShapeBuffers(g_buffers);
 
+    size_t n = g_buffers->shapePositions.size();
+    std::vector<ssize_t> shape = { (ssize_t) n, 14 };
+    std::vector<ssize_t> strides = { (ssize_t) (14*sizeof(float)), (ssize_t) sizeof(float)};
+
     // position + prev_position + rotation + prev_rotation
-    auto states = py::array_t<float>((size_t) g_buffers->shapePositions.size() * (3 + 3 + 4 + 4));
+    auto states = py::array_t<float>(py::buffer_info(
+        nullptr,
+        sizeof(float),
+        py::format_descriptor<float>::format(),
+        2,
+        shape,
+        strides
+    ));
+     
     auto buf = states.request();
     auto ptr = (float *) buf.ptr;
 
-    for (size_t i = 0; i < (size_t) g_buffers->shapePositions.size(); i++) {
+    for (size_t i = 0; i < n; i++) {
         ptr[i * 14] = g_buffers->shapePositions[i].x;
         ptr[i * 14 + 1] = g_buffers->shapePositions[i].y;
         ptr[i * 14 + 2] = g_buffers->shapePositions[i].z;
@@ -833,67 +874,6 @@ py::array_t<float> pyflex_get_sceneUpper() {
 
     return scene_upper;
 }
-
-void pyflex_set_camera_params_v2(py::dict scene_params)
-{
-    if (g_render)
-    {
-        for (auto item : scene_params)
-        {
-            string key = py::str(item.first);
-            if (key == "render_type")
-            {
-                g_drawPoints = false;
-                g_drawCloth = false;
-                for (auto it = item.second.begin(); it != py::iterator::sentinel(); it++)
-                {
-                    std::string render_type = py::str(*it);
-                    if (render_type == "points")
-                        g_drawPoints = true;
-                    if (render_type == "cloth")
-                        g_drawCloth = true;
-                }
-            }
-            if (key == "cam_position")
-            {
-                auto it = item.second.begin();
-                float cam_x = std::stof(py::str(*it));
-                it++;
-                float cam_y = std::stof(py::str(*it));
-                it++;
-                float cam_z = std::stof(py::str(*it));
-                it++;
-                g_camPos = Vec3(cam_x, cam_y, cam_z);
-            }
-            if (key == "cam_angle")
-            {
-                auto it = item.second.begin();
-                float cam_angle_x = std::stof(py::str(*it));
-                it++;
-                float cam_angle_y = std::stof(py::str(*it));
-                it++;
-                float cam_angle_z = std::stof(py::str(*it));
-                it++;
-                g_camAngle = Vec3(cam_angle_x, cam_angle_y, cam_angle_z);
-            }
-            if (key == "cam_size")
-            {
-                auto it = item.second.begin();
-                int cam_width = std::stoi(py::str(*it));
-                it++;
-                int cam_height = std::stoi(py::str(*it));
-                it++;
-                g_screenHeight = cam_height;
-                g_screenWidth = cam_width;
-            }
-            if (key == "cam_fov")
-            {
-                fov = std::stof(py::str(item.second));
-            }
-        }
-    }
-}
-
 
 py::array_t<float> pyflex_get_sceneLower() {
     auto scene_lower = py::array_t<float>(3);
@@ -1064,33 +1044,88 @@ std::tuple<py::array_t<unsigned char>, py::array_t<float>> pyflex_render(int cap
     }
 
     // auto rendered_img = py::array_t<uint32_t>((uint32_t) g_screenWidth*g_screenHeight);
-    auto rendered_img = py::array_t<uint8_t>((int) g_screenWidth * g_screenHeight * 4);
-    auto rendered_img_ptr = (uint8_t *) rendered_img.request().ptr;
+    // auto rendered_img = py::array_t<uint8_t>((int) g_screenWidth * g_screenHeight * 4);
+    // auto rendered_img_ptr = (uint8_t *) rendered_img.request().ptr;
 
-    int rendered_img_int32_ptr[g_screenWidth * g_screenHeight];
-    ReadFrame(rendered_img_int32_ptr, g_screenWidth, g_screenHeight);
+    // int rendered_img_int32_ptr[g_screenWidth * g_screenHeight];
+    // ReadFrame(rendered_img_int32_ptr, g_screenWidth, g_screenHeight);
 
-    /*
-    * This depth rendering functionality in PyFLex was provided by
-    * Zhenjia Xu
-    * email: xuzhenjia [at] cs (dot) columbia (dot) edu
-    * website: https://www.zhenjiaxu.com/
-    */
-    auto rendered_depth = py::array_t<float>((float)g_screenWidth * g_screenHeight);
-    auto rendered_depth_ptr = (float *)rendered_depth.request().ptr;
+    // /*
+    // * This depth rendering functionality in PyFLex was provided by
+    // * Zhenjia Xu
+    // * email: xuzhenjia [at] cs (dot) columbia (dot) edu
+    // * website: https://www.zhenjiaxu.com/
+    // */
+    // auto rendered_depth = py::array_t<float>((float)g_screenWidth * g_screenHeight);
+    // auto rendered_depth_ptr = (float *)rendered_depth.request().ptr;
 
-    float rendered_depth_float_ptr[g_screenWidth * g_screenHeight];
+    // float rendered_depth_float_ptr[g_screenWidth * g_screenHeight];
+    // glVerify(glReadBuffer(GL_BACK));
+    // glReadPixels(0, 0, g_screenWidth, g_screenHeight, GL_DEPTH_COMPONENT, GL_FLOAT, rendered_depth_float_ptr);
+
+
+    // for (int i = 0; i < g_screenWidth * g_screenHeight; ++i) {
+    //     int32_abgr_to_int8_rgba((uint32_t) rendered_img_int32_ptr[i],
+    //                             rendered_img_ptr[4 * i],
+    //                             rendered_img_ptr[4 * i + 1],
+    //                             rendered_img_ptr[4 * i + 2],
+    //                             rendered_img_ptr[4 * i + 3]);
+    //     rendered_depth_ptr[i] = 2 * g_camFar * g_camNear / (g_camFar + g_camNear - (2 * rendered_depth_float_ptr[i] - 1) * (g_camFar - g_camNear));
+    // }
+
+    // Allocate numpy arrays with shape
+    py::array_t<uint8_t> rendered_img(
+        { g_screenHeight, g_screenWidth, 4 });   // [H, W, RGBA]
+    py::array_t<float> rendered_depth(
+        { g_screenHeight, g_screenWidth });      // [H, W]
+
+    // Get raw pointers into numpy arrays
+    auto rendered_img_ptr   = static_cast<uint8_t*>(rendered_img.request().ptr);
+    auto rendered_depth_ptr = static_cast<float*>(rendered_depth.request().ptr);
+
+    // Temporary host buffers for OpenGL readback
+    std::vector<uint32_t> pixels(g_screenWidth * g_screenHeight);
+    std::vector<float> depth_f(g_screenWidth * g_screenHeight);
+
+    // Read RGBA and depth from OpenGL
+    ReadFrame(reinterpret_cast<int*>(pixels.data()), g_screenWidth, g_screenHeight);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glVerify(glReadBuffer(GL_BACK));
-    glReadPixels(0, 0, g_screenWidth, g_screenHeight, GL_DEPTH_COMPONENT, GL_FLOAT, rendered_depth_float_ptr);
+    glReadPixels(0, 0, g_screenWidth, g_screenHeight,
+                GL_DEPTH_COMPONENT, GL_FLOAT, depth_f.data());
 
+    // Convert ABGR → RGBA and copy into numpy array
     for (int i = 0; i < g_screenWidth * g_screenHeight; ++i) {
-        int32_abgr_to_int8_rgba((uint32_t) rendered_img_int32_ptr[i],
-                                rendered_img_ptr[4 * i],
+        int32_abgr_to_int8_rgba(pixels[i],
+                                rendered_img_ptr[4 * i + 0],
                                 rendered_img_ptr[4 * i + 1],
                                 rendered_img_ptr[4 * i + 2],
                                 rendered_img_ptr[4 * i + 3]);
-        rendered_depth_ptr[i] = 2 * g_camFar * g_camNear / (g_camFar + g_camNear - (2 * rendered_depth_float_ptr[i] - 1) * (g_camFar - g_camNear));
+
+        // Reconstruct linear depth from NDC depth
+        rendered_depth_ptr[i] =
+            2 * g_camFar * g_camNear /
+            (g_camFar + g_camNear -
+            (2 * depth_f[i] - 1) * (g_camFar - g_camNear));
     }
+
+
+    // for debugging
+    // int total_pixels = g_screenWidth * g_screenHeight;
+    // std::set<uint8_t> unique_values;
+
+    // for (int i = 0; i < 4 * total_pixels; ++i) {  // loop over all RGBA bytes
+    //     unique_values.insert(rendered_img_ptr[i]);
+    // }
+
+    // std::cout << "Unique values in rendered_img_ptr: ";
+    // for (auto val : unique_values) {
+    //     std::cout << (int)val << " ";  // cast to int for printing
+    // }
+    // std::cout << std::endl;
+
+    // for debugging
+
     // Should be able to return the image here, instead of at the end
 
     // delete[] img.m_data;
@@ -1191,16 +1226,15 @@ PYBIND11_MODULE(pyflex, m) {
 
     m.def("init", &pyflex_init);
     m.def("set_scene", &pyflex_set_scene);
-    
     m.def("clean", &pyflex_clean);
     m.def("step", &pyflex_step,
           py::arg("update_params") = nullptr,
           py::arg("capture") = 0,
           py::arg("path") = nullptr,
           py::arg("render") = 0);
-    m.def("render", &pyflex_render,
+    m.def("render", &pyflex_render, 
           py::arg("capture") = 0,
-          py::arg("path") = nullptr
+          py::arg("path") = nullptr    
         );
     m.def("render_cloth", &pyflex_render_cloth,
           py::arg("capture") = 0,
@@ -1254,23 +1288,4 @@ PYBIND11_MODULE(pyflex, m) {
 
     m.def("add_rigid_body", &pyflex_add_rigid_body);
     m.def("set_shape_color", &pyflex_set_shape_color, "Set the color of the shape");
-
-
-    m.def("set_scene_from_dict", &pyflex_set_scene_from_dict);
-    //m.def("add_cloth_square", &pyflex_add_cloth_square, "Add cloth (square)");
-    m.def("add_cloth_mesh",
-          &pyflex_add_cloth_mesh,
-          "Add cloth (mesh)",
-          py::arg("position"),
-          py::arg("verts"),
-          py::arg("faces"),
-          py::arg("stretch_edges"),
-          py::arg("bend_edges"),
-          py::arg("shear_edges"),
-          py::arg("uvs"),
-          py::arg("stiffness"),
-          py::arg("mass") = 1);
-    m.def("change_cloth_color", &pyflex_change_cloth_color, "Change color");
-    m.def("set_camera_params_v2", &pyflex_set_camera_params_v2, "Set camera parameters");
 }
-

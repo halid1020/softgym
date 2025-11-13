@@ -7,7 +7,6 @@ public:
 	Scene(const char* name) : mName(name) {}
 	
 	virtual void Initialize(py::array_t<float> scene_params, int thread_idx = 0) = 0;
-	virtual void Initialize_from_dict(py::dict scene_params){};
 	virtual void PostInitialize() {}
 	
 	// update any buffers (all guaranteed to be mapped here)
@@ -28,13 +27,14 @@ public:
 	const char* mName;
 };
 
+#include "softgym_scenes/softgym_cloth3d.h"
+#include "softgym_scenes/softgym_tshirt.h"
 #include "softgym_scenes/softgym_cloth.h"
 #include "softgym_scenes/softgym_fluid.h"
 #include "softgym_scenes/softgym_softbody.h"
 #include "softgym_scenes/softgym_rigid_cloth.h"
 #include "softgym_scenes/softgym_torus.h"
 #include "softgym_scenes/softgym_rope.h"
-#include "aerodexterity_scenes/empty_scene.h"
 
 #include "scenes/adhesion.h"
 #include "scenes/armadilloshower.h"
@@ -89,4 +89,3 @@ public:
 #include "scenes/triggervolume.h"
 #include "scenes/viscosity.h"
 #include "scenes/waterballoon.h"
-#include "softgym_scenes/softgym_garment.h" // softgym tshirt
