@@ -22,13 +22,10 @@ void pyflex_init(bool headless=false, bool render=true, int camera_width=720, in
         g_pause = false;
     }
 
+    // Register Scenes
     g_scenes.push_back(new SoftgymCloth("Softgym Flag Cloth"));
-    g_scenes.push_back(new SoftgymFluid("Softgym Pour Water"));
-    g_scenes.push_back(new SoftgymRope("Softgym Rope"));
-    g_scenes.push_back(new SoftgymTshirt("Softgym Tshirt"));
-    g_scenes.push_back(new SoftgymRigidCloth("Softgym Rigid Cloth"));
-    g_scenes.push_back(new SoftgymTorus("Softgym Torus"));
-    g_scenes.push_back(new SoftgymCloth3d("softgym cloth3d"));
+    g_scenes.push_back(new SoftgymGarment("Softgym Garment"));
+    g_scenes.push_back(new EmptyScene("Empty Scene"));
 
     SoftgymSoftBody::Instance rope(make_path(rope_path, "/data/rope.obj"));
 	rope.mScale = Vec3(50.0f);
@@ -1221,6 +1218,182 @@ std::tuple<py::array_t<unsigned char>, py::array_t<float>> pyflex_render_cloth(i
     return ret;
 }
 
+void pyflex_set_scene_from_dict(int scene_idx, py::dict scene_params)
+{
+    g_scene = scene_idx;
+    g_selectedScene = g_scene;
+    Init_from_dict(g_selectedScene, scene_params);
+}
+
+void pyflex_set_camera_params_v2(py::dict scene_params)
+{
+    if (g_render)
+    {
+        for (auto item : scene_params)
+        {
+            string key = py::str(item.first);
+            if (key == "render_type")
+            {
+                g_drawPoints = false;
+                g_drawCloth = false;
+                for (auto it = item.second.begin(); it != py::iterator::sentinel(); it++)
+                {
+                    std::string render_type = py::str(*it);
+                    if (render_type == "points")
+                        g_drawPoints = true;
+                    if (render_type == "cloth")
+                        g_drawCloth = true;
+                }
+            }
+            if (key == "cam_position")
+            {
+                auto it = item.second.begin();
+                float cam_x = std::stof(py::str(*it));
+                it++;
+                float cam_y = std::stof(py::str(*it));
+                it++;
+                float cam_z = std::stof(py::str(*it));
+                it++;
+                g_camPos = Vec3(cam_x, cam_y, cam_z);
+            }
+            if (key == "cam_angle")
+            {
+                auto it = item.second.begin();
+                float cam_angle_x = std::stof(py::str(*it));
+                it++;
+                float cam_angle_y = std::stof(py::str(*it));
+                it++;
+                float cam_angle_z = std::stof(py::str(*it));
+                it++;
+                g_camAngle = Vec3(cam_angle_x, cam_angle_y, cam_angle_z);
+            }
+            if (key == "cam_size")
+            {
+                auto it = item.second.begin();
+                int cam_width = std::stoi(py::str(*it));
+                it++;
+                int cam_height = std::stoi(py::str(*it));
+                it++;
+                g_screenHeight = cam_height;
+                g_screenWidth = cam_width;
+            }
+            if (key == "cam_fov")
+            {
+                fov = std::stof(py::str(item.second));
+            }
+        }
+    }
+}
+
+void pyflex_change_cloth_color(py::array_t<float> color)
+{
+    auto ptr_color = (float *)color.request().ptr;
+    g_colors[3] = Colour(ptr_color[0], ptr_color[1], ptr_color[2]);
+    g_colors[4] = Colour(ptr_color[0], ptr_color[1], ptr_color[2]);
+}
+
+pair<int, int> pyflex_add_cloth_mesh(
+    py::array_t<float> position, py::array_t<float> verts, py::array_t<int> faces,
+    py::array_t<int> stretch_edges, py::array_t<int> bend_edges,
+    py::array_t<int> shear_edges, py::array_t<float> uvs,
+    py::array_t<float> stiffness, float mass)
+{
+
+    // position: float (initX, initY, initZ)
+    auto ptr_position = (float *)position.request().ptr;
+    float initX = ptr_position[0];
+    float initY = ptr_position[1];
+    float initZ = ptr_position[2];
+    Vec4 lower = Vec4(initX, initY, initZ, 0);
+
+    // stiffness: float (stretch, bend, shear)
+    auto ptr_stiffness = (float *)stiffness.request().ptr;
+    float stretchStiffness = ptr_stiffness[0];
+    float bendStiffness = ptr_stiffness[1];
+    float shearStiffness = ptr_stiffness[2];
+
+    int phase = NvFlexMakePhase(0, eNvFlexPhaseSelfCollide | eNvFlexPhaseSelfCollideFilter);
+    int baseIndex = NvFlexGetActiveCount(g_solver);
+
+    MapBuffers(g_buffers);
+
+    // add vertices and uvs
+    auto verts_buf = verts.request();
+    size_t num_verts = verts_buf.shape[0] / 3;
+    auto verts_ptr = (float *)verts_buf.ptr;
+    float invMass = num_verts / mass;
+
+    auto uvs_buf = uvs.request();
+    assert((bool)(uvs_buf.shape[0] == num_verts));
+    auto uvs_ptr = (float *)uvs_buf.ptr;
+
+    for (size_t idx = 0; idx < num_verts; idx++)
+    {
+        g_buffers->positions[baseIndex + idx] = Vec4(verts_ptr[3 * idx], verts_ptr[3 * idx + 1], verts_ptr[3 * idx + 2], invMass) + lower;
+        g_buffers->restPositions[baseIndex + idx] = g_buffers->positions[baseIndex + idx];
+        g_buffers->velocities[baseIndex + idx] = Vec3(0, 0, 0);
+        g_buffers->phases[baseIndex + idx] = phase;
+        g_buffers->activeIndices.push_back(baseIndex + idx);
+        g_buffers->uvs[baseIndex + idx] = Vec3(uvs_ptr[3 * idx],
+                                               uvs_ptr[3 * idx + 1],
+                                               uvs_ptr[3 * idx + 2]);
+    }
+
+    // add stretch_edges
+    auto stretch_edges_buf = stretch_edges.request();
+    size_t num_stretch_edges = stretch_edges_buf.shape[0] / 2;
+    auto stretch_edges_ptr = (int *)stretch_edges_buf.ptr;
+    for (size_t idx = 0; idx < num_stretch_edges; idx++)
+        CreateSpring(baseIndex + stretch_edges_ptr[2 * idx], baseIndex + stretch_edges_ptr[2 * idx + 1], stretchStiffness);
+
+    // add bend_edges
+    auto bend_edges_buf = bend_edges.request();
+    size_t num_bend_edges = bend_edges_buf.shape[0] / 2;
+    auto bend_edges_ptr = (int *)bend_edges_buf.ptr;
+    for (size_t idx = 0; idx < num_bend_edges; idx++)
+        CreateSpring(baseIndex + bend_edges_ptr[2 * idx], baseIndex + bend_edges_ptr[2 * idx + 1], bendStiffness);
+
+    // add shear_edges
+    auto shear_edges_buf = shear_edges.request();
+    size_t num_shear_edges = shear_edges_buf.shape[0] / 2;
+    auto shear_edges_ptr = (int *)shear_edges_buf.ptr;
+    for (size_t idx = 0; idx < num_shear_edges; idx++)
+        CreateSpring(baseIndex + shear_edges_ptr[2 * idx], baseIndex + shear_edges_ptr[2 * idx + 1], shearStiffness);
+
+    // add faces
+    auto faces_buf = faces.request();
+    size_t num_faces = faces_buf.shape[0] / 3;
+    auto faces_ptr = (int *)faces_buf.ptr;
+    for (size_t idx = 0; idx < num_faces; idx++)
+    {
+        g_buffers->triangles.push_back(baseIndex + faces_ptr[3 * idx]);
+        g_buffers->triangles.push_back(baseIndex + faces_ptr[3 * idx + 1]);
+        g_buffers->triangles.push_back(baseIndex + faces_ptr[3 * idx + 2]);
+        auto p1 = g_buffers->positions[baseIndex + faces_ptr[3 * idx]];
+        auto p2 = g_buffers->positions[baseIndex + faces_ptr[3 * idx + 1]];
+        auto p3 = g_buffers->positions[baseIndex + faces_ptr[3 * idx + 2]];
+        auto U = p2 - p1;
+        auto V = p3 - p1;
+        auto normal = Vec3(
+            U.y * V.z - U.z * V.y,
+            U.z * V.x - U.x * V.z,
+            U.x * V.y - U.y * V.x);
+        g_buffers->triangleNormals.push_back(normal / Length(normal));
+    }
+
+    UnmapBuffers(g_buffers);
+    NvFlexSetParticles(g_solver, g_buffers->positions.buffer, nullptr);
+    NvFlexSetRestParticles(g_solver, g_buffers->restPositions.buffer, nullptr);
+    NvFlexSetVelocities(g_solver, g_buffers->velocities.buffer, nullptr);
+    NvFlexSetPhases(g_solver, g_buffers->phases.buffer, nullptr);
+    NvFlexSetSprings(g_solver, g_buffers->springIndices.buffer, g_buffers->springLengths.buffer, g_buffers->springStiffness.buffer, g_buffers->springIndices.size() / 2);
+    NvFlexSetDynamicTriangles(g_solver, g_buffers->triangles.buffer, g_buffers->triangleNormals.buffer, g_buffers->triangles.size() / 3);
+    NvFlexSetActive(g_solver, g_buffers->activeIndices.buffer, nullptr);
+    NvFlexSetActiveCount(g_solver, baseIndex + num_verts);
+
+    return make_pair(baseIndex, num_verts);
+}
+
 PYBIND11_MODULE(pyflex, m) {
     m.def("main", &main);
 
@@ -1288,4 +1461,20 @@ PYBIND11_MODULE(pyflex, m) {
 
     m.def("add_rigid_body", &pyflex_add_rigid_body);
     m.def("set_shape_color", &pyflex_set_shape_color, "Set the color of the shape");
+    m.def("set_scene_from_dict", &pyflex_set_scene_from_dict);
+    //m.def("add_cloth_square", &pyflex_add_cloth_square, "Add cloth (square)");
+    m.def("add_cloth_mesh",
+          &pyflex_add_cloth_mesh,
+          "Add cloth (mesh)",
+          py::arg("position"),
+          py::arg("verts"),
+          py::arg("faces"),
+          py::arg("stretch_edges"),
+          py::arg("bend_edges"),
+          py::arg("shear_edges"),
+          py::arg("uvs"),
+          py::arg("stiffness"),
+          py::arg("mass") = 1);
+    m.def("change_cloth_color", &pyflex_change_cloth_color, "Change color");
+    m.def("set_camera_params_v2", &pyflex_set_camera_params_v2, "Set camera parameters");
 }
