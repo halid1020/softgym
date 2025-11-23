@@ -3,6 +3,7 @@ from softgym.utils.misc import vectorized_range, vectorized_meshgrid
 from scipy.spatial.transform import Rotation
 
 def get_camera_matrix(cam_pos, cam_angle, cam_size, cam_fov):
+    #print('camera size for instrinsic', cam_size)
     focal_length = cam_size[0] / 2 / np.tan(cam_fov / 2)
     cam_intrinsics = np.array([[focal_length, 0, float(cam_size[1])/2],
                                [0, focal_length, float(cam_size[0])/2],

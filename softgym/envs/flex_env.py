@@ -189,7 +189,7 @@ class FlexEnv(gym.Env):
             camera_pos, 
             camera_angle, 
             [camera_param['width'], camera_param['height']],
-            np.pi/4.0)
+            45*np.pi/180)
         self.camera_size = [camera_param['width'], camera_param['height']]
         
         pyflex.set_camera_params(
