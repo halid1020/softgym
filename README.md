@@ -88,6 +88,8 @@ python run.py --domain realadapt-towels --initial crumpled \
     --task flattening --policy realadapt-OTS --eid 1 --save_video
 ```
 
+You can find the visualisation results under the generated `results` folder.
+
 ## B. Folding oracles
 
 The supported folding types include `one-corner-inward-folding`, `double-corner-inward-folding`, `all-corner-inward-folding`, `diagonal-folding`, `digonal-cross-folding`, `corners-edge-inward-folding`, `rectangular-folding`, `side-folding` and `double-side-folding`. Note that some folding types are only supported in square-fabric benchmark environments.
