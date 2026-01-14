@@ -4,12 +4,13 @@ channels:
 dependencies:
   - python=3.10
   - pip
+  - geos
   - pip:
     - pybind11==2.11.1
     - numpy
     - imageio
     - matplotlib
-    - moviepy
+    - moviepy==1.0.3
     - joblib
     - opencv-python
     - Shapely==1.6.4.post2

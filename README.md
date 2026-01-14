@@ -32,37 +32,31 @@ conda remove -n softgym-py3.10 --all
 4. Download and install the [`cloth_initial_states.zip`](https://drive.google.com/uc?id=1c6vPb-TVqkqOkc5-X33nDVJm5e2LPUG7) Note that you can skip this step if you want the environments themselves generates the corresponding initial states automatically at the begining of initialisation, but it may take quite a long time.
 
 ```
+# Under the root directory of softgym
 
-# Do not forget to install `gdown` using `pip install gdown`.
+conda activate softgym-py3.10
 
 gdown https://drive.google.com/uc?id=1c6vPb-TVqkqOkc5-X33nDVJm5e2LPUG7
 
-mv cloth_initial_states.zip <path_to_softgym>/softgym
+mv cloth_initial_states.zip $PWD/softgym
 
-cd <path_to_softgym>/softgym 
-
-mkdir cached_initial_states
+cd softgym & mkdir cached_initial_states
 
 unzip cloth_initial_states.zip && mv cloth_initial_states/*.pkl cached_initial_states/
 ```
 
-5. Ensure `nvidia-docker` is installed (this is deprecated), as we need to use docker environment to compile the simulation environment; it can be installed by following this [tutorial](https://docs.docker.com/engine/install/ubuntu/) and this [tutorial](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/1.10.0/install-guide.html).
-6. Compile the simulator inside a docker file provided by the original authors of `SoftGym`.
+
+
+5. Compile the simulator inside a docker file provided by the original authors of `SoftGym`.
 
 ```
-nvidia-docker run -v <path_to_softgym>/softgym:/workspace/softgym \
--v $HOME/anaconda3:$HOME/anaconda3 \
--it xingyu/softgym:latest bash
-
-# Or (recommend)
-
 docker run -v <path_to_softgym>/softgym:/workspace/softgym \
 -v $HOME/anaconda3:$HOME/anaconda3 \
 -it xingyu/softgym:latest bash
 
 ```
 
-Compile the simulator in the docker:
+Compile the simulator in the docker container:
 
 ```
 export PATH="<absolute_path_to_home_dir>/anaconda3/bin:$PATH"
