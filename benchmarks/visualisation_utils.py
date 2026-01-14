@@ -39,13 +39,13 @@ def plot_pick_and_place_trajectory(obs, acts,
 
     row = math.ceil(len(obs)/col)
     T, H, W, C = obs.shape
-    print('obs shape', obs.shape)
+    #print('obs shape', obs.shape)
     fig = plt.figure(figsize=(5*col, 5*row))
     outer = fig.add_gridspec(ncols=1, nrows=1)
     inner = gridspec.GridSpecFromSubplotSpec(row, col, # TODO: magic number
                 subplot_spec=outer[0], wspace=0, hspace=0)
     
-    print('acts', acts)
+    #print('acts', acts)
     
     act_len = acts.shape[0]
     acts =  acts.reshape(act_len, -1, 4)

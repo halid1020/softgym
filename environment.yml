@@ -5,7 +5,7 @@ dependencies:
   - python=3.10
   - pip
   - pip:
-    - pytbind11==2.11.1
+    - pybind11==2.11.1
     - numpy
     - imageio
     - matplotlib
