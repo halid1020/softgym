@@ -40,7 +40,7 @@ gdown https://drive.google.com/uc?id=1c6vPb-TVqkqOkc5-X33nDVJm5e2LPUG7
 
 mv cloth_initial_states.zip $PWD/softgym
 
-cd softgym & mkdir cached_initial_states
+cd softgym && mkdir cached_initial_states
 
 unzip cloth_initial_states.zip && mv cloth_initial_states/*.pkl cached_initial_states/
 ```
