@@ -166,22 +166,40 @@ void pyflex_init(bool headless=false, bool render=true, int camera_width=720, in
 
 void pyflex_clean() {
 
-    if (g_fluidRenderer)
+    if (g_fluidRenderer) {
         DestroyFluidRenderer(g_fluidRenderer);
+        g_fluidRenderer = nullptr; 
+    }
 
     DestroyFluidRenderBuffers(g_fluidRenderBuffers);
     DestroyDiffuseRenderBuffers(g_diffuseRenderBuffers);
 
-    ShadowDestroy(g_shadowMap);
+    if (g_render && g_shadowMap) {
+        ShadowDestroy(g_shadowMap);
+        g_shadowMap = nullptr;
+    }
 
     Shutdown();
-    if (g_headless == false)
-	{
-		DestroyRender();
 
-		SDL_DestroyWindow(g_window);
-		SDL_Quit();
-	}
+    if (g_headless == false)
+    {
+        DestroyRender();
+        if (g_window) {
+            SDL_DestroyWindow(g_window);
+            g_window = nullptr;
+        }
+        SDL_Quit();
+    } 
+    else if (g_render == true) 
+    {
+        // Actually destroy the EGL context in headless mode!
+        DestroyRenderHeadless();
+    }
+    
+    for(size_t i = 0; i < g_scenes.size(); ++i) {
+        delete g_scenes[i];
+    }
+    g_scenes.clear();
 }
 
 int main() {

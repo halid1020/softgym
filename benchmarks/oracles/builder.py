@@ -128,12 +128,12 @@ class OracleRectFabricPolicyBuilder():
             return RectFabricMultiStepFoldingExpertPolicy
         
         if 'pixel-pick-and-place' in action and 'real2sim-smoothing' == strategy:
-            from agent_arena.agent.oracle.rect_fabric.real2sim_smoothing \
+            from actoris_harena.agent.oracle.rect_fabric.real2sim_smoothing \
                 import Real2SimPickSmoothing
             return Real2SimPickSmoothing
 
         if 'world-pick-and-place' in action and 'real2sim-smoothing' == strategy:
-            from agent_arena.agent.oracle.rect_fabric.real2sim_smoothing \
+            from actoris_harena.agent.oracle.rect_fabric.real2sim_smoothing \
                 import Real2SimPickSmoothing
             return Real2SimPickSmoothing
 

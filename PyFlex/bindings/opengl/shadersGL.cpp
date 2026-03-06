@@ -245,10 +245,10 @@ static float g_spotMax = 1.0f;
 float g_shadowBias = 0.05f;
 
 #ifdef __linux__
-EGLDisplay* g_eglDisplay;
-EGLConfig*  g_eglConfig;
-EGLContext* g_eglContext;
-EGLSurface* g_eglSurface;
+EGLDisplay g_eglDisplay = EGL_NO_DISPLAY;
+EGLConfig  g_eglConfig;
+EGLContext g_eglContext = EGL_NO_CONTEXT;
+EGLSurface g_eglSurface = EGL_NO_SURFACE;
 #endif
 
 } // anonymous namespace
@@ -261,6 +261,11 @@ void DrawShapes();
 
 namespace OGL_Renderer
 {
+
+static GLuint s_diffuseProgram = GLuint(-1);
+static GLuint s_shadowProgram = GLuint(-1);
+static GLuint s_pointProgram = GLuint(-1);         // <--- NEW
+static GLuint s_diffuseRenderProgram = GLuint(-1); // <--- NEW
 
 char font_path[100];
 
@@ -303,6 +308,14 @@ void InitRender(const RenderInitOptions& options)
 
 void DestroyRender()
 {
+    if (s_diffuseProgram != GLuint(-1)) { glDeleteProgram(s_diffuseProgram); s_diffuseProgram = GLuint(-1); }
+    if (s_shadowProgram != GLuint(-1)) { glDeleteProgram(s_shadowProgram); s_shadowProgram = GLuint(-1); }
+    if (s_pointProgram != GLuint(-1)) { glDeleteProgram(s_pointProgram); s_pointProgram = GLuint(-1); }
+    if (s_diffuseRenderProgram != GLuint(-1)) { glDeleteProgram(s_diffuseRenderProgram); s_diffuseRenderProgram = GLuint(-1); }
+
+    if (g_msaaFbo) { glDeleteFramebuffers(1, &g_msaaFbo); g_msaaFbo = 0; }
+    if (g_msaaColorBuf) { glDeleteRenderbuffers(1, &g_msaaColorBuf); g_msaaColorBuf = 0; }
+    if (g_msaaDepthBuf) { glDeleteRenderbuffers(1, &g_msaaDepthBuf); g_msaaDepthBuf = 0; }
 }
 
 void StartFrame(Vec4 clearColor)
@@ -886,15 +899,25 @@ void DrawPoints(FluidRenderBuffers* buffersIn, int n, int offset, float radius, 
 	GLuint colors = buffers->mDensityVBO;
 	GLuint indices = buffers->mIndices;
 
-	static int sprogram = -1;
-	if (sprogram == -1)
-	{
-		sprogram = CompileProgram(vertexPointShader, fragmentPointShader);
-	}
+	// static int sprogram = -1;
+	// if (sprogram == -1)
+	// {
+	// 	sprogram = CompileProgram(vertexPointShader, fragmentPointShader);
+	// }
 
-	if (sprogram)
-	{
-		glEnable(GL_POINT_SPRITE);
+	// 1. Compile if it hasn't been compiled yet
+    if (s_pointProgram == GLuint(-1))
+    {
+        s_pointProgram = CompileProgram(vertexPointShader, fragmentPointShader);
+    }
+
+    // 2. Create a local alias so you don't have to rename it in the 30 lines below!
+    GLuint sprogram = s_pointProgram;
+
+    // 3. Proceed if valid
+    if (sprogram != GLuint(-1) && sprogram != 0)
+    {
+        glEnable(GL_POINT_SPRITE);
 		glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
 		glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 		//glDepthMask(GL_TRUE);
@@ -958,8 +981,7 @@ void DrawPoints(FluidRenderBuffers* buffersIn, int n, int offset, float radius, 
 
 void DrawPlane(const Vec4& p);
 
-static GLuint s_diffuseProgram = GLuint(-1);
-static GLuint s_shadowProgram = GLuint(-1);
+
 
 #ifdef ANDROID
 void ResetProgramId()
@@ -2665,14 +2687,24 @@ int GetNumDiffuseRenderParticles(DiffuseRenderBuffers* buffers)
 void RenderDiffuse(FluidRenderer* render, DiffuseRenderBuffers* buffersIn, int n, float radius, float screenWidth, float screenAspect, float fov, Vec4 color, Vec3 lightPos, Vec3 lightTarget, Matrix44 lightTransform, ShadowMap* shadowMap, float motionBlur, float inscatter, float outscatter, bool shadow, bool front)
 {
 	DiffuseRenderBuffersGL* buffers = reinterpret_cast<DiffuseRenderBuffersGL*>(buffersIn);
-	static int sprogram = -1;
-	if (sprogram == -1)
-		sprogram = CompileProgram(vertexDiffuseShader, fragmentDiffuseShader, geometryDiffuseShader);
+	// static int sprogram = -1;
+	// if (sprogram == -1)
+	// 	sprogram = CompileProgram(vertexDiffuseShader, fragmentDiffuseShader, geometryDiffuseShader);
 
-	int thicknessScale = 1;
+	// 1. Compile if it hasn't been compiled yet
+    if (s_diffuseRenderProgram == GLuint(-1))
+    {
+        s_diffuseRenderProgram = CompileProgram(vertexDiffuseShader, fragmentDiffuseShader, geometryDiffuseShader);
+    }
+    
+    // 2. Create a local alias
+    GLuint sprogram = s_diffuseRenderProgram;
 
-	if (sprogram)
-	{
+    int thicknessScale = 1;
+
+    // 3. Proceed if valid
+    if (sprogram != GLuint(-1) && sprogram != 0)
+    {
 #if USE_HDR_DIFFUSE_BLEND
 	
 		{
@@ -3359,8 +3391,9 @@ void InitRenderHeadless(const RenderInitOptions& options, int width, int height)
 
 	// printf("after eglbindAPI\n");
 
-	EGLDisplay g_eglDisplay = selectedDisplay;
-    
+	//EGLDisplay g_eglDisplay = selectedDisplay;
+    g_eglDisplay = selectedDisplay;
+
 	if (g_eglDisplay == EGL_NO_DISPLAY)
 		printf("eglGetDisplay() failed");
 
@@ -3480,4 +3513,25 @@ void InitRenderHeadless(const RenderInitOptions& options, int width, int height)
 
 #endif
 
+}
+
+void DestroyRenderHeadless()
+{
+    OGL_Renderer::DestroyRender(); // Clean up GL programs first
+
+#ifdef __linux__
+    if (g_eglDisplay != EGL_NO_DISPLAY) {
+        eglMakeCurrent(g_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        if (g_eglContext != EGL_NO_CONTEXT) {
+            eglDestroyContext(g_eglDisplay, g_eglContext);
+            g_eglContext = EGL_NO_CONTEXT;
+        }
+        if (g_eglSurface != EGL_NO_SURFACE) {
+            eglDestroySurface(g_eglDisplay, g_eglSurface);
+            g_eglSurface = EGL_NO_SURFACE;
+        }
+        eglTerminate(g_eglDisplay);
+        g_eglDisplay = EGL_NO_DISPLAY;
+    }
+#endif
 }

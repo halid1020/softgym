@@ -36,6 +36,7 @@ namespace py = pybind11;
 
 
 void InitRenderHeadless(const RenderInitOptions& options, int width, int height);
+void DestroyRenderHeadless();
 
 SDL_Window *g_window;           // window handle
 unsigned int g_windowId;        // window id
@@ -1612,6 +1613,7 @@ void Reset() {
 void Shutdown() {
     // free buffers
     DestroyBuffers(g_buffers);
+    g_buffers = nullptr; // Reset to prevent dangling pointers
 
     for (auto &iter : g_meshes) {
         NvFlexDestroyTriangleMesh(g_flexLib, iter.first);
@@ -1630,9 +1632,17 @@ void Shutdown() {
 
     g_fields.clear();
     g_meshes.clear();
+    g_convexes.clear(); // Good practice to clear this as well
 
-    NvFlexDestroySolver(g_solver);
-    NvFlexShutdown(g_flexLib);
+    if (g_solver) {
+        NvFlexDestroySolver(g_solver);
+        g_solver = nullptr;
+    }
+    
+    if (g_flexLib) {
+        NvFlexShutdown(g_flexLib);
+        g_flexLib = nullptr;
+    }
 }
 
 void UpdateEmitters() {
