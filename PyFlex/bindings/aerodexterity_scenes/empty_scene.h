@@ -32,6 +32,9 @@ public:
             if (key == "numExtraParticles") g_numExtraParticles = std::stoi(py::str(item.second));
         }
 
+        cout << "[pyflex] particle radius " << g_params.radius << endl;
+        cout << "[pyflex] collision distance " << g_params.collisionDistance << endl;
+
         g_numSubsteps = 4;
         g_params.numIterations = 30;
 
@@ -45,5 +48,6 @@ public:
 
         g_sceneLower = Vec3(-1.0f);
         g_sceneUpper = Vec3(1.0f);
+        cout << "[pyflex] EmptyScene is intialised!" << endl;
     }
 };

@@ -1340,6 +1340,7 @@ pair<int, int> pyflex_add_cloth_mesh(
     size_t num_verts = verts_buf.shape[0] / 3;
     auto verts_ptr = (float *)verts_buf.ptr;
     float invMass = num_verts / mass;
+    cout << "[pyflex] Total cloth mass " << mass << endl;
 
     auto uvs_buf = uvs.request();
     assert((bool)(uvs_buf.shape[0] == num_verts));

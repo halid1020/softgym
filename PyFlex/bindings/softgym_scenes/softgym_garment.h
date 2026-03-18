@@ -37,7 +37,7 @@ public:
 
     SoftgymGarment(const char* name): Scene(name) {
         
-
+        cout << '[pyflex] SoftGym scene is intialised!' << endl;
         // Initialize the garment id to name map
         garment_id2name[0] = "Tshirt";
         garment_id2name[1] = "Trousers";
