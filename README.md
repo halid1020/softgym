@@ -165,6 +165,53 @@ Environment returns a dictionary of `information` after a pick-and-Place primiti
         scalar with type <class 'float'>
 ```
 
+Certainly! I have drafted the instructions for the Viking cluster below. You can insert this section directly into your `README` file, ideally right after the "Install and Setup the Simulator" section.
+
+***
+
+## III. Installing on the Viking Cluster
+
+If you are using the Viking cluster, please follow these steps instead of the standard Anaconda and Docker installation procedures.
+
+### 1. Environment Setup
+Load the necessary module to handle your environment, then create and activate it:
+
+```bash
+# Load the Miniconda module
+module load Miniconda3/23.5.2-0
+
+# Create the environment (under the root directory of the softgym repository)
+conda env create -f environment.yml
+
+# Activate the environment
+source activate softgym-py3.10
+```
+
+### 2. Compilation using Apptainer
+Instead of using standard Docker, use Apptainer to compile the simulator within the cluster environment:
+
+```bash
+# Load the Apptainer module
+module load Apptainer/latest
+
+# Pull the required image
+apptainer pull docker://xingyu/softgym:latest
+
+# Open the shell with the appropriate bindings
+apptainer shell --nv --bind $PWD:/workspace/softgym softgym_latest.sif
+
+# Set your path and compile
+# Note: Ensure the path below matches your specific username and environment name
+export PATH="/users/<userid>/.conda/envs/softgym-py3.10/bin:$PATH" 
+
+cd /workspace/softgym
+. ./setup.sh && . ./compile.sh
+
+# Exit the container when compilation is complete
+exit
+```
+
+
 # Related Papers
 
 [1] Kadi HA, Chandy JA, Figuerdo L, Terzić K, Caleb-Solly P. DRAPER: Towards a Robust Robot Deployment and Reliable Evaluation for Quasi-Static Pick-and-Place Cloth-Shaping Neural Controllers. arXiv preprint arXiv:2409.15159 2024.

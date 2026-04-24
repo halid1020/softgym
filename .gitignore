@@ -21,3 +21,4 @@ PyFlex/bindings/examples/*.gif
 build/
 *.zip
 results
+*sif
