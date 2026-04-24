@@ -141,7 +141,8 @@ bool g_useAsyncCompute = true;
 bool g_increaseGfxLoadForAsyncComputeTesting = false;
 int g_graphics = 0; // 0=ogl, 1=DX11, 2=DX12
 
-float fov = kPi / 4.0f;
+float g_fovX = kPi / 4.0f;
+float g_fovY = kPi / 4.0f;
 
 FluidRenderer *g_fluidRenderer;
 FluidRenderBuffers *g_fluidRenderBuffers;
@@ -1865,10 +1866,15 @@ void RenderScene() {
     //---------------------------------------
     // setup view and state
 
-    float fov = kPi / 4.0f;
-    float aspect = float(g_screenWidth) / g_screenHeight;
+    // 1. Screen aspect for 2D pixel mapping in particle shaders
+    float aspect = float(g_screenWidth) / g_screenHeight; 
+    
+    // 2. Frustum aspect for strict 3D horizontal/vertical bounds
+    float frustumAspect = tanf(g_fovX / 2.0f) / tanf(g_fovY / 2.0f);
 
-    Matrix44 proj = ProjectionMatrix(RadToDeg(fov), aspect, g_camNear, g_camFar);
+    // 3. Build projection
+    Matrix44 proj = ProjectionMatrix(RadToDeg(g_fovY), frustumAspect, g_camNear, g_camFar);
+
     Matrix44 view = RotationMatrix(-g_camAngle.x, Vec3(0.0f, 1.0f, 0.0f)) *
                     RotationMatrix(-g_camAngle.y, Vec3(cosf(-g_camAngle.x), 0.0f, sinf(-g_camAngle.x))) *
                     TranslationMatrix(-Point3(g_camPos));
@@ -2010,7 +2016,7 @@ void RenderScene() {
     // first pass of diffuse particles (behind fluid surface)
     if (g_drawDiffuse)
         RenderDiffuse(g_fluidRenderer, g_diffuseRenderBuffers, numDiffuse, radius * g_diffuseScale,
-                      float(g_screenWidth), aspect, fov, g_diffuseColor, g_lightPos, g_lightTarget, lightTransform,
+                      float(g_screenWidth), aspect, g_fovY, g_diffuseColor, g_lightPos, g_lightTarget, lightTransform,
                       g_shadowMap, g_diffuseMotionScale, g_diffuseInscatter, g_diffuseOutscatter, g_diffuseShadow,
                       false);
     // printf("pass RenderDiffuse\n");
@@ -2018,22 +2024,22 @@ void RenderScene() {
     if (g_drawEllipsoids) {
         // draw solid particles separately
         if (g_numSolidParticles && g_drawPoints)
-            DrawPoints(g_fluidRenderBuffers, g_numSolidParticles, 0, radius, float(g_screenWidth), aspect, fov,
+            DrawPoints(g_fluidRenderBuffers, g_numSolidParticles, 0, radius, float(g_screenWidth), aspect, g_fovY,
                        g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_drawDensity);
 
         // printf("pass DrawPoints\n");
         // render fluid surface
         RenderEllipsoids(g_fluidRenderer, g_fluidRenderBuffers, numParticles - g_numSolidParticles, g_numSolidParticles,
-                         radius, float(g_screenWidth), aspect, fov, g_lightPos, g_lightTarget, lightTransform,
+                         radius, float(g_screenWidth), aspect, g_fovY, g_lightPos, g_lightTarget, lightTransform,
                          g_shadowMap, g_fluidColor, g_blur, g_ior, g_drawOpaque);
 
         // printf("pass RenderEllipsoids\n");
         // second pass of diffuse particles for particles in front of fluid surface
         if (g_drawDiffuse)
             RenderDiffuse(g_fluidRenderer, g_diffuseRenderBuffers, numDiffuse, radius * g_diffuseScale,
-                          float(g_screenWidth), aspect, fov, g_diffuseColor, g_lightPos, g_lightTarget, lightTransform,
-                          g_shadowMap, g_diffuseMotionScale, g_diffuseInscatter, g_diffuseOutscatter, g_diffuseShadow,
-                          true);
+                        float(g_screenWidth), aspect, g_fovY, g_diffuseColor, g_lightPos, g_lightTarget, lightTransform,
+                        g_shadowMap, g_diffuseMotionScale, g_diffuseInscatter, g_diffuseOutscatter, g_diffuseShadow,
+                        false);
         // printf("pass RenderDiffuse\n");
         
     } else {
@@ -2043,7 +2049,7 @@ void RenderScene() {
 
             if (g_buffers->activeIndices.size())
                 DrawPoints(g_fluidRenderBuffers, numParticles - offset, offset, radius, float(g_screenWidth), aspect,
-                           fov, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_drawDensity);
+                           g_fovY, g_lightPos, g_lightTarget, lightTransform, g_shadowMap, g_drawDensity);
         }
         // printf("pass DrawPoints\n");
     }

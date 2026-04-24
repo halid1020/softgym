@@ -1295,9 +1295,20 @@ void pyflex_set_camera_params_v2(py::dict scene_params)
                 g_screenHeight = cam_height;
                 g_screenWidth = cam_width;
             }
+            // if (key == "cam_fov")
+            // {
+            //     fov = std::stof(py::str(item.second));
+            // }
             if (key == "cam_fov")
             {
-                fov = std::stof(py::str(item.second));
+                auto fov_list = item.second.cast<py::list>();
+                if (fov_list.size() >= 2) {
+                    g_fovX = fov_list[0].cast<float>();
+                    g_fovY = fov_list[1].cast<float>(); 
+                } else if (fov_list.size() == 1) {
+                    g_fovY = fov_list[0].cast<float>();
+                    g_fovX = g_fovY; // fallback
+                }
             }
         }
     }
