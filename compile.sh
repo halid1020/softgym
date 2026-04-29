@@ -1,4 +1,4 @@
-. activate softgym-py3.10
+. activate softgym-py3.8
 cd PyFlex/bindings
 rm -rf build
 mkdir build

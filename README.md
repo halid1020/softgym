@@ -26,7 +26,7 @@ conda env create -f environment.yml
 Note that if you want to remove the environment
 
 ```
-conda remove -n softgym-py3.10 --all  
+conda remove -n softgym-py3.8 --all  
 ```
 
 4. Download and install the [`cloth_initial_states.zip`](https://drive.google.com/uc?id=1c6vPb-TVqkqOkc5-X33nDVJm5e2LPUG7) Note that you can skip this step if you want the environments themselves generates the corresponding initial states automatically at the begining of initialisation, but it may take quite a long time.
@@ -34,7 +34,7 @@ conda remove -n softgym-py3.10 --all
 ```
 # Under the root directory of softgym
 
-conda activate softgym-py3.10
+conda activate softgym-py3.8
 
 gdown https://drive.google.com/uc?id=1c6vPb-TVqkqOkc5-X33nDVJm5e2LPUG7
 
