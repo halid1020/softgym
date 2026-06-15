@@ -68,6 +68,46 @@ cd softgym
 
 Note that the <absolute_path_to_home_dir> should be the `$HOME` from **OUTSIDE** the docker, not from inside it (`$HOME` inside the docker is /root/, which isn't where we've mapped `anaconda3`).
 
+---
+
+### Troubleshooting: GLIBC Version Mismatch During Compilation
+
+If you encounter an error stating `version 'GLIBC_2.28' not found (required by python)` or CMake fails to find `pybind11` during step 5, your host machine's Anaconda environment is incompatible with the older operating system inside the `softgym:latest` Docker container.
+
+To resolve this, you must sever the connection to the host machine's Conda environment and build one natively inside the container.
+
+**1. Relaunch the container without the host Anaconda mount:**
+Exit the broken Docker session, and start a new one mapping only the project workspace:
+
+```bash
+docker run -v <path_to_softgym>/softgym:/workspace/softgym \
+-it xingyu/softgym:latest bash
+
+```
+
+**2. Install a compatible Miniconda inside the container:**
+The container's OS (Ubuntu 18.04) requires an older Miniconda installer that does not demand GLIBC 2.28. Run the following inside the container to install version 23.5.2:
+
+```bash
+apt-get update && apt-get install -y wget
+wget https://repo.anaconda.com/miniconda/Miniconda3-py39_23.5.2-0-Linux-x86_64.sh
+bash Miniconda3-py39_23.5.2-0-Linux-x86_64.sh -b -p /opt/conda
+export PATH="/opt/conda/bin:$PATH"
+
+```
+
+**3. Build the environment and compile:**
+Once the native Conda installation is ready, recreate your environment and compile the physics bindings directly:
+
+```bash
+cd /workspace/softgym
+conda env create -f environment.yml
+source /opt/conda/bin/activate softgym-py3.10
+
+. ./setup.sh && . ./compile.sh
+
+```
+
 # II. Run Oracle Policies
 
 You do not need to employ the docker container used during the compilation in this section, but you do need to do the setup again under the root directory of the repository.
@@ -210,6 +250,7 @@ cd /workspace/softgym
 # Exit the container when compilation is complete
 exit
 ```
+
 
 
 # Related Papers
